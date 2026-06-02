@@ -38,6 +38,15 @@ html,body{margin:0;padding:0;}
 .fd-tab:hover{color:var(--ink);}
 .fd-tab.active{background:var(--ink); color:var(--paper);}
 .fd-tab-n{font-family:'IBM Plex Mono',monospace; font-size:11px; opacity:.7;}
+.fd-nav{display:flex; gap:4px; margin-bottom:22px; border-bottom:1px solid var(--line);}
+.fd-nav-btn{display:inline-flex; align-items:center; gap:7px; background:none; border:none; border-bottom:2px solid transparent; font-family:inherit; font-size:14px; color:var(--muted); padding:10px 8px; margin-bottom:-1px; cursor:pointer; transition:all .15s;}
+.fd-nav-btn:hover{color:var(--ink);}
+.fd-nav-btn.active{color:var(--ink); border-bottom-color:var(--accent); font-weight:500;}
+.fd-sortbar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+.fd-sort-label{font-size:12.5px; color:var(--muted);}
+.fd-select{font-family:inherit; font-size:13px; color:var(--ink); background:#fdfcf8; border:1px solid var(--line); border-radius:9px; padding:8px 10px; cursor:pointer;}
+.fd-select:focus{outline:none; border-color:var(--accent);}
+.fd-group-head{font-family:'Fraunces',serif; font-size:17px; font-weight:600; margin:8px 2px 0; padding-top:8px; letter-spacing:.01em;}
 
 .fd-btn{font-family:inherit; font-size:13.5px; font-weight:500; border-radius:10px; padding:9px 15px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; border:1px solid transparent; transition:all .15s;}
 .fd-btn.sm{font-size:12.5px; padding:7px 11px; border-radius:9px;}
@@ -143,6 +152,7 @@ const X = (p) => <Svg {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y
 const RotateCcw = (p) => <Svg {...p}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></Svg>;
 const Inbox = (p) => <Svg {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></Svg>;
 const Send = (p) => <Svg {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></Svg>;
+const FileText = (p) => <Svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></Svg>;
 
 // ---------- date helpers ----------
 const MS_DAY = 86400000;
@@ -257,6 +267,18 @@ const VARIANTS = {
 
 const SAMPLE_RECIPIENT = { id: "preview", name: "Jordan", subject: "the onboarding paperwork", notes: "the signed contract", followUpsSent: 0 };
 
+const PENDING_CATS = {
+  requisition: { label: "Requisition", color: "#5f6f54" },
+  changeorder: { label: "Change Order", color: "#a8442a" },
+};
+const SORT_FIELDS = [
+  { id: "dateSent", label: "Date sent" },
+  { id: "jobNumber", label: "Job number" },
+  { id: "jobName", label: "Job name" },
+  { id: "title", label: "Document title" },
+  { id: "sentTo", label: "Sent to" },
+];
+
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 function pick(arr, seed) { return arr[seed % arr.length]; }
 
@@ -359,6 +381,12 @@ function FollowUpDesk() {
   const [showSettings, setShowSettings] = useState(false);
   const [previewSeed, setPreviewSeed] = useState(1);
   const [toast, setToast] = useState(null);
+  const [section, setSection] = useState("followups");
+  const [pending, setPending] = useState([]);
+  const [pendingView, setPendingView] = useState("all");
+  const [pendingSort, setPendingSort] = useState({ field: "dateSent", dir: "desc" });
+  const [showPendingForm, setShowPendingForm] = useState(false);
+  const [editingPendingId, setEditingPendingId] = useState(null);
 
   const blankForm = () => ({
     name: "", company: "", email: "", cc: "", subject: "", notes: "",
@@ -367,6 +395,12 @@ function FollowUpDesk() {
   });
   const [form, setForm] = useState(blankForm());
 
+  const blankPForm = () => ({
+    title: "", dateSent: todayStr(), category: "requisition",
+    jobNumber: "", jobName: "", attachment: "", sentTo: "", sentToEmail: "",
+  });
+  const [pForm, setPForm] = useState(blankPForm());
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORE_KEY);
@@ -374,6 +408,7 @@ function FollowUpDesk() {
         const parsed = JSON.parse(raw);
         setFollowups(parsed.followups || []);
         setSettings({ ...DEFAULT_SETTINGS, ...(parsed.settings || {}) });
+        setPending(parsed.pending || []);
       }
     } catch (e) { /* first run */ }
     setLoaded(true);
@@ -381,9 +416,9 @@ function FollowUpDesk() {
 
   useEffect(() => {
     if (!loaded) return;
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ followups, settings })); }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ followups, settings, pending })); }
     catch (e) { console.error("save failed", e); }
-  }, [followups, settings, loaded]);
+  }, [followups, settings, pending, loaded]);
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
 
@@ -573,6 +608,55 @@ function FollowUpDesk() {
     setFollowups([]); flash("Cleared");
   };
 
+  const startEditPending = (p) => {
+    setPForm({
+      title: p.title || "", dateSent: p.dateSent || todayStr(), category: p.category || "requisition",
+      jobNumber: p.jobNumber || "", jobName: p.jobName || "", attachment: p.attachment || "",
+      sentTo: p.sentTo || "", sentToEmail: p.sentToEmail || "",
+    });
+    setEditingPendingId(p.id); setShowPendingForm(true);
+  };
+
+  const submitPending = () => {
+    if (!pForm.title.trim()) return flash("A document title is required");
+    if (editingPendingId) {
+      setPending((arr) => arr.map((x) => (x.id === editingPendingId ? { ...x, ...pForm } : x)));
+      flash("Updated");
+    } else {
+      setPending((arr) => [...arr, { ...pForm, id: Date.now().toString(36), createdAt: todayStr() }]);
+      flash("Added to pending signatures");
+    }
+    setPForm(blankPForm()); setEditingPendingId(null); setShowPendingForm(false);
+  };
+
+  const removePending = (id) => setPending((arr) => arr.filter((x) => x.id !== id));
+  const markSigned = (p) => { removePending(p.id); flash("Marked as signed and removed from pending"); };
+
+  const createFollowUpFromPending = (p) => {
+    const job = [p.jobNumber, p.jobName].filter(Boolean).join(" – ");
+    const fu = {
+      id: Date.now().toString(36),
+      name: p.sentTo || "", company: job, email: p.sentToEmail || "", cc: "",
+      subject: p.title || "", notes: p.title ? ("the signed " + p.title) : "the signed document",
+      customBody: "", attachments: p.attachment || "",
+      lastContact: p.dateSent || todayStr(), intervalDays: settings.defaultInterval,
+      status: "active", followUpsSent: 0, createdAt: todayStr(),
+    };
+    setFollowups((arr) => [...arr, fu]);
+    flash("Added to Follow-ups: " + (p.sentTo || p.sentToEmail || "new follow-up"));
+  };
+
+  const sortPending = (items) => {
+    const f = pendingSort.field, dir = pendingSort.dir === "asc" ? 1 : -1;
+    return [...items].sort((a, b) => {
+      if (f === "jobNumber") {
+        const an = parseFloat(a.jobNumber), bn = parseFloat(b.jobNumber);
+        if (!isNaN(an) && !isNaN(bn)) return (an - bn) * dir;
+      }
+      return String(a[f] || "").localeCompare(String(b[f] || "")) * dir;
+    });
+  };
+
   const enriched = useMemo(() =>
     followups.map((f) => ({ ...f, _s: getStatus(f) })).sort((a, b) => {
       const w = sortWeight[a._s.key] - sortWeight[b._s.key];
@@ -616,8 +700,46 @@ function FollowUpDesk() {
       add(f.email, f.name, f.company);
       (f.cc || "").split(",").forEach((c) => add(c.trim(), "", ""));
     });
+    pending.forEach((p) => add(p.sentToEmail, p.sentTo, ""));
     return Array.from(map.values()).sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
-  }, [followups]);
+  }, [followups, pending]);
+
+  const pendingCounts = useMemo(() => {
+    let req = 0, co = 0;
+    pending.forEach((p) => { if (p.category === "changeorder") co++; else req++; });
+    return { req, co, total: pending.length };
+  }, [pending]);
+
+  const reqItems = sortPending(pending.filter((p) => p.category !== "changeorder"));
+  const coItems = sortPending(pending.filter((p) => p.category === "changeorder"));
+
+  const renderPending = (p) => {
+    const cat = PENDING_CATS[p.category] || PENDING_CATS.requisition;
+    return (
+      <article className="fd-card" key={p.id}>
+        <div className="fd-card-bar" style={{ background: cat.color }} />
+        <div className="fd-card-body">
+          <div className="fd-card-top">
+            <div className="fd-who">
+              <span className="fd-name">{p.title}</span>
+              {(p.jobNumber || p.jobName) && <span className="fd-company">{[p.jobNumber, p.jobName].filter(Boolean).join(" · ")}</span>}
+            </div>
+            <span className="fd-badge" style={{ color: cat.color, borderColor: cat.color }}>{cat.label}</span>
+          </div>
+          <div className="fd-notes">Sent to {p.sentTo || "—"}{p.sentToEmail ? " · " + p.sentToEmail : ""}</div>
+          {p.attachment && p.attachment.trim() && <div className="fd-notes">Attachment: {p.attachment}</div>}
+          <div className="fd-meta"><span>Sent {p.dateSent ? prettyDate(p.dateSent) : "—"}</span></div>
+          <div className="fd-actions">
+            <button className="fd-btn primary sm" onClick={() => createFollowUpFromPending(p)}><Send size={14} /> Create follow-up</button>
+            <button className="fd-btn ghost sm" onClick={() => markSigned(p)}><Check size={14} /> Mark signed</button>
+            <div className="fd-spacer" />
+            <button className="fd-icon-btn sm" title="Edit" onClick={() => startEditPending(p)}><Pencil size={15} /></button>
+            <button className="fd-icon-btn sm danger" title="Delete" onClick={() => removePending(p.id)}><Trash2 size={15} /></button>
+          </div>
+        </div>
+      </article>
+    );
+  };
 
   const tabs = [
     { id: "attention", label: "Needs attention", n: counts.attention },
@@ -631,20 +753,34 @@ function FollowUpDesk() {
       <div className="fd-wrap">
         <header className="fd-head">
           <div>
-            <div className="fd-kicker">CORRESPONDENCE LEDGER</div>
-            <h1 className="fd-title">The Follow-Up Desk</h1>
+            <div className="fd-kicker">{section === "pending" ? "DOCUMENT TRACKER" : "CORRESPONDENCE LEDGER"}</div>
+            <h1 className="fd-title">{section === "pending" ? "Pending Signatures" : "The Follow-Up Desk"}</h1>
             <p className="fd-sub">
-              Track who still owes you documents. The desk tells you exactly who's due, writes the
-              note, and opens it in your mail app in one click.
+              {section === "pending"
+                ? "Documents you've sent out that are still awaiting a signature."
+                : "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click."}
             </p>
           </div>
           <div className="fd-head-actions">
-            <button className="fd-icon-btn" title="Settings" onClick={() => setShowSettings((s) => !s)}>
-              <SettingsIcon size={18} />
-            </button>
+            {section === "followups" && (
+              <button className="fd-icon-btn" title="Settings" onClick={() => setShowSettings((s) => !s)}>
+                <SettingsIcon size={18} />
+              </button>
+            )}
           </div>
         </header>
 
+        <div className="fd-nav">
+          <button className={"fd-nav-btn" + (section === "followups" ? " active" : "")} onClick={() => setSection("followups")}>
+            <Mail size={15} /> Follow-ups
+          </button>
+          <button className={"fd-nav-btn" + (section === "pending" ? " active" : "")} onClick={() => setSection("pending")}>
+            <FileText size={15} /> Pending signatures{pendingCounts.total > 0 ? " (" + pendingCounts.total + ")" : ""}
+          </button>
+        </div>
+
+        {section === "followups" && (
+        <>
         <div className="fd-stats">
           <Stat n={counts.attention} label="due for follow-up" tone="#9c3d28" />
           <Stat n={counts.waiting} label="awaiting reply" tone="#5f6f54" />
@@ -837,6 +973,121 @@ function FollowUpDesk() {
             );
           })}
         </div>
+        </>
+        )}
+
+        {section === "pending" && (
+        <>
+          <div className="fd-stats">
+            <Stat n={pendingCounts.req} label="requisitions pending" tone="#5f6f54" />
+            <Stat n={pendingCounts.co} label="change orders pending" tone="#a8442a" />
+            <Stat n={pendingCounts.total} label="documents total" tone="#8a8073" />
+          </div>
+
+          <div className="fd-toolbar">
+            <div className="fd-tabs">
+              {[
+                { id: "all", label: "All", n: pendingCounts.total },
+                { id: "requisition", label: "Requisitions", n: pendingCounts.req },
+                { id: "changeorder", label: "Change Orders", n: pendingCounts.co },
+              ].map((t) => (
+                <button key={t.id} className={"fd-tab" + (pendingView === t.id ? " active" : "")} onClick={() => setPendingView(t.id)}>
+                  {t.label}<span className="fd-tab-n">{t.n}</span>
+                </button>
+              ))}
+            </div>
+            <button className="fd-btn primary"
+              onClick={() => { setPForm(blankPForm()); setEditingPendingId(null); setShowPendingForm((s) => !s); }}>
+              <Plus size={16} /> New document
+            </button>
+          </div>
+
+          <div className="fd-sortbar">
+            <span className="fd-sort-label">Sort by</span>
+            <select className="fd-select" value={pendingSort.field} onChange={(e) => setPendingSort((s) => ({ ...s, field: e.target.value }))}>
+              {SORT_FIELDS.map((sf) => <option key={sf.id} value={sf.id}>{sf.label}</option>)}
+            </select>
+            <button className="fd-btn ghost sm" onClick={() => setPendingSort((s) => ({ ...s, dir: s.dir === "asc" ? "desc" : "asc" }))}>
+              {pendingSort.dir === "asc" ? "Ascending ↑" : "Descending ↓"}
+            </button>
+          </div>
+
+          {showPendingForm && (
+            <section className="fd-panel">
+              <div className="fd-panel-head">
+                <span>{editingPendingId ? "Edit document" : "Add a pending document"}</span>
+                <button className="fd-icon-btn sm" onClick={() => { setShowPendingForm(false); setEditingPendingId(null); }}><X size={16} /></button>
+              </div>
+              <div className="fd-grid">
+                <div>
+                  <label className="fd-label">Document title *</label>
+                  <input className="fd-input" value={pForm.title} onChange={(e) => setPForm({ ...pForm, title: e.target.value })} placeholder="Change Order #14" />
+                </div>
+                <div>
+                  <label className="fd-label">Category</label>
+                  <div className="fd-seg">
+                    <button className={"fd-seg-btn" + (pForm.category === "requisition" ? " active" : "")} onClick={() => setPForm({ ...pForm, category: "requisition" })}>Requisition</button>
+                    <button className={"fd-seg-btn" + (pForm.category === "changeorder" ? " active" : "")} onClick={() => setPForm({ ...pForm, category: "changeorder" })}>Change Order</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="fd-label">Date sent</label>
+                  <input className="fd-input" type="date" value={pForm.dateSent} onChange={(e) => setPForm({ ...pForm, dateSent: e.target.value })} />
+                </div>
+                <div>
+                  <label className="fd-label">Job number</label>
+                  <input className="fd-input" value={pForm.jobNumber} onChange={(e) => setPForm({ ...pForm, jobNumber: e.target.value })} placeholder="1042" />
+                </div>
+                <div>
+                  <label className="fd-label">Job name</label>
+                  <input className="fd-input" value={pForm.jobName} onChange={(e) => setPForm({ ...pForm, jobName: e.target.value })} placeholder="Riverside Office Build" />
+                </div>
+                <div>
+                  <label className="fd-label">Attachment <span className="fd-hint">— file name</span></label>
+                  <input className="fd-input" value={pForm.attachment} onChange={(e) => setPForm({ ...pForm, attachment: e.target.value })} placeholder="CO-14.pdf" />
+                </div>
+                <div>
+                  <label className="fd-label">Sent to</label>
+                  <input className="fd-input" value={pForm.sentTo} onChange={(e) => setPForm({ ...pForm, sentTo: e.target.value })} placeholder="Jordan Smith" />
+                </div>
+                <div>
+                  <label className="fd-label">Sent to email</label>
+                  <ContactField mode="single" value={pForm.sentToEmail} contacts={contacts}
+                    placeholder="jordan@company.com"
+                    onChange={(v) => setPForm((pf) => ({ ...pf, sentToEmail: v }))}
+                    onPick={(c) => setPForm((pf) => ({ ...pf, sentToEmail: c.email, sentTo: pf.sentTo || c.name || "" }))} />
+                </div>
+              </div>
+              <div className="fd-form-foot">
+                <button className="fd-btn ghost" onClick={() => { setShowPendingForm(false); setEditingPendingId(null); }}>Cancel</button>
+                <button className="fd-btn primary" onClick={submitPending}>{editingPendingId ? "Save changes" : "Add"}</button>
+              </div>
+            </section>
+          )}
+
+          <div className="fd-list">
+            {!loaded && <div className="fd-empty">Loading…</div>}
+            {loaded && pendingCounts.total === 0 && (
+              <div className="fd-empty">
+                <FileText size={28} />
+                <p>No pending documents. Add one you've sent out for signature.</p>
+              </div>
+            )}
+            {loaded && (pendingView === "all" || pendingView === "requisition") && reqItems.length > 0 && (
+              <>
+                <div className="fd-group-head" style={{ color: PENDING_CATS.requisition.color }}>Requisitions</div>
+                {reqItems.map((p) => renderPending(p))}
+              </>
+            )}
+            {loaded && (pendingView === "all" || pendingView === "changeorder") && coItems.length > 0 && (
+              <>
+                <div className="fd-group-head" style={{ color: PENDING_CATS.changeorder.color }}>Change Orders</div>
+                {coItems.map((p) => renderPending(p))}
+              </>
+            )}
+          </div>
+        </>
+        )}
 
         <footer className="fd-foot">
           <Mail size={13} /> “Send follow-up” opens your default mail app (set Outlook as your default to
