@@ -295,7 +295,7 @@ function FollowUpDesk() {
   const [toast, setToast] = useState(null);
 
   const blankForm = () => ({
-    name: "", company: "", email: "", subject: "", notes: "",
+    name: "", company: "", email: "", cc: "", subject: "", notes: "",
     lastContact: todayStr(), intervalDays: settings.defaultInterval,
   });
   const [form, setForm] = useState(blankForm());
@@ -341,15 +341,19 @@ function FollowUpDesk() {
   };
 
   const openInEmail = (f) => {
-    const link =
-      "mailto:" + encodeURIComponent(f.email) +
-      "?subject=" + encodeURIComponent("Re: " + (f.subject || "Following up")) +
-      "&body=" + encodeURIComponent(buildBody(f));
+    const params = [];
+    if (f.cc && f.cc.trim()) params.push("cc=" + encodeURIComponent(f.cc.trim()));
+    params.push("subject=" + encodeURIComponent(f.subject || "Following up"));
+    params.push("body=" + encodeURIComponent(buildBody(f)));
+    const link = "mailto:" + encodeURIComponent(f.email) + "?" + params.join("&");
     try { window.open(link, "_blank"); } catch (e) { window.location.href = link; }
   };
 
   const copyText = async (f) => {
-    const text = "To: " + f.email + "\nSubject: Re: " + (f.subject || "Following up") + "\n\n" + buildBody(f);
+    const lines = ["To: " + f.email];
+    if (f.cc && f.cc.trim()) lines.push("Cc: " + f.cc.trim());
+    lines.push("Subject: " + (f.subject || "Following up"));
+    const text = lines.join("\n") + "\n\n" + buildBody(f);
     try { await navigator.clipboard.writeText(text); flash("Email text copied to clipboard"); }
     catch (e) { flash("Couldn't copy — select the preview manually"); }
   };
@@ -366,7 +370,7 @@ function FollowUpDesk() {
   const remove = (id) => setFollowups((arr) => arr.filter((x) => x.id !== id));
 
   const startEdit = (f) => {
-    setForm({ name: f.name, company: f.company || "", email: f.email, subject: f.subject, notes: f.notes, lastContact: f.lastContact, intervalDays: f.intervalDays });
+    setForm({ name: f.name, company: f.company || "", email: f.email, cc: f.cc || "", subject: f.subject, notes: f.notes, lastContact: f.lastContact, intervalDays: f.intervalDays });
     setEditingId(f.id); setShowForm(true);
   };
 
@@ -522,6 +526,10 @@ function FollowUpDesk() {
                 <input className="fd-input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jordan@company.com" />
               </div>
               <div>
+                <label className="fd-label">CC <span className="fd-hint">— optional, comma-separated</span></label>
+                <input className="fd-input" value={form.cc} onChange={(e) => setForm({ ...form, cc: e.target.value })} placeholder="manager@company.com" />
+              </div>
+              <div>
                 <label className="fd-label">Subject / context</label>
                 <input className="fd-input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Q2 onboarding paperwork" />
               </div>
@@ -567,6 +575,7 @@ function FollowUpDesk() {
                       <span className="fd-name">{f.name || f.email}</span>
                       {f.company && <span className="fd-company">{f.company}</span>}
                       {f.name && <span className="fd-email">{f.email}</span>}
+                      {f.cc && <span className="fd-email">Cc: {f.cc}</span>}
                     </div>
                     <span className="fd-badge" style={{ color: meta.color, borderColor: meta.color }}>
                       <Ic size={13} />
