@@ -61,6 +61,12 @@ html,body{margin:0;padding:0;}
 .fd-input.short{max-width:120px;}
 .fd-input.area{font-family:inherit; line-height:1.5; resize:vertical; margin-bottom:14px;}
 .fd-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.fd-seg{display:inline-flex; gap:4px; background:#f3ecdd; border:1px solid var(--line); border-radius:10px; padding:4px; flex-wrap:wrap;}
+.fd-seg-btn{border:none; background:none; font-family:inherit; font-size:12.5px; color:var(--muted); padding:7px 13px; border-radius:7px; cursor:pointer; transition:all .15s;}
+.fd-seg-btn:hover{color:var(--ink);}
+.fd-seg-btn.active{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.07);}
+.fd-seg-btn.cap{text-transform:capitalize;}
+.fd-preview{white-space:pre-wrap; font-size:13px; line-height:1.6; color:var(--ink); background:#fdfcf8; border:1px solid var(--line); border-radius:10px; padding:14px 16px;}
 .fd-form-foot{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
 
 .fd-list{display:flex; flex-direction:column; gap:12px;}
@@ -71,6 +77,7 @@ html,body{margin:0;padding:0;}
 .fd-who{display:flex; flex-direction:column; min-width:0;}
 .fd-name{font-family:'Fraunces',serif; font-size:18px; font-weight:600; line-height:1.2;}
 .fd-email{font-size:12.5px; color:var(--muted); font-family:'IBM Plex Mono',monospace; margin-top:2px; word-break:break-all;}
+.fd-company{font-size:12px; color:var(--accent); font-weight:600; margin-top:3px; letter-spacing:.02em;}
 .fd-badge{flex-shrink:0; display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:500; border:1px solid; border-radius:999px; padding:4px 10px; background:#fdfcf8; white-space:nowrap;}
 .fd-subject{margin-top:10px; font-size:14px; font-weight:500;}
 .fd-notes{margin-top:3px; font-size:13px; color:var(--muted);}
@@ -141,10 +148,111 @@ const prettyDate = (s) => parseDate(s).toLocaleDateString(undefined, { month: "s
 
 const DEFAULT_SETTINGS = {
   defaultInterval: 4,
+  mode: "varied",
+  tone: "professional",
   template:
-    "Hi {name},\n\nI hope you're well. I'm following up on my earlier email regarding {subject}. When you have a moment, could you please send over the outstanding items: {notes}?\n\nHappy to answer any questions on my end.\n\n{signature}",
+    "Dear {name},\n\nI am writing to follow up on my previous email regarding {subject}. At your earliest convenience, could you please provide the outstanding items: {notes}?\n\nPlease let me know if you require any further information from me.\n\n{signature}",
   signature: "Best regards,\n[Your name]",
 };
+
+// ---------- phrasing pools (all professional; three registers) ----------
+const TONE_LABELS = { professional: "Standard", warm: "Cordial", concise: "Brief" };
+const TONE_ORDER = ["professional", "warm", "concise"];
+
+const VARIANTS = {
+  professional: {
+    greet: [
+      "Hi {name},",
+      "Hello {name},",
+      "Dear {name},",
+      "Hi {name}, I hope this message finds you well.",
+    ],
+    openFirst: [
+      "I am writing to follow up on my previous email regarding {subject}.",
+      "I wanted to follow up on {subject} from my earlier message.",
+      "I am following up on my note regarding {subject}.",
+      "I am reaching out again concerning {subject}.",
+    ],
+    openAgain: [
+      "I wanted to follow up once more regarding {subject}.",
+      "I am following up again on {subject}, as I have not yet received a response.",
+      "I am checking in a second time on the status of {subject}.",
+      "I am circling back on {subject}, which remains outstanding.",
+    ],
+    ask: [
+      "Could you please provide {notes} at your earliest convenience?",
+      "I would appreciate it if you could send over {notes}.",
+      "When possible, please forward {notes} so that I can proceed.",
+      "Kindly share {notes} when you have an opportunity.",
+    ],
+    close: [
+      "Please let me know if you require anything further from me.",
+      "Thank you for your attention to this matter.",
+      "I appreciate your help and look forward to your reply.",
+      "Please do not hesitate to reach out with any questions.",
+    ],
+  },
+  warm: {
+    greet: [
+      "Hi {name},",
+      "Hello {name},",
+      "Hi {name}, I hope you are doing well.",
+      "Hi {name}, I hope you are having a good week.",
+    ],
+    openFirst: [
+      "I wanted to follow up on my earlier email regarding {subject}.",
+      "I am circling back on {subject}, in case my previous message was missed.",
+      "I am checking in regarding {subject}.",
+      "I wanted to touch base about {subject} when you have a moment.",
+    ],
+    openAgain: [
+      "I understand things get busy, so I wanted to follow up once more on {subject}.",
+      "I am following up again on {subject} to ensure it stays on your radar.",
+      "I am circling back another time on {subject}, and I appreciate your patience.",
+      "I wanted to send a brief reminder regarding {subject}.",
+    ],
+    ask: [
+      "Whenever you have a moment, could you please send over {notes}?",
+      "When it is convenient, I would appreciate it if you could share {notes}.",
+      "Could you please forward {notes} when you get a chance?",
+      "If you are able to pass along {notes}, that would be a great help.",
+    ],
+    close: [
+      "Please let me know if you need anything from me in the meantime.",
+      "I am happy to answer any questions that come up on your end.",
+      "Thank you very much for your help with this; it is much appreciated.",
+      "Please let me know if there is anything I can clarify.",
+    ],
+  },
+  concise: {
+    greet: ["Hi {name},", "Hello {name},", "Dear {name},"],
+    openFirst: [
+      "I am following up on {subject}.",
+      "A brief follow-up regarding {subject}.",
+      "I am checking in on {subject}.",
+    ],
+    openAgain: [
+      "I am following up again on {subject}.",
+      "A further follow-up regarding {subject}.",
+      "{subject} remains outstanding on my end.",
+    ],
+    ask: [
+      "Could you please send over {notes} when you have a chance?",
+      "Would you be able to share {notes}?",
+      "Please forward {notes} at your convenience.",
+    ],
+    close: [
+      "Thank you for your help.",
+      "Thank you in advance.",
+      "I appreciate your assistance.",
+    ],
+  },
+};
+
+const SAMPLE_RECIPIENT = { id: "preview", name: "Jordan", subject: "the onboarding paperwork", notes: "the signed contract", followUpsSent: 0 };
+
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
+function pick(arr, seed) { return arr[seed % arr.length]; }
 
 const STORE_KEY = "followup-desk-v1";
 
@@ -183,10 +291,11 @@ function FollowUpDesk() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [previewSeed, setPreviewSeed] = useState(1);
   const [toast, setToast] = useState(null);
 
   const blankForm = () => ({
-    name: "", email: "", subject: "", notes: "",
+    name: "", company: "", email: "", subject: "", notes: "",
     lastContact: todayStr(), intervalDays: settings.defaultInterval,
   });
   const [form, setForm] = useState(blankForm());
@@ -211,12 +320,25 @@ function FollowUpDesk() {
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
 
-  const buildBody = (f) =>
-    settings.template
+  const fillTokens = (str, f) =>
+    str
       .split("{name}").join(f.name || "there")
       .split("{subject}").join(f.subject || "our previous correspondence")
       .split("{notes}").join(f.notes || "the requested documents")
       .split("{signature}").join(settings.signature || "");
+
+  const buildBody = (f, seedOverride) => {
+    if (settings.mode === "fixed") return fillTokens(settings.template, f);
+    const pool = VARIANTS[settings.tone] || VARIANTS.warm;
+    const base = (seedOverride != null ? seedOverride : hashStr(f.id) + (f.followUpsSent || 0)) >>> 0;
+    const isFirst = (f.followUpsSent || 0) === 0;
+    const greet = pick(pool.greet, base);
+    const open = pick(isFirst ? pool.openFirst : pool.openAgain, base + 1);
+    const ask = pick(pool.ask, base + 2);
+    const close = pick(pool.close, base + 3);
+    const body = [greet, open + " " + ask, close, settings.signature || ""].join("\n\n");
+    return fillTokens(body, f);
+  };
 
   const openInEmail = (f) => {
     const link =
@@ -244,7 +366,7 @@ function FollowUpDesk() {
   const remove = (id) => setFollowups((arr) => arr.filter((x) => x.id !== id));
 
   const startEdit = (f) => {
-    setForm({ name: f.name, email: f.email, subject: f.subject, notes: f.notes, lastContact: f.lastContact, intervalDays: f.intervalDays });
+    setForm({ name: f.name, company: f.company || "", email: f.email, subject: f.subject, notes: f.notes, lastContact: f.lastContact, intervalDays: f.intervalDays });
     setEditingId(f.id); setShowForm(true);
   };
 
@@ -318,8 +440,8 @@ function FollowUpDesk() {
         </header>
 
         <div className="fd-stats">
-          <Stat n={counts.attention} label="need a nudge" tone="#9c3d28" />
-          <Stat n={counts.waiting} label="waiting out the clock" tone="#5f6f54" />
+          <Stat n={counts.attention} label="due for follow-up" tone="#9c3d28" />
+          <Stat n={counts.waiting} label="awaiting reply" tone="#5f6f54" />
           <Stat n={counts.done} label="documents received" tone="#8a8073" />
         </div>
 
@@ -332,9 +454,31 @@ function FollowUpDesk() {
             <label className="fd-label">Default days between follow-ups</label>
             <input className="fd-input short" type="number" min="1" value={settings.defaultInterval}
               onChange={(e) => setSettings((s) => ({ ...s, defaultInterval: Number(e.target.value) }))} />
-            <label className="fd-label" style={{ marginTop: 14 }}>Message template <span className="fd-hint">— use {"{name}"}, {"{subject}"}, {"{notes}"}, {"{signature}"}</span></label>
-            <textarea className="fd-input area" rows={6} value={settings.template}
-              onChange={(e) => setSettings((s) => ({ ...s, template: e.target.value }))} />
+            <label className="fd-label" style={{ marginTop: 14 }}>Email style</label>
+            <div className="fd-seg">
+              <button className={"fd-seg-btn" + (settings.mode === "varied" ? " active" : "")} onClick={() => setSettings((s) => ({ ...s, mode: "varied" }))}>Vary automatically</button>
+              <button className={"fd-seg-btn" + (settings.mode === "fixed" ? " active" : "")} onClick={() => setSettings((s) => ({ ...s, mode: "fixed" }))}>Fixed template</button>
+            </div>
+
+            {settings.mode === "varied" ? (
+              <>
+                <label className="fd-label" style={{ marginTop: 14 }}>Register <span className="fd-hint">— all professional</span></label>
+                <div className="fd-seg">
+                  {TONE_ORDER.map((t) => (
+                    <button key={t} className={"fd-seg-btn" + (settings.tone === t ? " active" : "")} onClick={() => setSettings((s) => ({ ...s, tone: t }))}>{TONE_LABELS[t]}</button>
+                  ))}
+                </div>
+                <label className="fd-label" style={{ marginTop: 14 }}>Preview <span className="fd-hint">— a different wording each time</span></label>
+                <div className="fd-preview">{buildBody(SAMPLE_RECIPIENT, previewSeed)}</div>
+                <button className="fd-btn ghost sm" style={{ marginTop: 10 }} onClick={() => setPreviewSeed(previewSeed + 1)}><RotateCcw size={14} /> Show another</button>
+              </>
+            ) : (
+              <>
+                <label className="fd-label" style={{ marginTop: 14 }}>Message template <span className="fd-hint">— use {"{name}"}, {"{subject}"}, {"{notes}"}, {"{signature}"}</span></label>
+                <textarea className="fd-input area" rows={6} value={settings.template}
+                  onChange={(e) => setSettings((s) => ({ ...s, template: e.target.value }))} />
+              </>
+            )}
             <label className="fd-label">Signature</label>
             <textarea className="fd-input area" rows={2} value={settings.signature}
               onChange={(e) => setSettings((s) => ({ ...s, signature: e.target.value }))} />
@@ -368,6 +512,10 @@ function FollowUpDesk() {
               <div>
                 <label className="fd-label">Recipient name</label>
                 <input className="fd-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Jordan Smith" />
+              </div>
+              <div>
+                <label className="fd-label">Company <span className="fd-hint">— for your records only</span></label>
+                <input className="fd-input" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Acme Corp" />
               </div>
               <div>
                 <label className="fd-label">Email address *</label>
@@ -417,6 +565,7 @@ function FollowUpDesk() {
                   <div className="fd-card-top">
                     <div className="fd-who">
                       <span className="fd-name">{f.name || f.email}</span>
+                      {f.company && <span className="fd-company">{f.company}</span>}
                       {f.name && <span className="fd-email">{f.email}</span>}
                     </div>
                     <span className="fd-badge" style={{ color: meta.color, borderColor: meta.color }}>
