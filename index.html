@@ -61,6 +61,12 @@ html,body{margin:0;padding:0;}
 .fd-input.short{max-width:120px;}
 .fd-input.area{font-family:inherit; line-height:1.5; resize:vertical; margin-bottom:14px;}
 .fd-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.fd-combo{position:relative;}
+.fd-suggest{position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.14); z-index:30; max-height:212px; overflow-y:auto; padding:4px;}
+.fd-suggest-item{display:flex; flex-direction:column; gap:1px; width:100%; text-align:left; background:none; border:none; font-family:inherit; padding:8px 10px; border-radius:7px; cursor:pointer;}
+.fd-suggest-item:hover{background:#f3ecdd;}
+.fd-suggest-email{font-size:12.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink);}
+.fd-suggest-name{font-size:11.5px; color:var(--muted);}
 .fd-seg{display:inline-flex; gap:4px; background:#f3ecdd; border:1px solid var(--line); border-radius:10px; padding:4px; flex-wrap:wrap;}
 .fd-seg-btn{border:none; background:none; font-family:inherit; font-size:12.5px; color:var(--muted); padding:7px 13px; border-radius:7px; cursor:pointer; transition:all .15s;}
 .fd-seg-btn:hover{color:var(--ink);}
@@ -295,6 +301,54 @@ function Stat({ n, label, tone }) {
   );
 }
 
+function ContactField({ value, onChange, contacts, placeholder, mode, onPick }) {
+  const [open, setOpen] = useState(false);
+  const rawParts = (value || "").split(",");
+  const lastPartial = rawParts[rawParts.length - 1].trim();
+  const committed = mode === "multi" ? rawParts.slice(0, -1).map((s) => s.trim()).filter(Boolean) : [];
+  const q = (mode === "multi" ? lastPartial : (value || "").trim()).toLowerCase();
+  const used = new Set(committed.map((s) => s.toLowerCase()));
+  const matches = (contacts || []).filter((c) =>
+    !used.has(c.email.toLowerCase()) &&
+    (q === "" || (c.email + " " + (c.name || "") + " " + (c.company || "")).toLowerCase().includes(q))
+  ).slice(0, 6);
+
+  const choose = (c) => {
+    if (mode === "multi") {
+      onChange(committed.concat(c.email).join(", ") + ", ");
+      setOpen(true);
+    } else {
+      if (onPick) onPick(c); else onChange(c.email);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="fd-combo">
+      <input
+        className="fd-input"
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+      />
+      {open && matches.length > 0 && (
+        <div className="fd-suggest">
+          {matches.map((c) => (
+            <button type="button" key={c.email} className="fd-suggest-item"
+              onMouseDown={(e) => { e.preventDefault(); choose(c); }}>
+              <span className="fd-suggest-email">{c.email}</span>
+              {(c.name || c.company) && <span className="fd-suggest-name">{[c.name, c.company].filter(Boolean).join(" · ")}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -308,6 +362,7 @@ function FollowUpDesk() {
 
   const blankForm = () => ({
     name: "", company: "", email: "", cc: "", subject: "", notes: "",
+    customBody: "", attachments: "",
     lastContact: todayStr(), intervalDays: settings.defaultInterval,
   });
   const [form, setForm] = useState(blankForm());
@@ -340,6 +395,7 @@ function FollowUpDesk() {
       .split("{signature}").join(settings.signature || "");
 
   const buildBody = (f, seedOverride) => {
+    if (f.customBody && f.customBody.trim()) return fillTokens(f.customBody, f);
     if (settings.mode === "fixed") return fillTokens(settings.template, f);
     const pool = VARIANTS[settings.tone] || VARIANTS.warm;
     const base = (seedOverride != null ? seedOverride : hashStr(f.id) + (f.followUpsSent || 0)) >>> 0;
@@ -405,6 +461,7 @@ function FollowUpDesk() {
     if (f.notes) desc.push("Awaiting: " + f.notes);
     desc.push("To: " + f.email);
     if (f.cc && f.cc.trim()) desc.push("Cc: " + f.cc.trim());
+    if (f.attachments && f.attachments.trim()) desc.push("Attach: " + f.attachments.trim());
     desc.push("(Reminder created by The Follow-Up Desk.)");
     return [
       "BEGIN:VCALENDAR",
@@ -480,7 +537,9 @@ function FollowUpDesk() {
     downloadIcs(updated, true);   // refresh the reminder to the new due date (no toast)
     openInEmail(f);               // compose the email using the current wording
     setFollowups((arr) => arr.map((x) => (x.id === f.id ? updated : x)));
-    flash("Sent & logged — reminder updated to " + prettyDate(reminderDateFor(updated)));
+    flash(f.attachments && f.attachments.trim()
+      ? "Sent & logged — remember to attach: " + f.attachments.trim()
+      : "Sent & logged — reminder updated to " + prettyDate(reminderDateFor(updated)));
   };
 
   const markDone = (f) => {
@@ -493,7 +552,7 @@ function FollowUpDesk() {
   const remove = (id) => setFollowups((arr) => arr.filter((x) => x.id !== id));
 
   const startEdit = (f) => {
-    setForm({ name: f.name, company: f.company || "", email: f.email, cc: f.cc || "", subject: f.subject, notes: f.notes, lastContact: f.lastContact, intervalDays: f.intervalDays });
+    setForm({ name: f.name, company: f.company || "", email: f.email, cc: f.cc || "", subject: f.subject, notes: f.notes, customBody: f.customBody || "", attachments: f.attachments || "", lastContact: f.lastContact, intervalDays: f.intervalDays });
     setEditingId(f.id); setShowForm(true);
   };
 
@@ -539,6 +598,26 @@ function FollowUpDesk() {
     if (view === "done") return f._s.key === "done";
     return true;
   });
+
+  const contacts = useMemo(() => {
+    const map = new Map();
+    const add = (email, name, company) => {
+      const e = (email || "").trim();
+      if (!e) return;
+      const key = e.toLowerCase();
+      const existing = map.get(key);
+      if (!existing) map.set(key, { email: e, name: name || "", company: company || "" });
+      else {
+        if (!existing.name && name) existing.name = name;
+        if (!existing.company && company) existing.company = company;
+      }
+    };
+    followups.forEach((f) => {
+      add(f.email, f.name, f.company);
+      (f.cc || "").split(",").forEach((c) => add(c.trim(), "", ""));
+    });
+    return Array.from(map.values()).sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
+  }, [followups]);
 
   const tabs = [
     { id: "attention", label: "Needs attention", n: counts.attention },
@@ -646,11 +725,16 @@ function FollowUpDesk() {
               </div>
               <div>
                 <label className="fd-label">Email address *</label>
-                <input className="fd-input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jordan@company.com" />
+                <ContactField mode="single" value={form.email} contacts={contacts}
+                  placeholder="jordan@company.com"
+                  onChange={(v) => setForm((fm) => ({ ...fm, email: v }))}
+                  onPick={(c) => setForm((fm) => ({ ...fm, email: c.email, name: fm.name || c.name || "", company: fm.company || c.company || "" }))} />
               </div>
               <div>
                 <label className="fd-label">CC <span className="fd-hint">— optional, comma-separated</span></label>
-                <input className="fd-input" value={form.cc} onChange={(e) => setForm({ ...form, cc: e.target.value })} placeholder="manager@company.com" />
+                <ContactField mode="multi" value={form.cc} contacts={contacts}
+                  placeholder="manager@company.com"
+                  onChange={(v) => setForm((fm) => ({ ...fm, cc: v }))} />
               </div>
               <div>
                 <label className="fd-label">Subject / context</label>
@@ -669,6 +753,14 @@ function FollowUpDesk() {
                 <input className="fd-input" type="number" min="1" value={form.intervalDays} onChange={(e) => setForm({ ...form, intervalDays: Number(e.target.value) })} />
               </div>
             </div>
+            <label className="fd-label" style={{ marginTop: 14 }}>Custom message <span className="fd-hint">— optional; replaces the auto-written email for this person. Tokens {"{name}"}, {"{subject}"}, {"{notes}"}, {"{signature}"} work here too.</span></label>
+            <textarea className="fd-input area" rows={5} value={form.customBody}
+              placeholder="Leave blank to use the automatic professional follow-up."
+              onChange={(e) => setForm({ ...form, customBody: e.target.value })} />
+            <label className="fd-label">Attachments <span className="fd-hint">— optional, comma-separated file names; the app reminds you to attach them</span></label>
+            <input className="fd-input" value={form.attachments}
+              placeholder="contract.pdf, W-9.pdf"
+              onChange={(e) => setForm({ ...form, attachments: e.target.value })} />
             <div className="fd-form-foot">
               <button className="fd-btn ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
               <button className="fd-btn primary" onClick={submit}>{editingId ? "Save changes" : "Add"}</button>
@@ -710,6 +802,8 @@ function FollowUpDesk() {
 
                   {f.subject && <div className="fd-subject">{f.subject}</div>}
                   {f.notes && <div className="fd-notes">Awaiting: {f.notes}</div>}
+                  {f.attachments && f.attachments.trim() && <div className="fd-notes">Attachments: {f.attachments}</div>}
+                  {f.customBody && f.customBody.trim() && <div className="fd-notes" style={{ fontStyle: "italic" }}>Custom message set for this follow-up</div>}
 
                   <div className="fd-meta">
                     <span>Last contact {prettyDate(f.lastContact)}</span>
