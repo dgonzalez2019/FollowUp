@@ -254,6 +254,18 @@ const SAMPLE_RECIPIENT = { id: "preview", name: "Jordan", subject: "the onboardi
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 function pick(arr, seed) { return arr[seed % arr.length]; }
 
+const pad2 = (n) => String(n).padStart(2, "0");
+function icsLocal(d) {
+  return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + "T" + pad2(d.getHours()) + pad2(d.getMinutes()) + "00";
+}
+function icsStamp() {
+  const d = new Date();
+  return d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + "T" + pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + "Z";
+}
+function icsEscape(s) {
+  return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+}
+
 const STORE_KEY = "followup-desk-v1";
 
 const STATUS_META = {
@@ -358,14 +370,125 @@ function FollowUpDesk() {
     catch (e) { flash("Couldn't copy — select the preview manually"); }
   };
 
-  const logFollowUp = (f) => {
-    openInEmail(f);
-    setFollowups((arr) => arr.map((x) =>
-      x.id === f.id ? { ...x, lastContact: todayStr(), followUpsSent: (x.followUpsSent || 0) + 1 } : x));
-    flash("Logged — clock reset for the next reminder");
+  const reminderDateFor = (f) => {
+    const due = addDays(f.lastContact, Number(f.intervalDays) || 0);
+    return daysBetween(todayStr(), due) > 0 ? due : addDays(todayStr(), 1);
   };
 
-  const markDone = (id) => setFollowups((arr) => arr.map((x) => (x.id === id ? { ...x, status: "done" } : x)));
+  const eventLines = (f) => {
+    const remindStr = reminderDateFor(f);
+    const start = new Date(remindStr + "T09:00:00");
+    const end = new Date(start.getTime() + 30 * 60000);
+    const who = f.name || f.email;
+    const summary = "Follow up: " + who + (f.company ? " (" + f.company + ")" : "") + (f.subject ? " — " + f.subject : "");
+    return { remindStr, start, end, who, summary };
+  };
+
+  const triggerDownload = (filename, text) => {
+    const blob = new Blob([text], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const slug = (f) => (f.name || f.email).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+
+  const buildIcs = (f) => {
+    const { start, end, who, summary } = eventLines(f);
+    const desc = [];
+    if (f.subject) desc.push("Subject: " + f.subject);
+    if (f.notes) desc.push("Awaiting: " + f.notes);
+    desc.push("To: " + f.email);
+    if (f.cc && f.cc.trim()) desc.push("Cc: " + f.cc.trim());
+    desc.push("(Reminder created by The Follow-Up Desk.)");
+    return [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//The Follow-Up Desk//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      "UID:" + f.id + "@followup-desk",
+      "SEQUENCE:" + (Number(f.followUpsSent) || 0),
+      "DTSTAMP:" + icsStamp(),
+      "DTSTART:" + icsLocal(start),
+      "DTEND:" + icsLocal(end),
+      "SUMMARY:" + icsEscape(summary),
+      "DESCRIPTION:" + icsEscape(desc.join("\n")),
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:" + icsEscape("Follow-up reminder: " + who),
+      "TRIGGER:-PT0M",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+  };
+
+  const buildIcsCancel = (f) => {
+    const { start, end, who, summary } = eventLines(f);
+    return [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//The Follow-Up Desk//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:CANCEL",
+      "BEGIN:VEVENT",
+      "UID:" + f.id + "@followup-desk",
+      "SEQUENCE:" + ((Number(f.followUpsSent) || 0) + 1),
+      "DTSTAMP:" + icsStamp(),
+      "DTSTART:" + icsLocal(start),
+      "DTEND:" + icsLocal(end),
+      "SUMMARY:" + icsEscape(summary),
+      "STATUS:CANCELLED",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+  };
+
+  const downloadIcs = (f, silent) => {
+    try {
+      triggerDownload("follow-up-" + slug(f) + ".ics", buildIcs(f));
+      if (!silent) flash("Reminder set for " + prettyDate(reminderDateFor(f)) + " — open the file to add it to Outlook");
+      return true;
+    } catch (e) {
+      if (!silent) flash("Couldn't create the reminder file");
+      return false;
+    }
+  };
+
+  const cancelReminder = (f) => {
+    try {
+      triggerDownload("follow-up-" + slug(f) + "-cancel.ics", buildIcsCancel(f));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const remindOnly = (f) => {
+    if (downloadIcs(f)) setFollowups((arr) => arr.map((x) => (x.id === f.id ? { ...x, reminded: true } : x)));
+  };
+
+  const logFollowUp = (f) => {
+    const updated = { ...f, lastContact: todayStr(), followUpsSent: (f.followUpsSent || 0) + 1, reminded: true };
+    downloadIcs(updated, true);   // refresh the reminder to the new due date (no toast)
+    openInEmail(f);               // compose the email using the current wording
+    setFollowups((arr) => arr.map((x) => (x.id === f.id ? updated : x)));
+    flash("Sent & logged — reminder updated to " + prettyDate(reminderDateFor(updated)));
+  };
+
+  const markDone = (f) => {
+    const hadReminder = !!f.reminded;
+    if (hadReminder) cancelReminder(f);
+    setFollowups((arr) => arr.map((x) => (x.id === f.id ? { ...x, status: "done", reminded: false } : x)));
+    flash(hadReminder ? "Marked done — open the cancellation file to clear the Outlook reminder" : "Marked done");
+  };
   const reactivate = (id) => setFollowups((arr) => arr.map((x) => (x.id === id ? { ...x, status: "active", lastContact: todayStr() } : x)));
   const remove = (id) => setFollowups((arr) => arr.filter((x) => x.id !== id));
 
@@ -605,7 +728,8 @@ function FollowUpDesk() {
                       <>
                         <button className="fd-btn primary sm" onClick={() => logFollowUp(f)}><Send size={14} /> Send follow-up</button>
                         <button className="fd-btn ghost sm" onClick={() => copyText(f)}><Copy size={14} /> Copy text</button>
-                        <button className="fd-btn ghost sm" onClick={() => markDone(f.id)}><Check size={14} /> Got documents</button>
+                        <button className="fd-btn ghost sm" onClick={() => remindOnly(f)}><CalendarClock size={14} /> Reminder only</button>
+                        <button className="fd-btn ghost sm" onClick={() => markDone(f)}><Check size={14} /> Got documents</button>
                       </>
                     ) : (
                       <button className="fd-btn ghost sm" onClick={() => reactivate(f.id)}><RotateCcw size={14} /> Reopen</button>
