@@ -47,6 +47,30 @@ html,body{margin:0;padding:0;}
 .fd-select{font-family:inherit; font-size:13px; color:var(--ink); background:#fdfcf8; border:1px solid var(--line); border-radius:9px; padding:8px 10px; cursor:pointer;}
 .fd-select:focus{outline:none; border-color:var(--accent);}
 .fd-group-head{font-family:'Fraunces',serif; font-size:17px; font-weight:600; margin:8px 2px 0; padding-top:8px; letter-spacing:.01em;}
+.fd-cal-head{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+.fd-cal-title{font-family:'Fraunces',serif; font-size:20px; font-weight:600; min-width:170px;}
+.fd-cal-legend{display:flex; gap:18px; margin-bottom:14px; font-size:12.5px; color:var(--muted);}
+.fd-legend-item{display:inline-flex; align-items:center; gap:7px;}
+.fd-dotmark{width:8px; height:8px; border-radius:999px; display:inline-block; flex-shrink:0;}
+.fd-cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:5px;}
+.fd-cal-wd{text-align:center; font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding-bottom:4px; letter-spacing:.05em;}
+.fd-cal-cell{min-height:62px; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:6px; cursor:pointer; display:flex; flex-direction:column; gap:4px; transition:all .12s;}
+.fd-cal-cell:hover{border-color:#cdbfa4;}
+.fd-cal-cell.empty{background:transparent; border:none; cursor:default;}
+.fd-cal-cell.today{border-color:var(--accent);}
+.fd-cal-cell.sel{background:#f3ecdd; border-color:var(--accent);}
+.fd-cal-day{font-size:12.5px; font-weight:500; color:var(--ink);}
+.fd-cal-cell.today .fd-cal-day{color:var(--accent); font-weight:700;}
+.fd-cal-dots{display:flex; flex-wrap:wrap; gap:3px;}
+.fd-cal-day-list{margin-top:18px;}
+.fd-cal-event{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 14px; margin-top:8px;}
+.fd-cal-event-type{font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; flex-shrink:0;}
+.fd-cal-event-label{font-size:14px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+@media(max-width:560px){
+  .fd-cal-cell{min-height:50px; padding:4px; border-radius:7px;}
+  .fd-cal-title{font-size:17px; min-width:0; flex:1;}
+  .fd-cal-grid{gap:3px;}
+}
 
 .fd-btn{font-family:inherit; font-size:13.5px; font-weight:500; border-radius:10px; padding:9px 15px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; border:1px solid transparent; transition:all .15s;}
 .fd-btn.sm{font-size:12.5px; padding:7px 11px; border-radius:9px;}
@@ -178,6 +202,10 @@ const RotateCcw = (p) => <Svg {...p}><polyline points="1 4 1 10 7 10"/><path d="
 const Inbox = (p) => <Svg {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></Svg>;
 const Send = (p) => <Svg {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></Svg>;
 const FileText = (p) => <Svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></Svg>;
+const Calendar = (p) => <Svg {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>;
+const Flag = (p) => <Svg {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></Svg>;
+const ChevronLeft = (p) => <Svg {...p}><polyline points="15 18 9 12 15 6"/></Svg>;
+const ChevronRight = (p) => <Svg {...p}><polyline points="9 18 15 12 9 6"/></Svg>;
 
 // ---------- date helpers ----------
 const MS_DAY = 86400000;
@@ -303,11 +331,15 @@ const SORT_FIELDS = [
   { id: "title", label: "Document title" },
   { id: "sentTo", label: "Sent to" },
 ];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const CAL_COLORS = { followup: "#5f6f54", deadline: "#a8442a" };
 
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 function pick(arr, seed) { return arr[seed % arr.length]; }
 
 const pad2 = (n) => String(n).padStart(2, "0");
+const ymd = (d) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
 function icsLocal(d) {
   return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + "T" + pad2(d.getHours()) + pad2(d.getMinutes()) + "00";
 }
@@ -557,6 +589,11 @@ function FollowUpDesk() {
   const [showPendingForm, setShowPendingForm] = useState(false);
   const [editingPendingId, setEditingPendingId] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
+  const [deadlines, setDeadlines] = useState([]);
+  const [showDeadlineForm, setShowDeadlineForm] = useState(false);
+  const [editingDeadlineId, setEditingDeadlineId] = useState(null);
+  const [calMonth, setCalMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
+  const [calSelected, setCalSelected] = useState(null);
 
   const blankForm = () => ({
     name: "", company: "", email: "", cc: "", subject: "", notes: "",
@@ -571,6 +608,9 @@ function FollowUpDesk() {
   });
   const [pForm, setPForm] = useState(blankPForm());
 
+  const blankDForm = () => ({ title: "", dueDate: todayStr(), leadDays: 3, notes: "" });
+  const [dForm, setDForm] = useState(blankDForm());
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORE_KEY);
@@ -579,6 +619,7 @@ function FollowUpDesk() {
         setFollowups(parsed.followups || []);
         setSettings({ ...DEFAULT_SETTINGS, ...(parsed.settings || {}) });
         setPending(parsed.pending || []);
+        setDeadlines(parsed.deadlines || []);
       }
     } catch (e) { /* first run */ }
     setLoaded(true);
@@ -586,9 +627,9 @@ function FollowUpDesk() {
 
   useEffect(() => {
     if (!loaded) return;
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ followups, settings, pending })); }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ followups, settings, pending, deadlines })); }
     catch (e) { console.error("save failed", e); }
-  }, [followups, settings, pending, loaded]);
+  }, [followups, settings, pending, deadlines, loaded]);
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
 
@@ -885,6 +926,83 @@ function FollowUpDesk() {
     });
   };
 
+  // ----- deadlines -----
+  const startEditDeadline = (d) => {
+    setDForm({ title: d.title || "", dueDate: d.dueDate || todayStr(), leadDays: d.leadDays || 3, notes: d.notes || "" });
+    setEditingDeadlineId(d.id); setShowDeadlineForm(true);
+  };
+  const submitDeadline = () => {
+    if (!dForm.title.trim()) return flash("A deadline title is required");
+    if (editingDeadlineId) {
+      setDeadlines((arr) => arr.map((x) => (x.id === editingDeadlineId ? { ...x, ...dForm } : x)));
+      flash("Updated");
+    } else {
+      setDeadlines((arr) => [...arr, { ...dForm, id: Date.now().toString(36), createdAt: todayStr() }]);
+      flash("Deadline added");
+    }
+    setDForm(blankDForm()); setEditingDeadlineId(null); setShowDeadlineForm(false);
+  };
+  const removeDeadline = (id) => setDeadlines((arr) => arr.filter((x) => x.id !== id));
+
+  const deadlineStatus = (d) => {
+    const diff = daysBetween(todayStr(), d.dueDate);
+    if (diff < 0) return { key: "overdue", days: -diff, color: "#9c3d28", label: "Overdue" };
+    if (diff === 0) return { key: "today", color: "#b5791f", label: "Due today" };
+    if (diff <= (Number(d.leadDays) || 0)) return { key: "soon", days: diff, color: "#b5791f", label: "Due soon" };
+    return { key: "upcoming", days: diff, color: "#5f6f54", label: "Upcoming" };
+  };
+
+  const buildDeadlineIcs = (d) => {
+    const start = new Date(d.dueDate + "T09:00:00");
+    const end = new Date(start.getTime() + 30 * 60000);
+    const lead = Math.max(0, Number(d.leadDays) || 0);
+    const desc = [];
+    if (d.notes) desc.push(d.notes);
+    desc.push("(Deadline reminder from The Follow-Up Desk.)");
+    return [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//The Follow-Up Desk//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      "UID:deadline-" + d.id + "@followup-desk",
+      "SEQUENCE:0",
+      "DTSTAMP:" + icsStamp(),
+      "DTSTART:" + icsLocal(start),
+      "DTEND:" + icsLocal(end),
+      "SUMMARY:" + icsEscape("Deadline: " + (d.title || "")),
+      "DESCRIPTION:" + icsEscape(desc.join("\n")),
+      "BEGIN:VALARM", "ACTION:DISPLAY",
+      "DESCRIPTION:" + icsEscape("Deadline approaching: " + (d.title || "")),
+      "TRIGGER:-P" + lead + "D",
+      "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR",
+    ].join("\r\n");
+  };
+  const downloadDeadlineReminder = (d) => {
+    try {
+      triggerDownload("deadline-" + (d.title || "reminder").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics", buildDeadlineIcs(d));
+      flash("Reminder set for " + prettyDate(d.dueDate) + (d.leadDays ? " (alert " + d.leadDays + "d before)" : "") + " — open it to add to Outlook");
+    } catch (e) { flash("Couldn't create the reminder file"); }
+  };
+
+  const sortedDeadlines = [...deadlines].sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+  const deadlineCounts = useMemo(() => {
+    let overdue = 0, soon = 0;
+    deadlines.forEach((d) => { const s = deadlineStatus(d); if (s.key === "overdue") overdue++; else if (s.key === "soon" || s.key === "today") soon++; });
+    return { overdue, soon, total: deadlines.length, attention: overdue + soon };
+  }, [deadlines]);
+
+  // ----- calendar events -----
+  const calEvents = useMemo(() => {
+    const ev = [];
+    followups.forEach((f) => {
+      if (f.status === "done") return;
+      ev.push({ date: addDays(f.lastContact, Number(f.intervalDays) || 0), type: "followup", label: (f.company || f.name || f.email) });
+    });
+    deadlines.forEach((d) => ev.push({ date: d.dueDate, type: "deadline", label: d.title }));
+    return ev;
+  }, [followups, deadlines]);
+  const eventsOn = (dateStr) => calEvents.filter((e) => e.date === dateStr);
+
+
   const enriched = useMemo(() =>
     followups.map((f) => ({ ...f, _s: getStatus(f) })).sort((a, b) => {
       const w = sortWeight[a._s.key] - sortWeight[b._s.key];
@@ -982,12 +1100,14 @@ function FollowUpDesk() {
       <div className="fd-wrap">
         <header className="fd-head">
           <div>
-            <div className="fd-kicker">{section === "pending" ? "DOCUMENT TRACKER" : "CORRESPONDENCE LEDGER"}</div>
-            <h1 className="fd-title">{section === "pending" ? "Pending Signatures" : "The Follow-Up Desk"}</h1>
+            <div className="fd-kicker">{{ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE" }[section] || "CORRESPONDENCE LEDGER"}</div>
+            <h1 className="fd-title">{{ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar" }[section] || "The Follow-Up Desk"}</h1>
             <p className="fd-sub">
-              {section === "pending"
-                ? "Documents you've sent out that are still awaiting a signature."
-                : "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click."}
+              {{
+                pending: "Documents you've sent out that are still awaiting a signature.",
+                deadlines: "Track time-sensitive due dates and get a heads-up as they approach.",
+                calendar: "Every upcoming follow-up and deadline on one calendar.",
+              }[section] || "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click."}
             </p>
           </div>
           <div className="fd-head-actions">
@@ -1005,6 +1125,12 @@ function FollowUpDesk() {
           </button>
           <button className={"fd-nav-btn" + (section === "pending" ? " active" : "")} onClick={() => setSection("pending")}>
             <FileText size={15} /> Pending signatures{pendingCounts.total > 0 ? " (" + pendingCounts.total + ")" : ""}
+          </button>
+          <button className={"fd-nav-btn" + (section === "deadlines" ? " active" : "")} onClick={() => setSection("deadlines")}>
+            <Flag size={15} /> Deadlines{deadlineCounts.attention > 0 ? " (" + deadlineCounts.attention + ")" : ""}
+          </button>
+          <button className={"fd-nav-btn" + (section === "calendar" ? " active" : "")} onClick={() => setSection("calendar")}>
+            <Calendar size={15} /> Calendar
           </button>
         </div>
 
@@ -1326,6 +1452,149 @@ function FollowUpDesk() {
               </>
             )}
           </div>
+        </>
+        )}
+
+        {section === "deadlines" && (
+        <>
+          <div className="fd-stats">
+            <Stat n={deadlineCounts.overdue} label="overdue" tone="#9c3d28" />
+            <Stat n={deadlineCounts.soon} label="due soon" tone="#b5791f" />
+            <Stat n={deadlineCounts.total} label="deadlines total" tone="#8a8073" />
+          </div>
+
+          <div className="fd-toolbar">
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Sorted by soonest due date</div>
+            <button className="fd-btn primary" onClick={() => { setDForm(blankDForm()); setEditingDeadlineId(null); setShowDeadlineForm((s) => !s); }}>
+              <Plus size={16} /> New deadline
+            </button>
+          </div>
+
+          {showDeadlineForm && (
+            <section className="fd-panel">
+              <div className="fd-panel-head">
+                <span>{editingDeadlineId ? "Edit deadline" : "Add a deadline"}</span>
+                <button className="fd-icon-btn sm" onClick={() => { setShowDeadlineForm(false); setEditingDeadlineId(null); }}><X size={16} /></button>
+              </div>
+              <div className="fd-grid">
+                <div>
+                  <label className="fd-label">Deadline title *</label>
+                  <input className="fd-input" value={dForm.title} onChange={(e) => setDForm({ ...dForm, title: e.target.value })} placeholder="Submit permit application" />
+                </div>
+                <div>
+                  <label className="fd-label">Due date</label>
+                  <input className="fd-input" type="date" value={dForm.dueDate} onChange={(e) => setDForm({ ...dForm, dueDate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="fd-label">Remind me this many days before</label>
+                  <input className="fd-input" type="number" min="0" value={dForm.leadDays} onChange={(e) => setDForm({ ...dForm, leadDays: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="fd-label">Notes <span className="fd-hint">— optional</span></label>
+                  <input className="fd-input" value={dForm.notes} onChange={(e) => setDForm({ ...dForm, notes: e.target.value })} placeholder="City planning office" />
+                </div>
+              </div>
+              <div className="fd-form-foot">
+                <button className="fd-btn ghost" onClick={() => { setShowDeadlineForm(false); setEditingDeadlineId(null); }}>Cancel</button>
+                <button className="fd-btn primary" onClick={submitDeadline}>{editingDeadlineId ? "Save changes" : "Add"}</button>
+              </div>
+            </section>
+          )}
+
+          <div className="fd-list">
+            {!loaded && <div className="fd-empty">Loading…</div>}
+            {loaded && sortedDeadlines.length === 0 && (
+              <div className="fd-empty"><Flag size={28} /><p>No deadlines yet. Add a due date you want to stay ahead of.</p></div>
+            )}
+            {loaded && sortedDeadlines.map((d) => {
+              const s = deadlineStatus(d);
+              return (
+                <article className="fd-card" key={d.id}>
+                  <div className="fd-card-bar" style={{ background: s.color }} />
+                  <div className="fd-card-body">
+                    <div className="fd-card-top">
+                      <div className="fd-who"><span className="fd-name">{d.title}</span></div>
+                      <span className="fd-badge" style={{ color: s.color, borderColor: s.color }}>
+                        {s.label}
+                        {s.key === "overdue" && (" · " + s.days + "d")}
+                        {(s.key === "soon" || s.key === "upcoming") && (" · in " + s.days + "d")}
+                      </span>
+                    </div>
+                    {d.notes && <div className="fd-notes">{d.notes}</div>}
+                    <div className="fd-meta">
+                      <span>Due {prettyDate(d.dueDate)}</span>
+                      <span className="fd-dot">·</span>
+                      <span>Alert {d.leadDays || 0}d before</span>
+                    </div>
+                    <div className="fd-actions">
+                      <button className="fd-btn primary sm" onClick={() => downloadDeadlineReminder(d)}><CalendarClock size={14} /> Add reminder</button>
+                      <div className="fd-spacer" />
+                      <button className="fd-icon-btn sm" title="Edit" onClick={() => startEditDeadline(d)}><Pencil size={15} /></button>
+                      <button className="fd-icon-btn sm danger" title="Delete" onClick={() => removeDeadline(d.id)}><Trash2 size={15} /></button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
+        )}
+
+        {section === "calendar" && (
+        <>
+          <div className="fd-cal-head">
+            <button className="fd-icon-btn sm" onClick={() => setCalMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}><ChevronLeft size={16} /></button>
+            <span className="fd-cal-title">{MONTHS[calMonth.getMonth()]} {calMonth.getFullYear()}</span>
+            <button className="fd-icon-btn sm" onClick={() => setCalMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}><ChevronRight size={16} /></button>
+            <div className="fd-spacer" />
+            <button className="fd-btn ghost sm" onClick={() => { const n = new Date(); setCalMonth(new Date(n.getFullYear(), n.getMonth(), 1)); setCalSelected(todayStr()); }}>Today</button>
+          </div>
+
+          <div className="fd-cal-legend">
+            <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.followup }} /> Follow-up due</span>
+            <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.deadline }} /> Deadline</span>
+          </div>
+
+          <div className="fd-cal-grid">
+            {WEEKDAYS.map((w) => <div key={w} className="fd-cal-wd">{w}</div>)}
+            {(() => {
+              const y = calMonth.getFullYear(), mo = calMonth.getMonth();
+              const lead = new Date(y, mo, 1).getDay();
+              const days = new Date(y, mo + 1, 0).getDate();
+              const cells = [];
+              for (let i = 0; i < lead; i++) cells.push(<div key={"b" + i} className="fd-cal-cell empty" />);
+              for (let day = 1; day <= days; day++) {
+                const ds = ymd(new Date(y, mo, day));
+                const evs = eventsOn(ds);
+                const isToday = ds === todayStr();
+                const isSel = ds === calSelected;
+                cells.push(
+                  <div key={ds} className={"fd-cal-cell" + (isToday ? " today" : "") + (isSel ? " sel" : "")} onClick={() => setCalSelected(ds)}>
+                    <span className="fd-cal-day">{day}</span>
+                    <div className="fd-cal-dots">
+                      {evs.slice(0, 4).map((e, i) => <span key={i} className="fd-dotmark" style={{ background: CAL_COLORS[e.type] }} />)}
+                    </div>
+                  </div>
+                );
+              }
+              return cells;
+            })()}
+          </div>
+
+          {calSelected && (
+            <div className="fd-cal-day-list">
+              <div className="fd-group-head">{prettyDate(calSelected)}</div>
+              {eventsOn(calSelected).length === 0
+                ? <div className="fd-empty" style={{ padding: "20px" }}><p>Nothing scheduled.</p></div>
+                : eventsOn(calSelected).map((e, i) => (
+                  <div className="fd-cal-event" key={i}>
+                    <span className="fd-dotmark" style={{ background: CAL_COLORS[e.type] }} />
+                    <span className="fd-cal-event-type">{e.type === "followup" ? "Follow-up" : "Deadline"}</span>
+                    <span className="fd-cal-event-label">{e.label}</span>
+                  </div>
+                ))}
+            </div>
+          )}
         </>
         )}
 
