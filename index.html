@@ -25,7 +25,12 @@ html,body{margin:0;padding:0;}
 .fd-kicker{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.22em; color:var(--accent); margin-bottom:8px;}
 .fd-title{font-family:'Fraunces',serif; font-weight:600; font-size:42px; line-height:1; margin:0 0 12px; letter-spacing:-.01em;}
 .fd-sub{margin:0; font-size:14.5px; line-height:1.55; color:var(--muted); max-width:54ch;}
-.fd-head-actions{flex-shrink:0;}
+.fd-head-actions{flex-shrink:0; display:flex; gap:8px;}
+.fd-auth{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+.fd-auth-box{background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:30px 28px; max-width:380px; width:100%; box-shadow:0 14px 40px rgba(0,0,0,.1);}
+.fd-auth-err{margin-top:12px; font-size:13px; color:var(--accent); background:#f6ece4; border:1px solid #e6cdbf; border-radius:9px; padding:9px 12px; line-height:1.45;}
+.fd-auth-toggle{display:block; width:100%; text-align:center; margin-top:14px; background:none; border:none; font-family:inherit; font-size:13px; color:var(--muted); cursor:pointer;}
+.fd-auth-toggle:hover{color:var(--ink); text-decoration:underline;}
 
 .fd-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px;}
 .fd-stat{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; gap:4px;}
@@ -176,12 +181,42 @@ html,body{margin:0;padding:0;}
 <body>
 <div id="root"></div>
 
+<script src="https://www.gstatic.com/firebasejs/12.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore-compat.js"></script>
+
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
+
+// =====================================================================
+// CLOUD SYNC (optional). To enable login + cross-device sync, paste your
+// Firebase web config below (replace every PASTE_... value). Leave as-is
+// to keep the app fully local (no login). The apiKey is safe to be public.
+// =====================================================================
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE_apiKey",
+  authDomain: "PASTE_projectId.firebaseapp.com",
+  projectId: "PASTE_projectId",
+  storageBucket: "PASTE_projectId.appspot.com",
+  messagingSenderId: "PASTE_messagingSenderId",
+  appId: "PASTE_appId",
+};
+
+let fbAuth = null, fbDb = null;
+const configFilled = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf("PASTE_") !== 0;
+if (configFilled && typeof firebase !== "undefined") {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+  } catch (e) { console.error("Firebase init failed:", e); }
+}
+const cloudOn = !!fbAuth && !!fbDb;
+
 
 // ---------- inline icons (no external icon library needed) ----------
 const Svg = ({ children, size = 18 }) => (
@@ -202,6 +237,7 @@ const X = (p) => <Svg {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y
 const RotateCcw = (p) => <Svg {...p}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></Svg>;
 const Inbox = (p) => <Svg {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></Svg>;
 const Send = (p) => <Svg {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></Svg>;
+const LogOut = (p) => <Svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Svg>;
 const FileText = (p) => <Svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></Svg>;
 const Calendar = (p) => <Svg {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>;
 const Flag = (p) => <Svg {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></Svg>;
@@ -401,6 +437,7 @@ const prettySize = (n) => {
 };
 
 const STORE_KEY = "followup-desk-v1";
+const USER_KEY = "followup-desk-username";
 
 const STATUS_META = {
   overdue: { label: "Overdue", color: "#9c3d28", Icon: AlertCircle },
@@ -595,6 +632,11 @@ function FollowUpDesk() {
   const [editingDeadlineId, setEditingDeadlineId] = useState(null);
   const [calMonth, setCalMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
   const [calSelected, setCalSelected] = useState(null);
+  const [authReady, setAuthReady] = useState(!cloudOn);
+  const [username, setUsername] = useState(() => { try { return localStorage.getItem(USER_KEY) || ""; } catch (e) { return ""; } });
+  const [usernameInput, setUsernameInput] = useState("");
+  const lastSyncedRef = useRef("");
+  const cloudLoadedRef = useRef(false);
 
   const blankForm = () => ({
     name: "", company: "", email: "", cc: "", subject: "", notes: "",
@@ -628,9 +670,59 @@ function FollowUpDesk() {
 
   useEffect(() => {
     if (!loaded) return;
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ followups, settings, pending, deadlines })); }
+    const json = JSON.stringify({ followups, settings, pending, deadlines });
+    try { localStorage.setItem(STORE_KEY, json); }
     catch (e) { console.error("save failed", e); }
-  }, [followups, settings, pending, deadlines, loaded]);
+    if (cloudOn && username && cloudLoadedRef.current && json !== lastSyncedRef.current) {
+      lastSyncedRef.current = json;
+      fbDb.collection("users").doc(username).set({ data: json, updatedAt: Date.now() }).catch((e) => console.error("cloud save failed", e));
+    }
+  }, [followups, settings, pending, deadlines, loaded, username]);
+
+  // sign in invisibly (anonymous) so the database isn't wide open
+  useEffect(() => {
+    if (!cloudOn) return;
+    fbAuth.signInAnonymously().then(() => setAuthReady(true)).catch((e) => { console.error("anon sign-in failed", e); setAuthReady(true); });
+  }, []);
+
+  // sync this username's data from the cloud
+  useEffect(() => {
+    if (!cloudOn || !username || !authReady) return;
+    cloudLoadedRef.current = false;
+    const ref = fbDb.collection("users").doc(username);
+    const unsub = ref.onSnapshot((snap) => {
+      const remote = snap.exists ? snap.data().data : null;
+      if (remote == null) {
+        const json = JSON.stringify({ followups, settings, pending, deadlines });
+        lastSyncedRef.current = json;
+        ref.set({ data: json, updatedAt: Date.now() }).catch(() => {});
+      } else if (remote !== lastSyncedRef.current) {
+        lastSyncedRef.current = remote;
+        try {
+          const p = JSON.parse(remote);
+          setFollowups(p.followups || []);
+          setSettings({ ...DEFAULT_SETTINGS, ...(p.settings || {}) });
+          setPending(p.pending || []);
+          setDeadlines(p.deadlines || []);
+        } catch (e) { /* ignore */ }
+      }
+      cloudLoadedRef.current = true;
+    }, (err) => console.error("cloud sync error", err));
+    return () => unsub();
+  }, [username, authReady]);
+
+  const chooseUsername = () => {
+    const u = usernameInput.trim().toLowerCase();
+    if (!u) return;
+    lastSyncedRef.current = ""; cloudLoadedRef.current = false;
+    try { localStorage.setItem(USER_KEY, u); } catch (e) {}
+    setUsername(u);
+  };
+  const switchUser = () => {
+    try { localStorage.removeItem(USER_KEY); } catch (e) {}
+    lastSyncedRef.current = ""; cloudLoadedRef.current = false;
+    setUsernameInput(""); setUsername("");
+  };
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
 
@@ -1097,6 +1189,29 @@ function FollowUpDesk() {
     { id: "all", label: "All", n: enriched.length },
   ];
 
+  if (cloudOn && !authReady) {
+    return <div className="fd-root"><div className="fd-auth"><div className="fd-empty">Connecting…</div></div></div>;
+  }
+  if (cloudOn && !username) {
+    return (
+      <div className="fd-root">
+        <div className="fd-auth">
+          <div className="fd-auth-box">
+            <div className="fd-kicker">THE FOLLOW-UP DESK</div>
+            <h1 className="fd-title" style={{ fontSize: 30, margin: "0 0 6px" }}>Enter your username</h1>
+            <p className="fd-sub" style={{ marginBottom: 18 }}>Use the same username on each device and your data follows you — no password needed.</p>
+            <label className="fd-label">Username</label>
+            <input className="fd-input" value={usernameInput} autoFocus
+              onChange={(e) => setUsernameInput(e.target.value)} placeholder="e.g. daniel"
+              onKeyDown={(e) => { if (e.key === "Enter") chooseUsername(); }} />
+            <button className="fd-btn primary" style={{ width: "100%", justifyContent: "center", marginTop: 16 }} onClick={chooseUsername}>Continue</button>
+            <p className="fd-sub" style={{ fontSize: 12, marginTop: 14 }}>Tip: set this first on the device that already has your data. Anyone using the same username sees this data, so pick something only you'll use.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fd-root">
       <div className="fd-wrap">
@@ -1113,6 +1228,11 @@ function FollowUpDesk() {
             </p>
           </div>
           <div className="fd-head-actions">
+            {username && (
+              <button className="fd-icon-btn" title={"Switch user (" + username + ")"} onClick={switchUser}>
+                <LogOut size={18} />
+              </button>
+            )}
             {section === "followups" && (
               <button className="fd-icon-btn" title="Settings" onClick={() => setShowSettings((s) => !s)}>
                 <SettingsIcon size={18} />
