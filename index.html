@@ -72,10 +72,33 @@ html,body{margin:0;padding:0;}
 .fd-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
 .fd-combo{position:relative;}
 .fd-suggest{position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.14); z-index:30; max-height:212px; overflow-y:auto; padding:4px;}
-.fd-suggest-item{display:flex; flex-direction:column; gap:1px; width:100%; text-align:left; background:none; border:none; font-family:inherit; padding:8px 10px; border-radius:7px; cursor:pointer;}
+.fd-suggest-item{display:flex; flex-direction:column; gap:1px; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); font-family:inherit; padding:9px 10px; border-radius:0; cursor:pointer;}
+.fd-suggest-item:first-child{border-top-left-radius:7px; border-top-right-radius:7px;}
+.fd-suggest-item:last-child{border-bottom:none; border-bottom-left-radius:7px; border-bottom-right-radius:7px;}
 .fd-suggest-item:hover{background:#f3ecdd;}
 .fd-suggest-email{font-size:12.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink);}
 .fd-suggest-name{font-size:11.5px; color:var(--muted);}
+
+.fd-drop{display:flex; align-items:center; justify-content:center; gap:8px; text-align:center; border:1.5px dashed var(--line); border-radius:12px; padding:18px 14px; font-size:13px; color:var(--muted); cursor:pointer; background:#fdfcf8; transition:all .15s;}
+.fd-drop:hover{border-color:#cdbfa4; color:var(--ink);}
+.fd-drop.drag{border-color:var(--accent); color:var(--accent); background:#f6ece4;}
+.fd-file-list{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+.fd-file-row{display:flex; align-items:center; gap:8px;}
+.fd-file-main{flex:1; min-width:0; display:flex; align-items:center; gap:8px; text-align:left; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:8px 11px; font-family:inherit; font-size:13px; color:var(--ink); cursor:pointer; transition:all .15s;}
+.fd-file-main:hover{background:#f3ecdd; border-color:#cdbfa4;}
+.fd-file-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.fd-file-size{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); flex-shrink:0;}
+.fd-files{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+.fd-file-chip{display:inline-flex; align-items:center; gap:6px; max-width:100%; background:#fdfcf8; border:1px solid var(--line); border-radius:999px; padding:5px 11px; font-family:inherit; font-size:12px; color:var(--ink); cursor:pointer; transition:all .15s;}
+.fd-file-chip:hover{background:#f3ecdd; border-color:var(--accent); color:var(--accent);}
+
+.fd-modal{position:fixed; inset:0; background:rgba(35,32,26,.55); display:flex; align-items:center; justify-content:center; padding:20px; z-index:60; animation:fdIn .15s ease;}
+.fd-modal-box{background:var(--surface); border:1px solid var(--line); border-radius:16px; width:100%; max-width:760px; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,.3);}
+.fd-modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); font-family:'Fraunces',serif; font-size:16px; font-weight:600;}
+.fd-modal-body{flex:1; min-height:200px; overflow:auto; display:flex; align-items:center; justify-content:center; background:#f1e9da;}
+.fd-modal-foot{padding:12px 16px; border-top:1px solid var(--line); display:flex; justify-content:flex-end;}
+.fd-preview-img{max-width:100%; max-height:78vh; display:block;}
+.fd-preview-frame{width:100%; height:74vh; border:none; background:#fff;}
 .fd-seg{display:inline-flex; gap:4px; background:#f3ecdd; border:1px solid var(--line); border-radius:10px; padding:4px; flex-wrap:wrap;}
 .fd-seg-btn{border:none; background:none; font-family:inherit; font-size:12.5px; color:var(--muted); padding:7px 13px; border-radius:7px; cursor:pointer; transition:all .15s;}
 .fd-seg-btn:hover{color:var(--ink);}
@@ -93,6 +116,8 @@ html,body{margin:0;padding:0;}
 .fd-name{font-family:'Fraunces',serif; font-size:18px; font-weight:600; line-height:1.2;}
 .fd-email{font-size:12.5px; color:var(--muted); font-family:'IBM Plex Mono',monospace; margin-top:2px; word-break:break-all;}
 .fd-company{font-size:12px; color:var(--accent); font-weight:600; margin-top:3px; letter-spacing:.02em;}
+.fd-company-lead{font-family:'Fraunces',serif; font-size:19px; font-weight:700; color:var(--accent); line-height:1.2; letter-spacing:-.01em;}
+.fd-name-sub{font-size:13.5px; font-weight:500; color:var(--ink); margin-top:3px;}
 .fd-badge{flex-shrink:0; display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:500; border:1px solid; border-radius:999px; padding:4px 10px; background:#fdfcf8; white-space:nowrap;}
 .fd-subject{margin-top:10px; font-size:14px; font-weight:500;}
 .fd-notes{margin-top:3px; font-size:13px; color:var(--muted);}
@@ -131,7 +156,7 @@ html,body{margin:0;padding:0;}
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="text/babel" data-presets="react">
-const { useState, useEffect, useMemo } = React;
+const { useState, useEffect, useMemo, useRef } = React;
 
 // ---------- inline icons (no external icon library needed) ----------
 const Svg = ({ children, size = 18 }) => (
@@ -294,6 +319,54 @@ function icsEscape(s) {
   return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 }
 
+// ---------- IndexedDB blob storage for attachments ----------
+const DB_NAME = "followup-desk-files";
+const DB_STORE = "files";
+let _dbPromise = null;
+function openDB() {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return _dbPromise;
+}
+async function idbPut(key, blob) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).put(blob, key);
+    tx.oncomplete = () => res(true);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DB_STORE, "readonly");
+    const r = tx.objectStore(DB_STORE).get(key);
+    r.onsuccess = () => res(r.result || null);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbDelete(key) {
+  return openDB().then((db) => new Promise((res) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).delete(key);
+    tx.oncomplete = () => res(true);
+    tx.onerror = () => res(false);
+  }));
+}
+const newFileId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const prettySize = (n) => {
+  if (!n && n !== 0) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(0) + " KB";
+  return (n / 1048576).toFixed(1) + " MB";
+};
+
 const STORE_KEY = "followup-desk-v1";
 
 const STATUS_META = {
@@ -325,7 +398,7 @@ function Stat({ n, label, tone }) {
 
 function ContactField({ value, onChange, contacts, placeholder, mode, onPick }) {
   const [open, setOpen] = useState(false);
-  const rawParts = (value || "").split(",");
+  const rawParts = (value || "").split(";");
   const lastPartial = rawParts[rawParts.length - 1].trim();
   const committed = mode === "multi" ? rawParts.slice(0, -1).map((s) => s.trim()).filter(Boolean) : [];
   const q = (mode === "multi" ? lastPartial : (value || "").trim()).toLowerCase();
@@ -337,7 +410,7 @@ function ContactField({ value, onChange, contacts, placeholder, mode, onPick }) 
 
   const choose = (c) => {
     if (mode === "multi") {
-      onChange(committed.concat(c.email).join(", ") + ", ");
+      onChange(committed.concat(c.email).join("; ") + "; ");
       setOpen(true);
     } else {
       if (onPick) onPick(c); else onChange(c.email);
@@ -371,6 +444,102 @@ function ContactField({ value, onChange, contacts, placeholder, mode, onPick }) 
   );
 }
 
+function FileDrop({ files, onChange, onPreview }) {
+  const [drag, setDrag] = useState(false);
+  const inputRef = useRef(null);
+
+  const addFiles = async (fileList) => {
+    const added = [];
+    for (const file of Array.from(fileList)) {
+      const fileId = newFileId();
+      try {
+        await idbPut(fileId, file);
+        added.push({ fileId, name: file.name, type: file.type, size: file.size });
+      } catch (e) { /* skip */ }
+    }
+    if (added.length) onChange([...(files || []), ...added]);
+  };
+
+  const removeFile = (fileId) => {
+    idbDelete(fileId);
+    onChange((files || []).filter((f) => f.fileId !== fileId));
+  };
+
+  return (
+    <div>
+      <div
+        className={"fd-drop" + (drag ? " drag" : "")}
+        onClick={() => inputRef.current && inputRef.current.click()}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
+      >
+        <Plus size={16} /> Drag &amp; drop files here, or click to choose
+        <input ref={inputRef} type="file" multiple style={{ display: "none" }}
+          onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+      </div>
+      {files && files.length > 0 && (
+        <div className="fd-file-list">
+          {files.map((f) => (
+            <div className="fd-file-row" key={f.fileId}>
+              <button type="button" className="fd-file-main" onClick={() => onPreview && onPreview(f)} title="Preview">
+                <FileText size={14} />
+                <span className="fd-file-name">{f.name}</span>
+                <span className="fd-file-size">{prettySize(f.size)}</span>
+              </button>
+              <button type="button" className="fd-icon-btn sm danger" title="Remove" onClick={() => removeFile(f.fileId)}><X size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilePreviewModal({ file, onClose }) {
+  const [url, setUrl] = useState(null);
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    let u;
+    idbGet(file.fileId).then((blob) => {
+      if (blob) { u = URL.createObjectURL(blob); setUrl(u); } else setMissing(true);
+    }).catch(() => setMissing(true));
+    return () => { if (u) URL.revokeObjectURL(u); };
+  }, [file.fileId]);
+
+  const isImg = (file.type || "").startsWith("image/");
+  const isPdf = (file.type || "") === "application/pdf";
+  const isText = (file.type || "").startsWith("text/");
+
+  return (
+    <div className="fd-modal" onClick={onClose}>
+      <div className="fd-modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="fd-modal-head">
+          <span className="fd-file-name">{file.name}</span>
+          <button className="fd-icon-btn sm" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="fd-modal-body">
+          {!url && !missing && <div className="fd-empty">Loading preview…</div>}
+          {missing && <div className="fd-empty"><FileText size={28} /><p>This file is no longer stored in the browser.</p></div>}
+          {url && isImg && <img src={url} alt={file.name} className="fd-preview-img" />}
+          {url && (isPdf || isText) && <iframe src={url} className="fd-preview-frame" title={file.name} />}
+          {url && !isImg && !isPdf && !isText && (
+            <div className="fd-empty">
+              <FileText size={28} />
+              <p>No inline preview for this file type.</p>
+            </div>
+          )}
+        </div>
+        {url && (
+          <div className="fd-modal-foot">
+            <a className="fd-btn ghost sm" href={url} download={file.name}>Download</a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -387,17 +556,18 @@ function FollowUpDesk() {
   const [pendingSort, setPendingSort] = useState({ field: "dateSent", dir: "desc" });
   const [showPendingForm, setShowPendingForm] = useState(false);
   const [editingPendingId, setEditingPendingId] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
 
   const blankForm = () => ({
     name: "", company: "", email: "", cc: "", subject: "", notes: "",
-    customBody: "", attachments: "",
+    customBody: "", attachments: "", files: [],
     lastContact: todayStr(), intervalDays: settings.defaultInterval,
   });
   const [form, setForm] = useState(blankForm());
 
   const blankPForm = () => ({
     title: "", dateSent: todayStr(), category: "requisition",
-    jobNumber: "", jobName: "", attachment: "", sentTo: "", sentToEmail: "",
+    jobNumber: "", jobName: "", attachment: "", sentTo: "", sentToEmail: "", files: [],
   });
   const [pForm, setPForm] = useState(blankPForm());
 
@@ -445,7 +615,8 @@ function FollowUpDesk() {
 
   const openInEmail = (f) => {
     const params = [];
-    if (f.cc && f.cc.trim()) params.push("cc=" + encodeURIComponent(f.cc.trim()));
+    const ccList = (f.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+    if (ccList.length) params.push("cc=" + encodeURIComponent(ccList.join(",")));
     params.push("subject=" + encodeURIComponent(f.subject || "Following up"));
     params.push("body=" + encodeURIComponent(buildBody(f)));
     const link = "mailto:" + encodeURIComponent(f.email) + "?" + params.join("&");
@@ -454,7 +625,8 @@ function FollowUpDesk() {
 
   const copyText = async (f) => {
     const lines = ["To: " + f.email];
-    if (f.cc && f.cc.trim()) lines.push("Cc: " + f.cc.trim());
+    const ccClean = (f.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean).join("; ");
+    if (ccClean) lines.push("Cc: " + ccClean);
     lines.push("Subject: " + (f.subject || "Following up"));
     const text = lines.join("\n") + "\n\n" + buildBody(f);
     try { await navigator.clipboard.writeText(text); flash("Email text copied to clipboard"); }
@@ -486,6 +658,36 @@ function FollowUpDesk() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+
+  const triggerBlobDownload = (filename, blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+
+  const downloadStoredFiles = async (files) => {
+    for (const fl of (files || [])) {
+      try {
+        const blob = await idbGet(fl.fileId);
+        if (blob) { triggerBlobDownload(fl.name, blob); await new Promise((r) => setTimeout(r, 400)); }
+      } catch (e) { /* skip */ }
+    }
+  };
+
+  const renderFiles = (files) => (files && files.length > 0) ? (
+    <div className="fd-files">
+      {files.map((fl) => (
+        <button key={fl.fileId} type="button" className="fd-file-chip" onClick={() => setPreviewFile(fl)} title="Preview">
+          <FileText size={13} /> {fl.name}
+        </button>
+      ))}
+    </div>
+  ) : null;
 
   const slug = (f) => (f.name || f.email).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
 
@@ -571,10 +773,12 @@ function FollowUpDesk() {
     const updated = { ...f, lastContact: todayStr(), followUpsSent: (f.followUpsSent || 0) + 1, reminded: true };
     downloadIcs(updated, true);   // refresh the reminder to the new due date (no toast)
     openInEmail(f);               // compose the email using the current wording
+    if (f.files && f.files.length) downloadStoredFiles(f.files);  // send stored files to Downloads for attaching
     setFollowups((arr) => arr.map((x) => (x.id === f.id ? updated : x)));
-    flash(f.attachments && f.attachments.trim()
-      ? "Sent & logged — remember to attach: " + f.attachments.trim()
-      : "Sent & logged — reminder updated to " + prettyDate(reminderDateFor(updated)));
+    const fileNote = f.files && f.files.length
+      ? " — " + f.files.length + " file" + (f.files.length > 1 ? "s" : "") + " downloading to attach"
+      : (f.attachments && f.attachments.trim() ? " — remember to attach: " + f.attachments.trim() : "");
+    flash(fileNote ? "Sent & logged" + fileNote : "Sent & logged — reminder updated to " + prettyDate(reminderDateFor(updated)));
   };
 
   const markDone = (f) => {
@@ -584,10 +788,14 @@ function FollowUpDesk() {
     flash(hadReminder ? "Marked done — open the cancellation file to clear the Outlook reminder" : "Marked done");
   };
   const reactivate = (id) => setFollowups((arr) => arr.map((x) => (x.id === id ? { ...x, status: "active", lastContact: todayStr() } : x)));
-  const remove = (id) => setFollowups((arr) => arr.filter((x) => x.id !== id));
+  const remove = (id) => {
+    const f = followups.find((x) => x.id === id);
+    if (f && f.files) f.files.forEach((fl) => idbDelete(fl.fileId));
+    setFollowups((arr) => arr.filter((x) => x.id !== id));
+  };
 
   const startEdit = (f) => {
-    setForm({ name: f.name, company: f.company || "", email: f.email, cc: f.cc || "", subject: f.subject, notes: f.notes, customBody: f.customBody || "", attachments: f.attachments || "", lastContact: f.lastContact, intervalDays: f.intervalDays });
+    setForm({ name: f.name, company: f.company || "", email: f.email, cc: f.cc || "", subject: f.subject, notes: f.notes, customBody: f.customBody || "", attachments: f.attachments || "", files: f.files || [], lastContact: f.lastContact, intervalDays: f.intervalDays });
     setEditingId(f.id); setShowForm(true);
   };
 
@@ -612,7 +820,7 @@ function FollowUpDesk() {
     setPForm({
       title: p.title || "", dateSent: p.dateSent || todayStr(), category: p.category || "requisition",
       jobNumber: p.jobNumber || "", jobName: p.jobName || "", attachment: p.attachment || "",
-      sentTo: p.sentTo || "", sentToEmail: p.sentToEmail || "",
+      sentTo: p.sentTo || "", sentToEmail: p.sentToEmail || "", files: p.files || [],
     });
     setEditingPendingId(p.id); setShowPendingForm(true);
   };
@@ -629,16 +837,36 @@ function FollowUpDesk() {
     setPForm(blankPForm()); setEditingPendingId(null); setShowPendingForm(false);
   };
 
-  const removePending = (id) => setPending((arr) => arr.filter((x) => x.id !== id));
+  const removePending = (id) => {
+    const p = pending.find((x) => x.id === id);
+    if (p && p.files) p.files.forEach((fl) => idbDelete(fl.fileId));
+    setPending((arr) => arr.filter((x) => x.id !== id));
+  };
   const markSigned = (p) => { removePending(p.id); flash("Marked as signed and removed from pending"); };
 
-  const createFollowUpFromPending = (p) => {
-    const job = [p.jobNumber, p.jobName].filter(Boolean).join(" – ");
+  const createFollowUpFromPending = async (p) => {
+    const copied = [];
+    for (const fl of (p.files || [])) {
+      try {
+        const blob = await idbGet(fl.fileId);
+        if (blob) { const nid = newFileId(); await idbPut(nid, blob); copied.push({ ...fl, fileId: nid }); }
+      } catch (e) { /* skip */ }
+    }
+    const jobNum = (p.jobNumber || "").trim();
+    const jobNm = (p.jobName || "").trim();
+    const jobLabel = jobNum && jobNm ? "Job " + jobNum + " (" + jobNm + ")"
+      : jobNum ? "Job " + jobNum
+      : jobNm ? jobNm : "";
+    const title = (p.title || "the document").trim();
+    const subject = p.title
+      ? (p.title + (jobLabel ? " — " + jobLabel : ""))
+      : (jobLabel || "Signature follow-up");
+    const notes = "the signed " + title + (jobLabel ? " for " + jobLabel : "");
     const fu = {
       id: Date.now().toString(36),
-      name: p.sentTo || "", company: job, email: p.sentToEmail || "", cc: "",
-      subject: p.title || "", notes: p.title ? ("the signed " + p.title) : "the signed document",
-      customBody: "", attachments: p.attachment || "",
+      name: p.sentTo || "", company: jobLabel, email: p.sentToEmail || "", cc: "",
+      subject: subject, notes: notes,
+      customBody: "", attachments: p.attachment || "", files: copied,
       lastContact: p.dateSent || todayStr(), intervalDays: settings.defaultInterval,
       status: "active", followUpsSent: 0, createdAt: todayStr(),
     };
@@ -698,7 +926,7 @@ function FollowUpDesk() {
     };
     followups.forEach((f) => {
       add(f.email, f.name, f.company);
-      (f.cc || "").split(",").forEach((c) => add(c.trim(), "", ""));
+      (f.cc || "").split(/[;,]/).forEach((c) => add(c.trim(), "", ""));
     });
     pending.forEach((p) => add(p.sentToEmail, p.sentTo, ""));
     return Array.from(map.values()).sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
@@ -728,6 +956,7 @@ function FollowUpDesk() {
           </div>
           <div className="fd-notes">Sent to {p.sentTo || "—"}{p.sentToEmail ? " · " + p.sentToEmail : ""}</div>
           {p.attachment && p.attachment.trim() && <div className="fd-notes">Attachment: {p.attachment}</div>}
+          {renderFiles(p.files)}
           <div className="fd-meta"><span>Sent {p.dateSent ? prettyDate(p.dateSent) : "—"}</span></div>
           <div className="fd-actions">
             <button className="fd-btn primary sm" onClick={() => createFollowUpFromPending(p)}><Send size={14} /> Create follow-up</button>
@@ -867,7 +1096,7 @@ function FollowUpDesk() {
                   onPick={(c) => setForm((fm) => ({ ...fm, email: c.email, name: fm.name || c.name || "", company: fm.company || c.company || "" }))} />
               </div>
               <div>
-                <label className="fd-label">CC <span className="fd-hint">— optional, comma-separated</span></label>
+                <label className="fd-label">CC <span className="fd-hint">— optional, semicolon-separated</span></label>
                 <ContactField mode="multi" value={form.cc} contacts={contacts}
                   placeholder="manager@company.com"
                   onChange={(v) => setForm((fm) => ({ ...fm, cc: v }))} />
@@ -893,10 +1122,12 @@ function FollowUpDesk() {
             <textarea className="fd-input area" rows={5} value={form.customBody}
               placeholder="Leave blank to use the automatic professional follow-up."
               onChange={(e) => setForm({ ...form, customBody: e.target.value })} />
-            <label className="fd-label">Attachments <span className="fd-hint">— optional, comma-separated file names; the app reminds you to attach them</span></label>
+            <label className="fd-label">Attachment notes <span className="fd-hint">— optional, comma-separated file names for reference</span></label>
             <input className="fd-input" value={form.attachments}
               placeholder="contract.pdf, W-9.pdf"
               onChange={(e) => setForm({ ...form, attachments: e.target.value })} />
+            <label className="fd-label" style={{ marginTop: 14 }}>Files <span className="fd-hint">— drag &amp; drop to store and preview; they download on send for attaching</span></label>
+            <FileDrop files={form.files} onChange={(fs) => setForm((fm) => ({ ...fm, files: fs }))} onPreview={setPreviewFile} />
             <div className="fd-form-foot">
               <button className="fd-btn ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
               <button className="fd-btn primary" onClick={submit}>{editingId ? "Save changes" : "Add"}</button>
@@ -923,8 +1154,14 @@ function FollowUpDesk() {
                 <div className="fd-card-body">
                   <div className="fd-card-top">
                     <div className="fd-who">
-                      <span className="fd-name">{f.name || f.email}</span>
-                      {f.company && <span className="fd-company">{f.company}</span>}
+                      {f.company ? (
+                        <>
+                          <span className="fd-company-lead">{f.company}</span>
+                          <span className="fd-name-sub">{f.name || f.email}</span>
+                        </>
+                      ) : (
+                        <span className="fd-name">{f.name || f.email}</span>
+                      )}
                       {f.name && <span className="fd-email">{f.email}</span>}
                       {f.cc && <span className="fd-email">Cc: {f.cc}</span>}
                     </div>
@@ -939,6 +1176,7 @@ function FollowUpDesk() {
                   {f.subject && <div className="fd-subject">{f.subject}</div>}
                   {f.notes && <div className="fd-notes">Awaiting: {f.notes}</div>}
                   {f.attachments && f.attachments.trim() && <div className="fd-notes">Attachments: {f.attachments}</div>}
+                  {renderFiles(f.files)}
                   {f.customBody && f.customBody.trim() && <div className="fd-notes" style={{ fontStyle: "italic" }}>Custom message set for this follow-up</div>}
 
                   <div className="fd-meta">
@@ -1058,6 +1296,8 @@ function FollowUpDesk() {
                     onPick={(c) => setPForm((pf) => ({ ...pf, sentToEmail: c.email, sentTo: pf.sentTo || c.name || "" }))} />
                 </div>
               </div>
+              <label className="fd-label" style={{ marginTop: 14 }}>Files <span className="fd-hint">— drag &amp; drop the document to store and preview it</span></label>
+              <FileDrop files={pForm.files} onChange={(fs) => setPForm((pf) => ({ ...pf, files: fs }))} onPreview={setPreviewFile} />
               <div className="fd-form-foot">
                 <button className="fd-btn ghost" onClick={() => { setShowPendingForm(false); setEditingPendingId(null); }}>Cancel</button>
                 <button className="fd-btn primary" onClick={submitPending}>{editingPendingId ? "Save changes" : "Add"}</button>
@@ -1096,6 +1336,7 @@ function FollowUpDesk() {
         </footer>
       </div>
 
+      {previewFile && <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />}
       {toast && <div className="fd-toast">{toast}</div>}
     </div>
   );
