@@ -63,9 +63,10 @@ html,body{margin:0;padding:0;}
 .fd-cal-cell.today .fd-cal-day{color:var(--accent); font-weight:700;}
 .fd-cal-dots{display:flex; flex-wrap:wrap; gap:3px;}
 .fd-cal-day-list{margin-top:18px;}
-.fd-cal-event{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 14px; margin-top:8px;}
+.fd-cal-event{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 14px; margin-top:8px; font-family:inherit; cursor:pointer; transition:all .15s;}
+.fd-cal-event:hover{background:#f3ecdd; border-color:#cdbfa4;}
 .fd-cal-event-type{font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; flex-shrink:0;}
-.fd-cal-event-label{font-size:14px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.fd-cal-event-label{flex:1; font-size:14px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 @media(max-width:560px){
   .fd-cal-cell{min-height:50px; padding:4px; border-radius:7px;}
   .fd-cal-title{font-size:17px; min-width:0; flex:1;}
@@ -333,7 +334,7 @@ const SORT_FIELDS = [
 ];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const CAL_COLORS = { followup: "#5f6f54", deadline: "#a8442a" };
+const CAL_COLORS = { followup: "#5f6f54", deadline: "#a8442a", pending: "#b5791f" };
 
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 function pick(arr, seed) { return arr[seed % arr.length]; }
@@ -582,7 +583,7 @@ function FollowUpDesk() {
   const [showSettings, setShowSettings] = useState(false);
   const [previewSeed, setPreviewSeed] = useState(1);
   const [toast, setToast] = useState(null);
-  const [section, setSection] = useState("followups");
+  const [section, setSection] = useState("calendar");
   const [pending, setPending] = useState([]);
   const [pendingView, setPendingView] = useState("all");
   const [pendingSort, setPendingSort] = useState({ field: "dateSent", dir: "desc" });
@@ -995,11 +996,12 @@ function FollowUpDesk() {
     const ev = [];
     followups.forEach((f) => {
       if (f.status === "done") return;
-      ev.push({ date: addDays(f.lastContact, Number(f.intervalDays) || 0), type: "followup", label: (f.company || f.name || f.email) });
+      ev.push({ date: addDays(f.lastContact, Number(f.intervalDays) || 0), type: "followup", section: "followups", label: (f.company || f.name || f.email) });
     });
-    deadlines.forEach((d) => ev.push({ date: d.dueDate, type: "deadline", label: d.title }));
+    deadlines.forEach((d) => ev.push({ date: d.dueDate, type: "deadline", section: "deadlines", label: d.title }));
+    pending.forEach((p) => { if (p.dateSent) ev.push({ date: p.dateSent, type: "pending", section: "pending", label: p.title + (p.sentTo ? " → " + p.sentTo : "") }); });
     return ev;
-  }, [followups, deadlines]);
+  }, [followups, deadlines, pending]);
   const eventsOn = (dateStr) => calEvents.filter((e) => e.date === dateStr);
 
 
@@ -1120,6 +1122,9 @@ function FollowUpDesk() {
         </header>
 
         <div className="fd-nav">
+          <button className={"fd-nav-btn" + (section === "calendar" ? " active" : "")} onClick={() => setSection("calendar")}>
+            <Calendar size={15} /> Calendar
+          </button>
           <button className={"fd-nav-btn" + (section === "followups" ? " active" : "")} onClick={() => setSection("followups")}>
             <Mail size={15} /> Follow-ups
           </button>
@@ -1128,9 +1133,6 @@ function FollowUpDesk() {
           </button>
           <button className={"fd-nav-btn" + (section === "deadlines" ? " active" : "")} onClick={() => setSection("deadlines")}>
             <Flag size={15} /> Deadlines{deadlineCounts.attention > 0 ? " (" + deadlineCounts.attention + ")" : ""}
-          </button>
-          <button className={"fd-nav-btn" + (section === "calendar" ? " active" : "")} onClick={() => setSection("calendar")}>
-            <Calendar size={15} /> Calendar
           </button>
         </div>
 
@@ -1553,6 +1555,7 @@ function FollowUpDesk() {
           <div className="fd-cal-legend">
             <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.followup }} /> Follow-up due</span>
             <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.deadline }} /> Deadline</span>
+            <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.pending }} /> Sent for signature</span>
           </div>
 
           <div className="fd-cal-grid">
@@ -1587,11 +1590,12 @@ function FollowUpDesk() {
               {eventsOn(calSelected).length === 0
                 ? <div className="fd-empty" style={{ padding: "20px" }}><p>Nothing scheduled.</p></div>
                 : eventsOn(calSelected).map((e, i) => (
-                  <div className="fd-cal-event" key={i}>
+                  <button className="fd-cal-event" key={i} onClick={() => setSection(e.section)} title={"Go to " + e.section}>
                     <span className="fd-dotmark" style={{ background: CAL_COLORS[e.type] }} />
-                    <span className="fd-cal-event-type">{e.type === "followup" ? "Follow-up" : "Deadline"}</span>
+                    <span className="fd-cal-event-type">{e.type === "followup" ? "Follow-up" : e.type === "deadline" ? "Deadline" : "Sent"}</span>
                     <span className="fd-cal-event-label">{e.label}</span>
-                  </div>
+                    <ChevronRight size={14} />
+                  </button>
                 ))}
             </div>
           )}
