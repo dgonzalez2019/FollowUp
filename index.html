@@ -198,11 +198,28 @@ html,body{margin:0;padding:0;}
 .fd-bday-name{flex:1; min-width:0; font-weight:500;}
 .fd-bday-when{flex-shrink:0; font-size:12px; color:var(--muted);}
 .fd-app-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:12px; margin-top:4px;}
-.fd-app-card{display:flex; flex-direction:column; align-items:center; gap:12px; text-decoration:none; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 12px 20px; text-align:center; transition:all .15s;}
+.fd-app-card{position:relative; display:flex; flex-direction:column; align-items:center; gap:12px; text-decoration:none; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 12px 20px; text-align:center; transition:all .15s;}
 .fd-app-card:hover{border-color:var(--accent); box-shadow:0 6px 18px rgba(0,0,0,.08); transform:translateY(-2px);}
 .fd-app-title{font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.01em; line-height:1.25;}
 .fd-app-logo{width:54px; height:54px; object-fit:contain; border-radius:12px;}
 .fd-app-badge{width:54px; height:54px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-family:'Fraunces',serif; font-size:16px; letter-spacing:.02em;}
+.fd-app-remove{position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%; border:none; background:#edf2ee; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.7; transition:all .15s;}
+.fd-app-remove:hover{opacity:1; background:#fbece9; color:#9c3d28;}
+.fd-app-drop{margin-top:16px; border:1.5px dashed var(--line); border-radius:14px; padding:18px 16px; text-align:center; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:8px; transition:all .15s;}
+.fd-app-drop.over{border-color:var(--accent); background:#e9f1f8; color:var(--accent);}
+.fd-app-drop-title{font-family:'Fraunces',serif; font-size:16px; font-weight:600; color:var(--ink);}
+.fd-app-drop-form{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; width:100%; max-width:540px; margin-top:6px;}
+.fd-app-drop-form .fd-input{flex:1; min-width:150px;}
+.fd-app-drop-form .fd-btn{flex-shrink:0;}
+.fd-admin-row{display:flex; align-items:center; justify-content:space-between; padding:11px 2px; border-bottom:1px solid var(--line); font-size:14px;}
+.fd-admin-row input[type=checkbox]{width:20px; height:20px; accent-color:var(--accent); cursor:pointer;}
+.fd-admin-tab{border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:10px; background:#fbfcfb;}
+.fd-admin-tab-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;}
+.fd-admin-link{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--muted); padding:5px 0; border-top:1px dashed var(--line); word-break:break-all;}
+.fd-admin-addlink{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.fd-admin-addlink .fd-input{flex:1; min-width:130px;}
+.fd-admin-addtab{display:flex; gap:8px; margin-top:14px;}
+.fd-admin-addtab .fd-input{flex:1;}
 </style>
 </head>
 <body>
@@ -243,6 +260,7 @@ if (configFilled && typeof firebase !== "undefined") {
   } catch (e) { console.error("Firebase init failed:", e); }
 }
 const cloudOn = !!fbAuth && !!fbDb;
+const ADMINS = ["dgonzalez@bdico.com"]; // admin login email(s)
 
 function friendlyAuthError(e) {
   const c = (e && e.code) || "";
@@ -285,6 +303,7 @@ const Cake = (p) => <Svg {...p}><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2
 const Phone = (p) => <Svg {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></Svg>;
 const Grid = (p) => <Svg {...p}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></Svg>;
 const ExternalLink = (p) => <Svg {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></Svg>;
+const Shield = (p) => <Svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Svg>;
 const ChevronLeft = (p) => <Svg {...p}><polyline points="15 18 9 12 15 6"/></Svg>;
 const ChevronRight = (p) => <Svg {...p}><polyline points="9 18 15 12 9 6"/></Svg>;
 
@@ -428,6 +447,10 @@ const APPS = [
   { name: "Bluebeam", url: "https://cloud.bluebeam.com", domain: "bluebeam.com", abbr: "BB", color: "#0095da" },
   { name: "Adobe Acrobat", url: "https://acrobat.adobe.com", domain: "acrobat.adobe.com", abbr: "A", color: "#ec1c24" },
 ];
+function domainFromUrl(u) {
+  try { return new URL(/^https?:\/\//i.test(u) ? u : "https://" + u).hostname.replace(/^www\./, ""); }
+  catch (e) { return ""; }
+}
 function AppLogo({ app }) {
   const [err, setErr] = useState(false);
   if (err || !app.domain) {
@@ -686,6 +709,14 @@ function FollowUpDesk() {
   const [toast, setToast] = useState(null);
   const [section, setSection] = useState("calendar");
   const [dirQuery, setDirQuery] = useState("");
+  const [personalApps, setPersonalApps] = useState([]);
+  const [appName, setAppName] = useState("");
+  const [appUrl, setAppUrl] = useState("");
+  const [appDragOver, setAppDragOver] = useState(false);
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [] });
+  const [adminNewTab, setAdminNewTab] = useState("");
+  const [linkDrafts, setLinkDrafts] = useState({});
+  const sharedSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
   const [pendingView, setPendingView] = useState("all");
   const [pendingSort, setPendingSort] = useState({ field: "dateSent", dir: "desc" });
@@ -732,6 +763,7 @@ function FollowUpDesk() {
         setSettings({ ...DEFAULT_SETTINGS, ...(parsed.settings || {}) });
         setPending(parsed.pending || []);
         setDeadlines(parsed.deadlines || []);
+        setPersonalApps(parsed.personalApps || []);
       }
     } catch (e) { /* first run */ }
     setLoaded(true);
@@ -739,14 +771,14 @@ function FollowUpDesk() {
 
   useEffect(() => {
     if (!loaded) return;
-    const json = JSON.stringify({ followups, settings, pending, deadlines });
+    const json = JSON.stringify({ followups, settings, pending, deadlines, personalApps });
     try { localStorage.setItem(STORE_KEY, json); }
     catch (e) { console.error("save failed", e); }
     if (cloudOn && user && cloudLoadedRef.current && json !== lastSyncedRef.current) {
       lastSyncedRef.current = json;
       fbDb.collection("users").doc(user.uid).set({ data: json, updatedAt: Date.now() }).catch((e) => console.error("cloud save failed", e));
     }
-  }, [followups, settings, pending, deadlines, loaded, user]);
+  }, [followups, settings, pending, deadlines, loaded, user, personalApps]);
 
   // watch email/password sign-in state
   useEffect(() => {
@@ -764,7 +796,7 @@ function FollowUpDesk() {
       const remote = snap.exists ? snap.data().data : null;
       if (remote == null) {
         // brand-new account: push whatever is on this device up (migrates existing data)
-        const json = JSON.stringify({ followups, settings, pending, deadlines });
+        const json = JSON.stringify({ followups, settings, pending, deadlines, personalApps });
         lastSyncedRef.current = json;
         ref.set({ data: json, updatedAt: Date.now() }).catch(() => {});
       } else if (remote !== lastSyncedRef.current) {
@@ -775,10 +807,27 @@ function FollowUpDesk() {
           setSettings({ ...DEFAULT_SETTINGS, ...(p.settings || {}) });
           setPending(p.pending || []);
           setDeadlines(p.deadlines || []);
+          setPersonalApps(p.personalApps || []);
         } catch (e) { /* ignore */ }
       }
       cloudLoadedRef.current = true;
     }, (err) => console.error("cloud sync error", err));
+    return () => unsub();
+  }, [user]);
+
+  // read the company-wide shared config (everyone reads; only admins write)
+  useEffect(() => {
+    if (!cloudOn || !user) return;
+    const ref = fbDb.collection("shared").doc("appConfig");
+    const unsub = ref.onSnapshot((snap) => {
+      if (snap.exists && snap.data().data) {
+        try {
+          const c = JSON.parse(snap.data().data);
+          sharedSyncedRef.current = snap.data().data;
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [] });
+        } catch (e) { /* ignore */ }
+      }
+    }, (err) => console.error("shared config read error", err));
     return () => unsub();
   }, [user]);
 
@@ -1344,6 +1393,67 @@ function FollowUpDesk() {
     );
   }
 
+  const saveSharedConfig = (next) => {
+    setSharedConfig(next);
+    if (!cloudOn || !user) return;
+    const json = JSON.stringify(next);
+    sharedSyncedRef.current = json;
+    fbDb.collection("shared").doc("appConfig").set({ data: json, updatedAt: Date.now() })
+      .then(() => flash("Saved for everyone"))
+      .catch((e) => { console.error(e); flash("Couldn't save — make sure the admin rule is published"); });
+  };
+  const toggleTab = (key) => {
+    const tabs = { ...sharedConfig.tabs, [key]: sharedConfig.tabs[key] === false ? true : false };
+    saveSharedConfig({ ...sharedConfig, tabs });
+  };
+  const addCustomTab = () => {
+    const nm = adminNewTab.trim();
+    if (!nm) return;
+    const id = "ct_" + Math.random().toString(36).slice(2, 8);
+    saveSharedConfig({ ...sharedConfig, customTabs: [...sharedConfig.customTabs, { id, name: nm, links: [] }] });
+    setAdminNewTab("");
+  };
+  const deleteCustomTab = (id) => {
+    saveSharedConfig({ ...sharedConfig, customTabs: sharedConfig.customTabs.filter((t) => t.id !== id) });
+    if (section === id) setSection("calendar");
+  };
+  const addLink = (tabId) => {
+    const d = linkDrafts[tabId] || {};
+    const raw = (d.url || "").trim();
+    if (!raw) return;
+    const full = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+    const dom = domainFromUrl(full);
+    const link = { name: (d.name || "").trim() || dom || "Link", url: full, domain: dom };
+    const customTabs = sharedConfig.customTabs.map((t) => t.id === tabId ? { ...t, links: [...t.links, link] } : t);
+    saveSharedConfig({ ...sharedConfig, customTabs });
+    setLinkDrafts((prev) => ({ ...prev, [tabId]: { name: "", url: "" } }));
+  };
+  const removeLink = (tabId, idx) => {
+    const customTabs = sharedConfig.customTabs.map((t) => t.id === tabId ? { ...t, links: t.links.filter((_, i) => i !== idx) } : t);
+    saveSharedConfig({ ...sharedConfig, customTabs });
+  };
+
+  const addPersonalApp = (name, rawUrl) => {
+    const raw = (rawUrl || "").trim();
+    if (!raw) return;
+    const full = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+    const dom = domainFromUrl(full);
+    const nm = (name || "").trim() || dom || "App";
+    setPersonalApps((prev) => [...prev, { name: nm, url: full, domain: dom, personal: true }]);
+    setAppName(""); setAppUrl("");
+  };
+  const removePersonalApp = (idx) => setPersonalApps((prev) => prev.filter((_, i) => i !== idx));
+  const onAppDrop = (e) => {
+    e.preventDefault(); setAppDragOver(false);
+    const dt = e.dataTransfer; if (!dt) return;
+    let url = (dt.getData("text/uri-list") || dt.getData("text/plain") || dt.getData("URL") || "").trim();
+    url = (url.split("\n").find((l) => l && l.indexOf("#") !== 0) || url).trim();
+    if (url) addPersonalApp("", url);
+  };
+
+  const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
+  const tabVisible = (key) => sharedConfig.tabs[key] !== false;
+  const activeCustomTab = sharedConfig.customTabs.find((t) => t.id === section);
   const inCalGroup = section === "calendar" || section === "followups" || section === "pending" || section === "deadlines";
 
   return (
@@ -1354,17 +1464,18 @@ function FollowUpDesk() {
         </div>
         <header className="fd-head">
           <div>
-            <div className="fd-kicker">{{ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION" }[section] || "CORRESPONDENCE LEDGER"}</div>
-            <h1 className="fd-title">{{ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps" }[section] || "The Follow-Up Desk"}</h1>
+            <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS" }[section] || "CORRESPONDENCE LEDGER")}</div>
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin" }[section] || "The Follow-Up Desk")}</h1>
             <p className="fd-sub">
-              {{
+              {activeCustomTab ? "Shortcuts set up by your admin." : ({
                 pending: "Documents you've sent out that are still awaiting a signature.",
                 deadlines: "Track time-sensitive due dates and get a heads-up as they approach.",
                 calendar: "Every upcoming follow-up and deadline on one calendar.",
                 officelist: "Company contact directory — extensions, cell numbers, and emails.",
                 birthdays: "Everyone's birthday, plotted on the calendar so you never miss one.",
                 apps: "Quick links to the tools BDI uses — tap any one to jump straight in.",
-              }[section] || "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click."}
+                admin: "Control what everyone sees and add company-wide tabs. Changes apply to all users.",
+              }[section] || "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click.")}
             </p>
           </div>
           <div className="fd-head-actions">
@@ -1385,15 +1496,31 @@ function FollowUpDesk() {
           <button className={"fd-nav-btn" + (inCalGroup ? " active" : "")} onClick={() => setSection("calendar")}>
             <Calendar size={15} /> Calendar{(counts.attention + deadlineCounts.attention) > 0 ? " (" + (counts.attention + deadlineCounts.attention) + ")" : ""}
           </button>
-          <button className={"fd-nav-btn" + (section === "officelist" ? " active" : "")} onClick={() => setSection("officelist")}>
-            <Users size={15} /> Office list
-          </button>
-          <button className={"fd-nav-btn" + (section === "birthdays" ? " active" : "")} onClick={() => setSection("birthdays")}>
-            <Cake size={15} /> Birthdays
-          </button>
-          <button className={"fd-nav-btn" + (section === "apps" ? " active" : "")} onClick={() => setSection("apps")}>
-            <Grid size={15} /> Apps
-          </button>
+          {tabVisible("officelist") && (
+            <button className={"fd-nav-btn" + (section === "officelist" ? " active" : "")} onClick={() => setSection("officelist")}>
+              <Users size={15} /> Office list
+            </button>
+          )}
+          {tabVisible("birthdays") && (
+            <button className={"fd-nav-btn" + (section === "birthdays" ? " active" : "")} onClick={() => setSection("birthdays")}>
+              <Cake size={15} /> Birthdays
+            </button>
+          )}
+          {tabVisible("apps") && (
+            <button className={"fd-nav-btn" + (section === "apps" ? " active" : "")} onClick={() => setSection("apps")}>
+              <Grid size={15} /> Apps
+            </button>
+          )}
+          {sharedConfig.customTabs.map((t) => (
+            <button key={t.id} className={"fd-nav-btn" + (section === t.id ? " active" : "")} onClick={() => setSection(t.id)}>
+              <Grid size={15} /> {t.name}
+            </button>
+          ))}
+          {isAdmin && (
+            <button className={"fd-nav-btn" + (section === "admin" ? " active" : "")} onClick={() => setSection("admin")}>
+              <Shield size={15} /> Admin
+            </button>
+          )}
         </div>
 
         {inCalGroup && (
@@ -1819,6 +1946,72 @@ function FollowUpDesk() {
         </>
         )}
 
+        {activeCustomTab && (
+        <>
+          {activeCustomTab.links.length === 0 ? (
+            <div className="fd-empty" style={{ padding: 30 }}><p>No links in this tab yet.</p></div>
+          ) : (
+            <div className="fd-app-grid">
+              {activeCustomTab.links.map((lnk, i) => (
+                <a key={i} className="fd-app-card" href={lnk.url} target="_blank" rel="noopener noreferrer">
+                  <span className="fd-app-title">{lnk.name}</span>
+                  <AppLogo app={lnk} />
+                </a>
+              ))}
+            </div>
+          )}
+        </>
+        )}
+
+        {section === "admin" && isAdmin && (
+        <>
+          <div className="fd-panel">
+            <div className="fd-group-head">Tab visibility <span className="fd-count">everyone</span></div>
+            {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"]].map(([k, label]) => (
+              <label className="fd-admin-row" key={k}>
+                <span>{label}</span>
+                <input type="checkbox" checked={tabVisible(k)} onChange={() => toggleTab(k)} />
+              </label>
+            ))}
+            <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Calendar is always visible. Changes apply to everyone the next time their app loads.</p>
+          </div>
+
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Custom tabs <span className="fd-count">everyone</span></div>
+            {sharedConfig.customTabs.length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: "8px 0 0" }}>No custom tabs yet. Add one below — it becomes a tab for everyone, holding the links you choose.</p>
+            ) : sharedConfig.customTabs.map((t) => (
+              <div className="fd-admin-tab" key={t.id}>
+                <div className="fd-admin-tab-head">
+                  <strong>{t.name}</strong>
+                  <button className="fd-icon-btn sm" title="Delete tab" onClick={() => deleteCustomTab(t.id)}><Trash2 size={15} /></button>
+                </div>
+                {t.links.map((lnk, i) => (
+                  <div className="fd-admin-link" key={i}>
+                    <span>{lnk.name} — {lnk.url}</span>
+                    <button className="fd-icon-btn sm" title="Remove link" onClick={() => removeLink(t.id, i)}><X size={14} /></button>
+                  </div>
+                ))}
+                <div className="fd-admin-addlink">
+                  <input className="fd-input" placeholder="Link name" value={(linkDrafts[t.id] || {}).name || ""}
+                    onChange={(e) => setLinkDrafts((d) => ({ ...d, [t.id]: { ...(d[t.id] || {}), name: e.target.value } }))} />
+                  <input className="fd-input" placeholder="Web address" value={(linkDrafts[t.id] || {}).url || ""}
+                    onChange={(e) => setLinkDrafts((d) => ({ ...d, [t.id]: { ...(d[t.id] || {}), url: e.target.value } }))}
+                    onKeyDown={(e) => { if (e.key === "Enter") addLink(t.id); }} />
+                  <button className="fd-btn" onClick={() => addLink(t.id)}>Add link</button>
+                </div>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="New tab name (e.g. Safety Docs)" value={adminNewTab}
+                onChange={(e) => setAdminNewTab(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCustomTab(); }} />
+              <button className="fd-btn primary" onClick={addCustomTab}>Add tab</button>
+            </div>
+          </div>
+          <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Per-person control (choosing tabs for specific people) is the next piece — say the word when you want it added.</p>
+        </>
+        )}
+
         {section === "apps" && (
         <>
           <div className="fd-app-grid">
@@ -1828,8 +2021,30 @@ function FollowUpDesk() {
                 <AppLogo app={a} />
               </a>
             ))}
+            {personalApps.map((a, i) => (
+              <a key={"p" + i} className="fd-app-card" href={a.url} target="_blank" rel="noopener noreferrer">
+                <button className="fd-app-remove" title="Remove" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removePersonalApp(i); }}><X size={13} /></button>
+                <span className="fd-app-title">{a.name}</span>
+                <AppLogo app={a} />
+              </a>
+            ))}
           </div>
-          <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 16 }}>Each opens in a new tab. Want to add, remove, or reorder apps? Send me the list and links and I'll update them.</p>
+
+          <div className={"fd-app-drop" + (appDragOver ? " over" : "")}
+            onDragOver={(e) => { e.preventDefault(); setAppDragOver(true); }}
+            onDragLeave={() => setAppDragOver(false)}
+            onDrop={onAppDrop}>
+            <Plus size={18} />
+            <div className="fd-app-drop-title">Add your own app</div>
+            <div className="fd-sub" style={{ fontSize: 12.5, margin: 0 }}>Drag a link here, or type a name and web address below.</div>
+            <div className="fd-app-drop-form">
+              <input className="fd-input" placeholder="Name (optional)" value={appName} onChange={(e) => setAppName(e.target.value)} />
+              <input className="fd-input" placeholder="Web address (e.g. example.com)" value={appUrl}
+                onChange={(e) => setAppUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPersonalApp(appName, appUrl); }} />
+              <button className="fd-btn primary" onClick={() => addPersonalApp(appName, appUrl)}>Add</button>
+            </div>
+          </div>
+          <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Your added apps are saved to your account and stay private to you. The built-in apps open in a new tab — want changes to those? Just tell me.</p>
         </>
         )}
 
