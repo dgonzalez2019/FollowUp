@@ -49,6 +49,10 @@ html,body{margin:0;padding:0;}
 .fd-nav-btn{display:inline-flex; align-items:center; gap:7px; background:none; border:none; border-bottom:2px solid transparent; font-family:inherit; font-size:14px; color:var(--muted); padding:10px 8px; margin-bottom:-1px; cursor:pointer; transition:all .15s;}
 .fd-nav-btn:hover{color:var(--ink);}
 .fd-nav-btn.active{color:var(--ink); border-bottom-color:var(--accent); font-weight:500;}
+.fd-subnav{display:flex; gap:4px; flex-wrap:wrap; margin:14px 0 2px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px;}
+.fd-subnav-btn{display:inline-flex; align-items:center; gap:6px; background:none; border:none; border-radius:9px; font-family:inherit; font-size:13px; color:var(--muted); padding:8px 12px; cursor:pointer; white-space:nowrap; transition:all .15s;}
+.fd-subnav-btn:hover{color:var(--ink); background:#edf2ee;}
+.fd-subnav-btn.active{color:#fff; background:var(--accent); font-weight:500;}
 .fd-sortbar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
 .fd-sort-label{font-size:12.5px; color:var(--muted);}
 .fd-select{font-family:inherit; font-size:13px; color:var(--ink); background:#f7f9f5; border:1px solid var(--line); border-radius:9px; padding:8px 10px; cursor:pointer;}
@@ -1315,6 +1319,8 @@ function FollowUpDesk() {
     );
   }
 
+  const inCalGroup = section === "calendar" || section === "followups" || section === "pending" || section === "deadlines";
+
   return (
     <div className="fd-root">
       <div className="fd-wrap">
@@ -1350,17 +1356,8 @@ function FollowUpDesk() {
         </header>
 
         <div className="fd-nav">
-          <button className={"fd-nav-btn" + (section === "calendar" ? " active" : "")} onClick={() => setSection("calendar")}>
-            <Calendar size={15} /> Calendar
-          </button>
-          <button className={"fd-nav-btn" + (section === "followups" ? " active" : "")} onClick={() => setSection("followups")}>
-            <Mail size={15} /> Follow-ups
-          </button>
-          <button className={"fd-nav-btn" + (section === "pending" ? " active" : "")} onClick={() => setSection("pending")}>
-            <FileText size={15} /> Pending signatures{pendingCounts.total > 0 ? " (" + pendingCounts.total + ")" : ""}
-          </button>
-          <button className={"fd-nav-btn" + (section === "deadlines" ? " active" : "")} onClick={() => setSection("deadlines")}>
-            <Flag size={15} /> Deadlines{deadlineCounts.attention > 0 ? " (" + deadlineCounts.attention + ")" : ""}
+          <button className={"fd-nav-btn" + (inCalGroup ? " active" : "")} onClick={() => setSection("calendar")}>
+            <Calendar size={15} /> Calendar{(counts.attention + deadlineCounts.attention) > 0 ? " (" + (counts.attention + deadlineCounts.attention) + ")" : ""}
           </button>
           <button className={"fd-nav-btn" + (section === "officelist" ? " active" : "")} onClick={() => setSection("officelist")}>
             <Users size={15} /> Office list
@@ -1369,6 +1366,23 @@ function FollowUpDesk() {
             <Cake size={15} /> Birthdays
           </button>
         </div>
+
+        {inCalGroup && (
+          <div className="fd-subnav">
+            <button className={"fd-subnav-btn" + (section === "calendar" ? " active" : "")} onClick={() => setSection("calendar")}>
+              <Calendar size={14} /> Month
+            </button>
+            <button className={"fd-subnav-btn" + (section === "followups" ? " active" : "")} onClick={() => setSection("followups")}>
+              <Mail size={14} /> Follow-ups{counts.attention > 0 ? " (" + counts.attention + ")" : ""}
+            </button>
+            <button className={"fd-subnav-btn" + (section === "pending" ? " active" : "")} onClick={() => setSection("pending")}>
+              <FileText size={14} /> Pending signatures{pendingCounts.total > 0 ? " (" + pendingCounts.total + ")" : ""}
+            </button>
+            <button className={"fd-subnav-btn" + (section === "deadlines" ? " active" : "")} onClick={() => setSection("deadlines")}>
+              <Flag size={14} /> Deadlines{deadlineCounts.attention > 0 ? " (" + deadlineCounts.attention + ")" : ""}
+            </button>
+          </div>
+        )}
 
         {section === "followups" && (
         <>
