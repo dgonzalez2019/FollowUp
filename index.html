@@ -178,6 +178,21 @@ html,body{margin:0;padding:0;}
   .fd-tabs{overflow-x:auto;}
   .fd-btn{justify-content:center;}
 }
+.fd-nav{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+.fd-nav-btn{white-space:nowrap;}
+.fd-count{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); font-weight:400; margin-left:6px;}
+.fd-dir-row{display:flex; align-items:flex-start; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:8px;}
+.fd-dir-name{font-weight:600; font-size:15px; line-height:1.2;}
+.fd-dir-role{font-size:12.5px; color:var(--muted); margin-top:2px;}
+.fd-dir-meta{display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:7px; font-size:13px;}
+.fd-dir-meta a{color:var(--accent); text-decoration:none; display:inline-flex; align-items:center; gap:6px; word-break:break-all;}
+.fd-dir-meta a:hover{text-decoration:underline;}
+.fd-ext{flex-shrink:0; font-family:'IBM Plex Mono',monospace; font-size:12px; min-width:38px; text-align:center; background:#edf2ee; border:1px solid var(--line); border-radius:7px; padding:4px 7px; color:var(--ink); margin-top:1px;}
+.fd-ext.muted{color:var(--muted); background:transparent;}
+.fd-bday-row{display:flex; align-items:center; gap:11px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 14px; margin-top:8px;}
+.fd-bday-date{flex-shrink:0; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--accent); min-width:54px;}
+.fd-bday-name{flex:1; min-width:0; font-weight:500;}
+.fd-bday-when{flex-shrink:0; font-size:12px; color:var(--muted);}
 </style>
 </head>
 <body>
@@ -243,6 +258,9 @@ const LogOut = (p) => <Svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2
 const FileText = (p) => <Svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></Svg>;
 const Calendar = (p) => <Svg {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>;
 const Flag = (p) => <Svg {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></Svg>;
+const Users = (p) => <Svg {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Svg>;
+const Cake = (p) => <Svg {...p}><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.6-1 2-1 2.6 1 4 1 2.6-1 4-1 2.6 1 4 1 2-1 2-1"/><line x1="2" y1="21" x2="22" y2="21"/><path d="M7 8v3M12 8v3M17 8v3"/><path d="M7 4h.01M12 4h.01M17 4h.01"/></Svg>;
+const Phone = (p) => <Svg {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></Svg>;
 const ChevronLeft = (p) => <Svg {...p}><polyline points="15 18 9 12 15 6"/></Svg>;
 const ChevronRight = (p) => <Svg {...p}><polyline points="9 18 15 12 9 6"/></Svg>;
 
@@ -372,7 +390,10 @@ const SORT_FIELDS = [
 ];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const CAL_COLORS = { followup: "#5f6f54", deadline: "#1f6cb0", pending: "#b5791f" };
+const CAL_COLORS = { followup: "#5f6f54", deadline: "#1f6cb0", pending: "#b5791f", birthday: "#b14a8a" };
+const BIRTHDAYS = [{"n": "Yamile Dominguez", "m": 1, "d": 12}, {"n": "Daniel Gonzalez", "m": 1, "d": 19}, {"n": "Yolanda Cue Gonzalez", "m": 1, "d": 20}, {"n": "David Galdeano", "m": 1, "d": 20}, {"n": "Victor Ringgaard", "m": 1, "d": 22}, {"n": "Maggy Cangas", "m": 1, "d": 24}, {"n": "Horacio Sotolongo", "m": 2, "d": 8}, {"n": "Ricky Reyes", "m": 2, "d": 12}, {"n": "Mel Rosario", "m": 2, "d": 27}, {"n": "Sr. Teobaldo", "m": 3, "d": 11}, {"n": "Lazaro Villar", "m": 3, "d": 14}, {"n": "Marileidy Gonzalez Hernandez", "m": 3, "d": 19}, {"n": "Adrian Felipe", "m": 4, "d": 2}, {"n": "Sofia Espaillat", "m": 4, "d": 10}, {"n": "Hernan Gallardo Gonzalez", "m": 4, "d": 17}, {"n": "Nez Teimouri", "m": 4, "d": 18}, {"n": "Mariazell Arias", "m": 4, "d": 25}, {"n": "Orestes Hervis", "m": 4, "d": 28}, {"n": "Richie Sobalvarro", "m": 5, "d": 11}, {"n": "Jessica Terman", "m": 5, "d": 11}, {"n": "Mark Popp", "m": 5, "d": 11}, {"n": "Ismael Alonso Ramos", "m": 5, "d": 21}, {"n": "Gonzalo Lopez de Ayala", "m": 5, "d": 22}, {"n": "Agustina Matarazo", "m": 5, "d": 27}, {"n": "Lourdes Escandon", "m": 6, "d": 5}, {"n": "Carlos Rosell", "m": 6, "d": 19}, {"n": "Isaiah Hernandez", "m": 6, "d": 19}, {"n": "Adelso Rodriguez", "m": 6, "d": 22}, {"n": "Glenn Domchick", "m": 7, "d": 7}, {"n": "Andrea Loguzzo", "m": 7, "d": 9}, {"n": "Valentino Loguzzo", "m": 7, "d": 11}, {"n": "Joseph Natale", "m": 7, "d": 11}, {"n": "Dayana Colmenares", "m": 7, "d": 12}, {"n": "Shawn Lowrance", "m": 7, "d": 15}, {"n": "Scott Lowrance", "m": 7, "d": 23}, {"n": "Sheldon Vilsiant", "m": 7, "d": 23}, {"n": "Jocelyn Guillen", "m": 7, "d": 24}, {"n": "Stephen Green", "m": 7, "d": 26}, {"n": "Chris Reid", "m": 8, "d": 12}, {"n": "Juan Carlos Gonzalez Villafuerte", "m": 8, "d": 25}, {"n": "Rolando Rojas Pomar", "m": 8, "d": 27}, {"n": "Brenda Cedeno Rijo", "m": 8, "d": 27}, {"n": "Wail Elghergiani", "m": 8, "d": 28}, {"n": "Gerry Gonzalez", "m": 9, "d": 17}, {"n": "Noemi Rovirosa", "m": 9, "d": 25}, {"n": "Luis Delgado", "m": 10, "d": 9}, {"n": "Andrea Nestor", "m": 10, "d": 9}, {"n": "Estela Cachú-Yakeen", "m": 10, "d": 13}, {"n": "Anthony Arroyo", "m": 10, "d": 29}, {"n": "Diego Abreu", "m": 11, "d": 2}, {"n": "Katrin Nunez", "m": 11, "d": 4}, {"n": "Michael Austin Sheffield", "m": 11, "d": 13}, {"n": "Michael Harrison", "m": 11, "d": 27}, {"n": "Giraldo Figueroa", "m": 12, "d": 5}, {"n": "Chris Alvarez", "m": 12, "d": 10}, {"n": "Teo Rosell", "m": 12, "d": 28}, {"n": "Charlie Morejon", "m": 12, "d": 29}, {"n": "Fernando Lopez de Ayala", "m": 12, "d": 29}];
+const OFFICE_DIR = [{"g": "Office Staff", "name": "Reception Desk", "ext": "300", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "Agustina Matarazzo", "ext": "327", "cell": "754-210-1414", "email": "Amatarazzo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Andrea Loguzzo", "ext": "321", "cell": "(305) 778-1352", "email": "Aloguzzo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Andrea Nestor", "ext": "329", "cell": "617-831-3199", "email": "Anestor@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Anthony Arroyo", "ext": "317", "cell": "954-853-0254", "email": "Arroyo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Brenda Cedeno Rijo", "ext": "324", "cell": "786-491-9303", "email": "BCEDENORIJO@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Carlos Rosell", "ext": "319", "cell": "(305) 989-5464", "email": "Crosell@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Chris Alvarez", "ext": "303", "cell": "(786) 303-5154", "email": "Calvarez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Conference Room #1", "ext": "301", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "Conference Room #2", "ext": "301", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "David Galdeano", "ext": "307", "cell": "786-236-8680", "email": "dgaldeano@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Diego Abreu", "ext": "307", "cell": "786-236-6231", "email": "DAbreu@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Daniel Gonzalez", "ext": "330", "cell": "786-691-9651", "email": "Dgonzalez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Dayana Colmenares", "ext": "313", "cell": "786-793-4047", "email": "Dcolmenares@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Estela Yakeen", "ext": "318", "cell": "(305) 299-0777", "email": "Eyakeen@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Fernando Lopez de Ayala", "ext": "322", "cell": "757-816-8084", "email": "FLdeAyala@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Gonzalo Lopez de Ayla", "ext": "305", "cell": "(757) 289-9979", "email": "GLdeAyala@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Jessica Terman", "ext": "312", "cell": "305-479-0197", "email": "Jterman@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Jocelyn Guillen", "ext": "329", "cell": "(305) 302-5241", "email": "Jguillen@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Katy Nunez", "ext": "323", "cell": "(786) 372-4142", "email": "Knunez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Lazaro Villar", "ext": "", "cell": "954-734-4480", "email": "Lvillar@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Lourdes Escandon", "ext": "310", "cell": "(954) 328-6723", "email": "LEscandon@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Lunch Room", "ext": "300", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "Margarita Cangas", "ext": "", "cell": "(786) 385-0998", "email": "mcangas@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Marileidy Gonzalez Hernandez", "ext": "328", "cell": "305-330-7675", "email": "Mgonzalezhernandez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Nez. Teimouri", "ext": "", "cell": "(818) 220-5771", "email": "Nteimouri@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Noemi Rovirosa", "ext": "304", "cell": "305-433-1728", "email": "Nrovirosa@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Sofia Espaillat", "ext": "", "cell": "(786) 282-8991", "email": "SEspaillat@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Teo Rosell", "ext": "320", "cell": "(305) 989-5463", "email": "trosell@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Valentino Loguzzo", "ext": "315", "cell": "305733-9656", "email": "Vloguzzo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Wail Elgheriani", "ext": "329", "cell": "(305) 927-8608", "email": "welgheriani@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Yamile Dominguez", "ext": "308", "cell": "(305) 989-5510", "email": "ydominguez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Yolanda Cue Gonzalez", "ext": "316", "cell": "(786) 306-8292", "email": "ycue@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Adrian Felipe", "ext": "", "cell": "(305) 333-7314", "email": "AFelipe@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Christopher Reid", "ext": "", "cell": "754-423-4457", "email": "Creid@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Fernando Lopez de Ayala", "ext": "", "cell": "757-816-8084", "email": "FLdeAyala@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Gerry Gonzalez", "ext": "", "cell": "(305) 989-5465", "email": "GGonzalez@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Giraldo Figueroa", "ext": "", "cell": "(305) 989-5507", "email": "gfigueroa@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Ismael Alonso Ramos", "ext": "", "cell": "786-849-7220", "email": "ialonso@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Horacio Sotolongo", "ext": "", "cell": "(786) 287-8839", "email": "HSotolongo@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Juan Carlos Gonzalez-Villafuerte", "ext": "", "cell": "786-684-8960", "email": "Jgonzalez@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Luis Delgado", "ext": "", "cell": "(305) 216-8799", "email": "ldelgado@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Mel Rosario", "ext": "", "cell": "786-795-2662", "email": "Mrosario@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Orestes Hervis", "ext": "", "cell": "954-682-5252", "email": "Ohervis@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Richie Sobalvarro", "ext": "", "cell": "786-683-1249", "email": "RSobalvarro@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Ricky Reyes", "ext": "", "cell": "786-546-3361", "email": "Rreyes@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Rolando Rojas Pomare", "ext": "", "cell": "786-333-3984", "email": "Rrojaspomar@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Sheldon Vilsaint", "ext": "", "cell": "954-668-5290", "email": "Svilsaint@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Stephen Green", "ext": "", "cell": "305-934-9917", "email": "SGreen@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Victor Ringgaard", "ext": "", "cell": "786-316-6870", "email": "VRinggaard@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Scott Lowrance - Csntn. Director", "ext": "", "cell": "352-988-8564", "email": "Slowrance@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Charlie Morejon", "ext": "", "cell": "386-444-1318", "email": "Cmorejon@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Glenn Domchick", "ext": "", "cell": "352-251-8341", "email": "Gdomchick@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Hernan Gallardo Gonzalez", "ext": "", "cell": "689-288-4315", "email": "HGallardoGonzalez@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Isaiah Hernandez", "ext": "", "cell": "917-474-4476", "email": "Ihernandez@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Joseph Natale", "ext": "", "cell": "645-243-6677", "email": "Jnatale@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Mark Popp", "ext": "", "cell": "645-248-6455", "email": "Mpopp@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Michael Ray Harrison", "ext": "", "cell": "352-446-8762", "email": "Mharrison@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Michael Austin Sheffield", "ext": "", "cell": "352-205-9658", "email": "Msheffield@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Shawn Lowrance", "ext": "", "cell": "352-410-3381", "email": "STLowrance@bdico.com", "role": ""}, {"g": "Departments & Vendors", "name": "Mariazell Arias", "role": "ADP Liaison / HR / Advisor to President", "ext": "", "cell": "(786) 325-4526", "email": "Marias@bdico.com"}, {"g": "Departments & Vendors", "name": "Dayana Colmenares", "role": "Marketing / Social Media", "ext": "313", "cell": "(786) 793-4047", "email": "dcolmenares@bdico.com"}, {"g": "Departments & Vendors", "name": "Bibiana Berardi", "role": "Graphic Designer", "ext": "", "cell": "(786) 368-0471", "email": "Bibi.Berardi@Gmail.com"}, {"g": "Departments & Vendors", "name": "ICG (IT) – Customer Service", "role": "IT Company", "ext": "", "cell": "1 (888) 809-4685", "email": "service@icgi.com"}];
+const DIR_GROUPS = ["Office Staff","Field Personnel / PMs & Superintendents","Orlando Area Projects","Departments & Vendors"];
 
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 function pick(arr, seed) { return arr[seed % arr.length]; }
@@ -624,6 +645,7 @@ function FollowUpDesk() {
   const [previewSeed, setPreviewSeed] = useState(1);
   const [toast, setToast] = useState(null);
   const [section, setSection] = useState("calendar");
+  const [dirQuery, setDirQuery] = useState("");
   const [pending, setPending] = useState([]);
   const [pendingView, setPendingView] = useState("all");
   const [pendingSort, setPendingSort] = useState({ field: "dateSent", dir: "desc" });
@@ -1079,6 +1101,35 @@ function FollowUpDesk() {
     } catch (e) { flash("Couldn't create the reminder file"); }
   };
 
+  const buildBirthdayIcs = (b) => {
+    const yr = new Date().getFullYear();
+    const mmdd = String(b.m).padStart(2, "0") + String(b.d).padStart(2, "0");
+    const uid = "birthday-" + b.n.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + "@followup-desk";
+    return [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//The Follow-Up Desk//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      "UID:" + uid,
+      "SEQUENCE:0",
+      "DTSTAMP:" + icsStamp(),
+      "DTSTART;VALUE=DATE:" + yr + mmdd,
+      "DTEND;VALUE=DATE:" + yr + mmdd,
+      "RRULE:FREQ=YEARLY",
+      "SUMMARY:" + icsEscape(b.n + "'s Birthday"),
+      "DESCRIPTION:" + icsEscape("BDI birthday (from The Follow-Up Desk)."),
+      "BEGIN:VALARM", "ACTION:DISPLAY",
+      "DESCRIPTION:" + icsEscape(b.n + "'s birthday today"),
+      "TRIGGER:-P0D",
+      "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR",
+    ].join("\r\n");
+  };
+  const downloadBirthday = (b) => {
+    try {
+      triggerDownload("birthday-" + b.n.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics", buildBirthdayIcs(b));
+      flash(b.n + "'s birthday — open the file to add it to Outlook (repeats yearly)");
+    } catch (e) { flash("Couldn't create the birthday file"); }
+  };
+
   const sortedDeadlines = [...deadlines].sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
   const deadlineCounts = useMemo(() => {
     let overdue = 0, soon = 0;
@@ -1097,7 +1148,15 @@ function FollowUpDesk() {
     pending.forEach((p) => { if (p.dateSent) ev.push({ date: p.dateSent, type: "pending", section: "pending", label: p.title + (p.sentTo ? " → " + p.sentTo : "") }); });
     return ev;
   }, [followups, deadlines, pending]);
-  const eventsOn = (dateStr) => calEvents.filter((e) => e.date === dateStr);
+  const eventsOn = (dateStr) => {
+    const base = calEvents.filter((e) => e.date === dateStr);
+    const parts = dateStr.split("-");
+    const mm = Number(parts[1]), dd = Number(parts[2]);
+    BIRTHDAYS.forEach((b) => {
+      if (b.m === mm && b.d === dd) base.push({ date: dateStr, type: "birthday", section: "birthdays", label: b.n });
+    });
+    return base;
+  };
 
 
   const enriched = useMemo(() =>
@@ -1224,13 +1283,15 @@ function FollowUpDesk() {
         </div>
         <header className="fd-head">
           <div>
-            <div className="fd-kicker">{{ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE" }[section] || "CORRESPONDENCE LEDGER"}</div>
-            <h1 className="fd-title">{{ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar" }[section] || "The Follow-Up Desk"}</h1>
+            <div className="fd-kicker">{{ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION" }[section] || "CORRESPONDENCE LEDGER"}</div>
+            <h1 className="fd-title">{{ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays" }[section] || "The Follow-Up Desk"}</h1>
             <p className="fd-sub">
               {{
                 pending: "Documents you've sent out that are still awaiting a signature.",
                 deadlines: "Track time-sensitive due dates and get a heads-up as they approach.",
                 calendar: "Every upcoming follow-up and deadline on one calendar.",
+                officelist: "Company contact directory — extensions, cell numbers, and emails.",
+                birthdays: "Everyone's birthday, plotted on the calendar so you never miss one.",
               }[section] || "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click."}
             </p>
           </div>
@@ -1260,6 +1321,12 @@ function FollowUpDesk() {
           </button>
           <button className={"fd-nav-btn" + (section === "deadlines" ? " active" : "")} onClick={() => setSection("deadlines")}>
             <Flag size={15} /> Deadlines{deadlineCounts.attention > 0 ? " (" + deadlineCounts.attention + ")" : ""}
+          </button>
+          <button className={"fd-nav-btn" + (section === "officelist" ? " active" : "")} onClick={() => setSection("officelist")}>
+            <Users size={15} /> Office list
+          </button>
+          <button className={"fd-nav-btn" + (section === "birthdays" ? " active" : "")} onClick={() => setSection("birthdays")}>
+            <Cake size={15} /> Birthdays
           </button>
         </div>
 
@@ -1669,6 +1736,90 @@ function FollowUpDesk() {
         </>
         )}
 
+        {section === "officelist" && (
+        <>
+          <div className="fd-panel" style={{ padding: "14px 16px", marginBottom: 18 }}>
+            <input className="fd-input" placeholder="Search name, extension, phone, or email…" value={dirQuery} onChange={(e) => setDirQuery(e.target.value)} />
+          </div>
+          {(() => {
+            const q = dirQuery.trim().toLowerCase();
+            const match = (p) => !q || (p.name + " " + p.ext + " " + p.email + " " + (p.role || "") + " " + p.cell).toLowerCase().includes(q);
+            const shown = OFFICE_DIR.filter(match);
+            if (shown.length === 0) return <div className="fd-empty" style={{ padding: 30 }}><p>No one matches that search.</p></div>;
+            return DIR_GROUPS.map((g) => {
+              const people = shown.filter((p) => p.g === g);
+              if (people.length === 0) return null;
+              return (
+                <div key={g} style={{ marginBottom: 22 }}>
+                  <div className="fd-group-head">{g} <span className="fd-count">{people.length}</span></div>
+                  {people.map((p, i) => (
+                    <div className="fd-dir-row" key={g + i}>
+                      <span className={"fd-ext" + (p.ext ? "" : " muted")}>{p.ext || "—"}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="fd-dir-name">{p.name}</div>
+                        {p.role ? <div className="fd-dir-role">{p.role}</div> : null}
+                        {(p.cell || p.email) && (
+                          <div className="fd-dir-meta">
+                            {p.cell ? <a href={"tel:" + p.cell.replace(/[^0-9+]/g, "")}><Phone size={13} /> {p.cell}</a> : null}
+                            {p.email ? <a href={"mailto:" + p.email}><Mail size={13} /> {p.email}</a> : null}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            });
+          })()}
+        </>
+        )}
+
+        {section === "birthdays" && (
+        <>
+          {(() => {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const withNext = BIRTHDAYS.map((b) => {
+              let d = new Date(today.getFullYear(), b.m - 1, b.d);
+              if (d < today) d = new Date(today.getFullYear() + 1, b.m - 1, b.d);
+              return { ...b, days: Math.round((d - today) / 86400000) };
+            });
+            const upcoming = [...withNext].sort((a, b) => a.days - b.days).slice(0, 6);
+            return (
+              <>
+                <div className="fd-panel" style={{ marginBottom: 18 }}>
+                  <div className="fd-group-head">Coming up</div>
+                  {upcoming.map((b, i) => (
+                    <div className="fd-bday-row" key={"u" + i}>
+                      <span className="fd-dotmark" style={{ background: CAL_COLORS.birthday }} />
+                      <span className="fd-bday-name">{b.n}</span>
+                      <span className="fd-bday-date">{MONTHS[b.m - 1].slice(0, 3)} {b.d}</span>
+                      <span className="fd-bday-when">{b.days === 0 ? "today!" : b.days === 1 ? "tomorrow" : "in " + b.days + " days"}</span>
+                      <button className="fd-icon-btn sm" title="Add to my calendar (.ics)" onClick={() => downloadBirthday(b)}><CalendarClock size={15} /></button>
+                    </div>
+                  ))}
+                </div>
+                {MONTHS.map((mname, mi) => {
+                  const list = BIRTHDAYS.filter((b) => b.m === mi + 1).sort((a, b) => a.d - b.d);
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={mname} style={{ marginBottom: 18 }}>
+                      <div className="fd-group-head">{mname} <span className="fd-count">{list.length}</span></div>
+                      {list.map((b, i) => (
+                        <div className="fd-bday-row" key={mi + "-" + i}>
+                          <span className="fd-bday-date">{mname.slice(0, 3)} {b.d}</span>
+                          <span className="fd-bday-name">{b.n}</span>
+                          <button className="fd-icon-btn sm" title="Add to my calendar (.ics)" onClick={() => downloadBirthday(b)}><CalendarClock size={15} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
+        </>
+        )}
+
         {section === "calendar" && (
         <>
           <div className="fd-cal-head">
@@ -1683,6 +1834,7 @@ function FollowUpDesk() {
             <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.followup }} /> Follow-up due</span>
             <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.deadline }} /> Deadline</span>
             <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.pending }} /> Sent for signature</span>
+            <span className="fd-legend-item"><span className="fd-dotmark" style={{ background: CAL_COLORS.birthday }} /> Birthday</span>
           </div>
 
           <div className="fd-cal-grid">
@@ -1719,7 +1871,7 @@ function FollowUpDesk() {
                 : eventsOn(calSelected).map((e, i) => (
                   <button className="fd-cal-event" key={i} onClick={() => setSection(e.section)} title={"Go to " + e.section}>
                     <span className="fd-dotmark" style={{ background: CAL_COLORS[e.type] }} />
-                    <span className="fd-cal-event-type">{e.type === "followup" ? "Follow-up" : e.type === "deadline" ? "Deadline" : "Sent"}</span>
+                    <span className="fd-cal-event-type">{e.type === "followup" ? "Follow-up" : e.type === "deadline" ? "Deadline" : e.type === "birthday" ? "Birthday" : "Sent"}</span>
                     <span className="fd-cal-event-label">{e.label}</span>
                     <ChevronRight size={14} />
                   </button>
