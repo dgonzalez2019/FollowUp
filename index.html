@@ -220,6 +220,9 @@ html,body{margin:0;padding:0;}
 .fd-admin-addlink .fd-input{flex:1; min-width:130px;}
 .fd-admin-addtab{display:flex; gap:8px; margin-top:14px;}
 .fd-admin-addtab .fd-input{flex:1;}
+.fd-admin-toggles{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+.fd-admin-chip{display:inline-flex; align-items:center; gap:6px; background:#edf2ee; border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer;}
+.fd-admin-chip input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer;}
 </style>
 </head>
 <body>
@@ -713,8 +716,9 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [] });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {} });
   const [adminNewTab, setAdminNewTab] = useState("");
+  const [adminNewPerson, setAdminNewPerson] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
   const sharedSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
@@ -824,7 +828,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [] });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {} });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -1432,6 +1436,24 @@ function FollowUpDesk() {
     const customTabs = sharedConfig.customTabs.map((t) => t.id === tabId ? { ...t, links: t.links.filter((_, i) => i !== idx) } : t);
     saveSharedConfig({ ...sharedConfig, customTabs });
   };
+  const addPerson = () => {
+    const em = adminNewPerson.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const overrides = { ...(sharedConfig.overrides || {}) };
+    if (!overrides[em]) overrides[em] = {};
+    saveSharedConfig({ ...sharedConfig, overrides });
+    setAdminNewPerson("");
+  };
+  const removePerson = (email) => {
+    const overrides = { ...(sharedConfig.overrides || {}) };
+    delete overrides[email];
+    saveSharedConfig({ ...sharedConfig, overrides });
+  };
+  const setPersonTab = (email, key, value) => {
+    const overrides = { ...(sharedConfig.overrides || {}) };
+    overrides[email] = { ...(overrides[email] || {}), [key]: value };
+    saveSharedConfig({ ...sharedConfig, overrides });
+  };
 
   const addPersonalApp = (name, rawUrl) => {
     const raw = (rawUrl || "").trim();
@@ -1452,7 +1474,11 @@ function FollowUpDesk() {
   };
 
   const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
-  const tabVisible = (key) => sharedConfig.tabs[key] !== false;
+  const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
+  const tabVisible = (key) => {
+    if (myOverride[key] !== undefined) return myOverride[key] !== false;
+    return sharedConfig.tabs[key] !== false;
+  };
   const activeCustomTab = sharedConfig.customTabs.find((t) => t.id === section);
   const inCalGroup = section === "calendar" || section === "followups" || section === "pending" || section === "deadlines";
 
@@ -1511,7 +1537,7 @@ function FollowUpDesk() {
               <Grid size={15} /> Apps
             </button>
           )}
-          {sharedConfig.customTabs.map((t) => (
+          {sharedConfig.customTabs.filter((t) => tabVisible(t.id)).map((t) => (
             <button key={t.id} className={"fd-nav-btn" + (section === t.id ? " active" : "")} onClick={() => setSection(t.id)}>
               <Grid size={15} /> {t.name}
             </button>
@@ -2008,7 +2034,38 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={addCustomTab}>Add tab</button>
             </div>
           </div>
-          <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Per-person control (choosing tabs for specific people) is the next piece — say the word when you want it added.</p>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Per-person tabs</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Override what specific people see. Unchecked = hidden for that person, no matter the company setting. Calendar always shows.</p>
+            {Object.keys(sharedConfig.overrides || {}).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No per-person overrides yet. Add someone by email below.</p>
+            ) : Object.keys(sharedConfig.overrides).map((em) => (
+              <div className="fd-admin-tab" key={em}>
+                <div className="fd-admin-tab-head">
+                  <strong style={{ wordBreak: "break-all" }}>{em}</strong>
+                  <button className="fd-icon-btn sm" title="Remove person" onClick={() => removePerson(em)}><Trash2 size={15} /></button>
+                </div>
+                <div className="fd-admin-toggles">
+                  {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"]].concat(sharedConfig.customTabs.map((t) => [t.id, t.name])).map(([k, label]) => {
+                    const ov = sharedConfig.overrides[em] || {};
+                    const checked = ov[k] !== undefined ? ov[k] !== false : (sharedConfig.tabs[k] !== false);
+                    return (
+                      <label className="fd-admin-chip" key={k}>
+                        <input type="checkbox" checked={checked} onChange={(e) => setPersonTab(em, k, e.target.checked)} />
+                        <span>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Person's email (e.g. jdoe@bdico.com)" value={adminNewPerson}
+                onChange={(e) => setAdminNewPerson(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }} />
+              <button className="fd-btn primary" onClick={addPerson}>Add person</button>
+            </div>
+          </div>
+          <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
         </>
         )}
 
