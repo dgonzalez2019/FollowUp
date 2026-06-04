@@ -716,11 +716,16 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {} });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
+  const [adminNewUsps, setAdminNewUsps] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
+  const [uspsItems, setUspsItems] = useState([]);
+  const [uspsTitle, setUspsTitle] = useState("");
+  const [uspsNotes, setUspsNotes] = useState("");
   const sharedSyncedRef = useRef("");
+  const uspsSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
   const [pendingView, setPendingView] = useState("all");
   const [pendingSort, setPendingSort] = useState({ field: "dateSent", dir: "desc" });
@@ -828,12 +833,31 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {} });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: c.usps || { access: [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
     return () => unsub();
   }, [user]);
+
+  // sync shared USPS items for users who have access
+  useEffect(() => {
+    if (!cloudOn || !user) return;
+    const access = (sharedConfig.usps && sharedConfig.usps.access) || [];
+    const email = (user.email || "").toLowerCase();
+    const has = access.indexOf(email) >= 0 || ADMINS.indexOf(email) >= 0;
+    if (!has) { setUspsItems([]); return; }
+    const ref = fbDb.collection("shared").doc("usps");
+    const unsub = ref.onSnapshot((snap) => {
+      const remote = snap.exists ? snap.data().data : null;
+      if (remote == null) { uspsSyncedRef.current = "[]"; }
+      else if (remote !== uspsSyncedRef.current) {
+        uspsSyncedRef.current = remote;
+        try { setUspsItems(JSON.parse(remote) || []); } catch (e) { /* ignore */ }
+      }
+    }, (err) => console.error("usps read error", err));
+    return () => unsub();
+  }, [user, sharedConfig]);
 
   const doAuth = () => {
     const email = authEmail.trim();
@@ -1402,9 +1426,36 @@ function FollowUpDesk() {
     if (!cloudOn || !user) return;
     const json = JSON.stringify(next);
     sharedSyncedRef.current = json;
-    fbDb.collection("shared").doc("appConfig").set({ data: json, updatedAt: Date.now() })
+    const uspsAccessList = ((next.usps && next.usps.access) || []).map((e) => String(e).toLowerCase());
+    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, updatedAt: Date.now() })
       .then(() => flash("Saved for everyone"))
       .catch((e) => { console.error(e); flash("Couldn't save — make sure the admin rule is published"); });
+  };
+  const saveUsps = (nextItems) => {
+    setUspsItems(nextItems);
+    if (!cloudOn || !user) return;
+    const json = JSON.stringify(nextItems);
+    uspsSyncedRef.current = json;
+    fbDb.collection("shared").doc("usps").set({ data: json, updatedAt: Date.now() })
+      .then(() => {}).catch((e) => { console.error(e); flash("Couldn't save the USPS item — do you have access?"); });
+  };
+  const addUspsItem = () => {
+    if (!uspsTitle.trim() && !uspsNotes.trim()) return;
+    const item = { id: "u_" + Math.random().toString(36).slice(2, 9), title: uspsTitle.trim(), notes: uspsNotes.trim(), createdBy: (user && user.email) || "", createdAt: Date.now() };
+    saveUsps([item, ...uspsItems]);
+    setUspsTitle(""); setUspsNotes("");
+  };
+  const removeUspsItem = (id) => saveUsps(uspsItems.filter((it) => it.id !== id));
+  const grantUsps = () => {
+    const em = adminNewUsps.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const cur = ((sharedConfig.usps && sharedConfig.usps.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, usps: { access: [...cur, em] } });
+    setAdminNewUsps("");
+  };
+  const revokeUsps = (em) => {
+    const cur = ((sharedConfig.usps && sharedConfig.usps.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, usps: { access: cur } });
   };
   const toggleTab = (key) => {
     const tabs = { ...sharedConfig.tabs, [key]: sharedConfig.tabs[key] === false ? true : false };
@@ -1474,6 +1525,7 @@ function FollowUpDesk() {
   };
 
   const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
+  const uspsHasAccess = isAdmin || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(((user && user.email) || "").toLowerCase()) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
   const tabVisible = (key) => {
     if (myOverride[key] !== undefined) return myOverride[key] !== false;
@@ -1490,8 +1542,8 @@ function FollowUpDesk() {
         </div>
         <header className="fd-head">
           <div>
-            <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS" }[section] || "CORRESPONDENCE LEDGER")}</div>
-            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin" }[section] || "The Follow-Up Desk")}</h1>
+            <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "The Follow-Up Desk")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
                 pending: "Documents you've sent out that are still awaiting a signature.",
@@ -1501,6 +1553,7 @@ function FollowUpDesk() {
                 birthdays: "Everyone's birthday, plotted on the calendar so you never miss one.",
                 apps: "Quick links to the tools BDI uses — tap any one to jump straight in.",
                 admin: "Control what everyone sees and add company-wide tabs. Changes apply to all users.",
+                usps: "A shared list — visible to everyone you've given access, and kept in sync between you all.",
               }[section] || "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click.")}
             </p>
           </div>
@@ -1542,6 +1595,11 @@ function FollowUpDesk() {
               <Grid size={15} /> {t.name}
             </button>
           ))}
+          {uspsHasAccess && (
+            <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
+              <Inbox size={15} /> USPS
+            </button>
+          )}
           {isAdmin && (
             <button className={"fd-nav-btn" + (section === "admin" ? " active" : "")} onClick={() => setSection("admin")}>
               <Shield size={15} /> Admin
@@ -1989,6 +2047,34 @@ function FollowUpDesk() {
         </>
         )}
 
+        {section === "usps" && uspsHasAccess && (
+        <>
+          <div className="fd-panel">
+            <div className="fd-group-head">New item</div>
+            <label className="fd-label">Title</label>
+            <input className="fd-input" value={uspsTitle} onChange={(e) => setUspsTitle(e.target.value)} placeholder="Item title" />
+            <label className="fd-label" style={{ marginTop: 10 }}>Notes</label>
+            <textarea className="fd-input" rows={3} value={uspsNotes} onChange={(e) => setUspsNotes(e.target.value)} placeholder="Details (optional)" />
+            <button className="fd-btn primary" style={{ marginTop: 12 }} onClick={addUspsItem}>Add item</button>
+            <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>These are placeholder fields just to test it — send me the exact boxes you want and I'll swap them in.</p>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            {uspsItems.length === 0 ? (
+              <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
+            ) : uspsItems.map((it) => (
+              <div className="fd-dir-row" key={it.id}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="fd-dir-name">{it.title || "(untitled)"}</div>
+                  {it.notes ? <div className="fd-dir-role" style={{ whiteSpace: "pre-wrap" }}>{it.notes}</div> : null}
+                  <div className="fd-sub" style={{ fontSize: 11.5, marginTop: 4 }}>Added by {it.createdBy || "someone"}{it.createdAt ? " · " + new Date(it.createdAt).toLocaleDateString() : ""}</div>
+                </div>
+                <button className="fd-icon-btn sm" title="Delete" onClick={() => removeUspsItem(it.id)}><Trash2 size={15} /></button>
+              </div>
+            ))}
+          </div>
+        </>
+        )}
+
         {section === "admin" && isAdmin && (
         <>
           <div className="fd-panel">
@@ -2063,6 +2149,23 @@ function FollowUpDesk() {
               <input className="fd-input" placeholder="Person's email (e.g. jdoe@bdico.com)" value={adminNewPerson}
                 onChange={(e) => setAdminNewPerson(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }} />
               <button className="fd-btn primary" onClick={addPerson}>Add person</button>
+            </div>
+          </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">USPS tab access</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The USPS tab is hidden from everyone except the people you add here, and they all share one synced list. You always have access.</p>
+            {((sharedConfig.usps && sharedConfig.usps.access) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one else has access yet. Add someone by email below.</p>
+            ) : ((sharedConfig.usps && sharedConfig.usps.access) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove access" onClick={() => revokeUsps(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to grant USPS access" value={adminNewUsps}
+                onChange={(e) => setAdminNewUsps(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantUsps(); }} />
+              <button className="fd-btn primary" onClick={grantUsps}>Grant access</button>
             </div>
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
