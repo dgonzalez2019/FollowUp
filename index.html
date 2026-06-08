@@ -237,6 +237,28 @@ html,body{margin:0;padding:0;}
 .fd-usps-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
 .fd-usps-status-label{font-size:12px; color:var(--muted);}
 .fd-usps-statussel{margin-left:auto; font-family:inherit; font-size:13px; padding:5px 9px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer;}
+.fd-usps-controls{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;}
+.fd-usps-controls .fd-input{flex:1; min-width:160px;}
+.fd-usps-card{padding:0; overflow:hidden;}
+.fd-usps-row{display:flex; align-items:center; gap:10px; padding:13px 15px; cursor:pointer; user-select:none;}
+.fd-usps-row:hover{background:#f4f7f2;}
+.fd-usps-chev{display:inline-flex; color:var(--muted); transition:transform .15s; flex-shrink:0;}
+.fd-usps-rowmain{flex:1; min-width:0;}
+.fd-usps-rowfac{font-size:13px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.fd-usps-billed{font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; border:1px solid; background:var(--surface); white-space:nowrap;}
+.fd-usps-detail{padding:4px 15px 15px; border-top:1px solid var(--line);}
+.fd-usps-detrow{display:flex; gap:10px; padding:7px 0; font-size:13.5px; border-bottom:1px solid var(--line);}
+.fd-usps-k{flex-shrink:0; width:104px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.03em; padding-top:2px;}
+.fd-usps-notes{margin-top:14px;}
+.fd-usps-notes-head{font-family:'Fraunces',serif; font-size:14px; font-weight:600; margin-bottom:8px;}
+.fd-usps-note-empty{font-size:13px; color:var(--muted); padding:4px 0 8px;}
+.fd-usps-note{background:#f4f7f2; border:1px solid var(--line); border-radius:10px; padding:8px 11px; margin-bottom:7px;}
+.fd-usps-note-meta{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:3px;}
+.fd-usps-note-text{font-size:13.5px; white-space:pre-wrap; line-height:1.45;}
+.fd-usps-addnote{display:flex; flex-direction:column; gap:8px; margin-top:8px;}
+.fd-usps-addnote .fd-btn{align-self:flex-start;}
+.fd-usps-deletebtn{display:inline-flex; align-items:center; gap:6px; margin-top:14px; background:none; border:1px solid var(--line); color:#9c3d28; border-radius:9px; padding:7px 12px; font-size:13px; cursor:pointer;}
+.fd-usps-deletebtn:hover{background:#fbece9;}
 </style>
 </head>
 <body>
@@ -740,6 +762,10 @@ function FollowUpDesk() {
   const [linkDrafts, setLinkDrafts] = useState({});
   const [uspsItems, setUspsItems] = useState([]);
   const [uspsForm, setUspsForm] = useState(blankUspsForm());
+  const [uspsOpen, setUspsOpen] = useState({});
+  const [uspsQuery, setUspsQuery] = useState("");
+  const [uspsSort, setUspsSort] = useState("act_desc");
+  const [noteDrafts, setNoteDrafts] = useState({});
   const sharedSyncedRef = useRef("");
   const uspsSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
@@ -1457,12 +1483,21 @@ function FollowUpDesk() {
   };
   const addUspsItem = () => {
     if (!uspsForm.callNumber.trim() && !uspsForm.problemNumber.trim()) { flash("Add at least a Call Number"); return; }
-    const item = { ...uspsForm, id: "u_" + Math.random().toString(36).slice(2, 9), createdBy: (user && user.email) || "", createdAt: Date.now() };
+    const now = Date.now();
+    const item = { ...uspsForm, id: "u_" + Math.random().toString(36).slice(2, 9), createdBy: (user && user.email) || "", createdAt: now, updatedAt: now, notes: [] };
     saveUsps([item, ...uspsItems]);
     setUspsForm(blankUspsForm());
   };
   const removeUspsItem = (id) => saveUsps(uspsItems.filter((it) => it.id !== id));
-  const updateUspsItem = (id, patch) => saveUsps(uspsItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  const updateUspsItem = (id, patch) => saveUsps(uspsItems.map((it) => (it.id === id ? { ...it, ...patch, updatedAt: Date.now() } : it)));
+  const toggleUspsOpen = (id) => setUspsOpen((o) => ({ ...o, [id]: !o[id] }));
+  const addNote = (id) => {
+    const text = (noteDrafts[id] || "").trim();
+    if (!text) return;
+    const note = { text, by: (user && user.email) || "", at: Date.now() };
+    saveUsps(uspsItems.map((it) => (it.id === id ? { ...it, notes: [...(it.notes || []), note], updatedAt: Date.now() } : it)));
+    setNoteDrafts((d) => ({ ...d, [id]: "" }));
+  };
   const grantUsps = () => {
     const em = adminNewUsps.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
@@ -1549,6 +1584,25 @@ function FollowUpDesk() {
     return sharedConfig.tabs[key] !== false;
   };
   const activeCustomTab = sharedConfig.customTabs.find((t) => t.id === section);
+  const uspsView = (() => {
+    const q = uspsQuery.trim().toLowerCase();
+    let arr = uspsItems;
+    if (q) arr = arr.filter((it) => {
+      const notesText = (it.notes || []).map((n) => n.text).join(" ");
+      return [it.callNumber, it.problemNumber, it.facilityName, it.facilityAddress, it.subcontractorName, it.problemDescription, it.priority, it.billedStatus, notesText].join(" ").toLowerCase().indexOf(q) >= 0;
+    });
+    const act = (it) => it.updatedAt || it.createdAt || 0;
+    const priRank = (it) => ({ Emergency: 0, Urgent: 1, Routine: 2 }[it.priority] != null ? { Emergency: 0, Urgent: 1, Routine: 2 }[it.priority] : 3);
+    return [...arr].sort((a, b) => {
+      switch (uspsSort) {
+        case "date_asc": return (a.dateReceived || "").localeCompare(b.dateReceived || "");
+        case "date_desc": return (b.dateReceived || "").localeCompare(a.dateReceived || "");
+        case "act_asc": return act(a) - act(b);
+        case "pri": return priRank(a) - priRank(b);
+        default: return act(b) - act(a);
+      }
+    });
+  })();
   const inCalGroup = section === "calendar" || section === "followups" || section === "pending" || section === "deadlines";
 
   return (
@@ -2116,38 +2170,70 @@ function FollowUpDesk() {
             <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
           </div>
 
-          <div className="fd-group-head" style={{ marginTop: 18 }}>Items <span className="fd-count">{uspsItems.length}</span></div>
+          <div className="fd-group-head" style={{ marginTop: 18 }}>Items <span className="fd-count">{uspsView.length}</span></div>
+          <div className="fd-usps-controls">
+            <input className="fd-input" placeholder="Search facility, notes, problem #…" value={uspsQuery} onChange={(e) => setUspsQuery(e.target.value)} />
+            <select className="fd-input" value={uspsSort} onChange={(e) => setUspsSort(e.target.value)}>
+              <option value="act_desc">Latest activity — newest first</option>
+              <option value="act_asc">Latest activity — oldest first</option>
+              <option value="date_desc">Date received — newest first</option>
+              <option value="date_asc">Date received — oldest first</option>
+              <option value="pri">Priority — high to low</option>
+            </select>
+          </div>
           {uspsItems.length === 0 ? (
             <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
-          ) : uspsItems.map((it) => (
+          ) : uspsView.length === 0 ? (
+            <div className="fd-empty" style={{ padding: 30 }}><p>No items match your search.</p></div>
+          ) : uspsView.map((it) => {
+            const open = !!uspsOpen[it.id];
+            const notes = [...(it.notes || [])].sort((a, b) => b.at - a.at);
+            return (
             <div className="fd-usps-card" key={it.id} style={{ borderLeft: "4px solid " + (BILLED_COLORS[it.billedStatus] || "#b5791f") }}>
-              <button className="fd-usps-del" title="Delete" onClick={() => removeUspsItem(it.id)}><Trash2 size={15} /></button>
-              <div className="fd-usps-head">
-                <span className="fd-usps-call">Call {it.callNumber || "—"}{it.problemNumber ? "  ·  Problem " + it.problemNumber : ""}</span>
+              <div className="fd-usps-row" onClick={() => toggleUspsOpen(it.id)}>
+                <span className="fd-usps-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}><ChevronRight size={16} /></span>
+                <div className="fd-usps-rowmain">
+                  <div className="fd-usps-call">Call {it.callNumber || "—"}{it.problemNumber ? "  ·  Problem " + it.problemNumber : ""}</div>
+                  {it.facilityName ? <div className="fd-usps-rowfac">{it.facilityName}</div> : null}
+                </div>
                 <span className="fd-usps-pri" style={{ background: PRI_COLORS[it.priority] || "#6f7464" }}>{it.priority || "Routine"}</span>
+                <span className="fd-usps-billed" style={{ color: BILLED_COLORS[it.billedStatus] || "#b5791f", borderColor: BILLED_COLORS[it.billedStatus] || "#b5791f" }}>{it.billedStatus || "Pending"}</span>
               </div>
-              {(it.facilityName || it.facilityAddress) && (
-                <div className="fd-usps-fac">{it.facilityName}{it.facilityName && it.facilityAddress ? " — " : ""}{it.facilityAddress}</div>
+              {open && (
+                <div className="fd-usps-detail">
+                  {it.facilityAddress ? <div className="fd-usps-detrow"><span className="fd-usps-k">Address</span><span>{it.facilityAddress}</span></div> : null}
+                  {it.dateReceived ? <div className="fd-usps-detrow"><span className="fd-usps-k">Received</span><span>{it.dateReceived}</span></div> : null}
+                  {it.subcontractorName ? <div className="fd-usps-detrow"><span className="fd-usps-k">Subcontractor</span><span>{it.subcontractorName}</span></div> : null}
+                  {it.problemDescription ? <div className="fd-usps-detrow"><span className="fd-usps-k">Description</span><span style={{ whiteSpace: "pre-wrap" }}>{it.problemDescription}</span></div> : null}
+                  <div className="fd-usps-detrow"><span className="fd-usps-k">Added by</span><span>{it.createdBy || "someone"}{it.createdAt ? " · " + new Date(it.createdAt).toLocaleDateString() : ""}</span></div>
+                  <div className="fd-usps-detrow"><span className="fd-usps-k">Status</span>
+                    <select className="fd-usps-statussel" value={it.billedStatus || "Pending"} onChange={(e) => updateUspsItem(it.id, { billedStatus: e.target.value })}>
+                      <option>Pending</option>
+                      <option>Work Done</option>
+                      <option>Billed</option>
+                      <option>Cancelled</option>
+                      <option>JOC</option>
+                    </select>
+                  </div>
+                  <div className="fd-usps-notes">
+                    <div className="fd-usps-notes-head">Notes ({notes.length})</div>
+                    {notes.length === 0 ? <div className="fd-usps-note-empty">No notes yet.</div> : notes.map((n, ni) => (
+                      <div className="fd-usps-note" key={ni}>
+                        <div className="fd-usps-note-meta">{new Date(n.at).toLocaleString()} · {n.by || "someone"}</div>
+                        <div className="fd-usps-note-text">{n.text}</div>
+                      </div>
+                    ))}
+                    <div className="fd-usps-addnote">
+                      <textarea className="fd-input" rows={2} placeholder="Add an update…" value={noteDrafts[it.id] || ""} onChange={(e) => setNoteDrafts((d) => ({ ...d, [it.id]: e.target.value }))} />
+                      <button className="fd-btn primary" onClick={() => addNote(it.id)}>Add note</button>
+                    </div>
+                  </div>
+                  <button className="fd-usps-deletebtn" onClick={() => removeUspsItem(it.id)}><Trash2 size={14} /> Delete item</button>
+                </div>
               )}
-              {it.problemDescription ? <div className="fd-usps-desc">{it.problemDescription}</div> : null}
-              <div className="fd-usps-meta">
-                {it.dateReceived ? <span>Received {it.dateReceived}</span> : null}
-                {it.subcontractorName ? <span>Sub: {it.subcontractorName}</span> : null}
-                <span>Added by {it.createdBy || "someone"}</span>
-              </div>
-              <div className="fd-usps-status">
-                <span className="fd-usps-dot" style={{ background: BILLED_COLORS[it.billedStatus] || "#b5791f" }} />
-                <span className="fd-usps-status-label">Billed status</span>
-                <select className="fd-usps-statussel" value={it.billedStatus || "Pending"} onChange={(e) => updateUspsItem(it.id, { billedStatus: e.target.value })}>
-                  <option>Pending</option>
-                  <option>Work Done</option>
-                  <option>Billed</option>
-                  <option>Cancelled</option>
-                  <option>JOC</option>
-                </select>
-              </div>
             </div>
-          ))}
+            );
+          })}
         </>
         )}
 
