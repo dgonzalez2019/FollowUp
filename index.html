@@ -766,6 +766,7 @@ function FollowUpDesk() {
   const [uspsQuery, setUspsQuery] = useState("");
   const [uspsSort, setUspsSort] = useState("act_desc");
   const [noteDrafts, setNoteDrafts] = useState({});
+  const [uspsTab, setUspsTab] = useState("all");
   const sharedSyncedRef = useRef("");
   const uspsSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
@@ -1603,6 +1604,10 @@ function FollowUpDesk() {
       }
     });
   })();
+  const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+  const isStale = (it) => (Date.now() - (it.updatedAt || it.createdAt || 0)) > STALE_MS;
+  const uspsStaleCount = uspsItems.filter(isStale).length;
+  const uspsDisplay = uspsTab === "stale" ? uspsView.filter(isStale) : uspsView;
   const inCalGroup = section === "calendar" || section === "followups" || section === "pending" || section === "deadlines";
 
   return (
@@ -2120,6 +2125,11 @@ function FollowUpDesk() {
 
         {section === "usps" && uspsHasAccess && (
         <>
+          <div className="fd-subnav">
+            <button className={"fd-subnav-btn" + (uspsTab === "all" ? " active" : "")} onClick={() => setUspsTab("all")}>All items</button>
+            <button className={"fd-subnav-btn" + (uspsTab === "stale" ? " active" : "")} onClick={() => setUspsTab("stale")}>No activity 7+ days{uspsStaleCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsStaleCount}</span> : null}</button>
+          </div>
+          {uspsTab === "all" && (
           <div className="fd-panel">
             <div className="fd-group-head">New USPS item</div>
             <div className="fd-form-grid">
@@ -2169,8 +2179,9 @@ function FollowUpDesk() {
             <button className="fd-btn primary" style={{ marginTop: 14 }} onClick={addUspsItem}>Add item</button>
             <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
           </div>
+          )}
 
-          <div className="fd-group-head" style={{ marginTop: 18 }}>Items <span className="fd-count">{uspsView.length}</span></div>
+          <div className="fd-group-head" style={{ marginTop: 18 }}>{uspsTab === "stale" ? "No activity in 7+ days" : "Items"} <span className="fd-count">{uspsDisplay.length}</span></div>
           <div className="fd-usps-controls">
             <input className="fd-input" placeholder="Search facility, notes, problem #…" value={uspsQuery} onChange={(e) => setUspsQuery(e.target.value)} />
             <select className="fd-input" value={uspsSort} onChange={(e) => setUspsSort(e.target.value)}>
@@ -2183,9 +2194,9 @@ function FollowUpDesk() {
           </div>
           {uspsItems.length === 0 ? (
             <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
-          ) : uspsView.length === 0 ? (
-            <div className="fd-empty" style={{ padding: 30 }}><p>No items match your search.</p></div>
-          ) : uspsView.map((it) => {
+          ) : uspsDisplay.length === 0 ? (
+            <div className="fd-empty" style={{ padding: 30 }}><p>{uspsTab === "stale" ? "Nothing has gone 7+ days without an update." : "No items match your search."}</p></div>
+          ) : uspsDisplay.map((it) => {
             const open = !!uspsOpen[it.id];
             const notes = [...(it.notes || [])].sort((a, b) => b.at - a.at);
             return (
