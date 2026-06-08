@@ -223,6 +223,16 @@ html,body{margin:0;padding:0;}
 .fd-admin-toggles{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
 .fd-admin-chip{display:inline-flex; align-items:center; gap:6px; background:#edf2ee; border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer;}
 .fd-admin-chip input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer;}
+.fd-form-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;}
+.fd-usps-card{position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:10px;}
+.fd-usps-del{position:absolute; top:10px; right:10px; width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:#edf2ee; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.fd-usps-del:hover{background:#fbece9; color:#9c3d28;}
+.fd-usps-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding-right:32px;}
+.fd-usps-call{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:14px;}
+.fd-usps-pri{color:#fff; font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; padding:3px 9px; border-radius:999px;}
+.fd-usps-fac{font-size:14px; font-weight:600; margin-top:6px;}
+.fd-usps-desc{font-size:13.5px; color:var(--ink); margin-top:6px; white-space:pre-wrap; line-height:1.45;}
+.fd-usps-meta{display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; font-size:12px; color:var(--muted);}
 </style>
 </head>
 <body>
@@ -454,6 +464,8 @@ function domainFromUrl(u) {
   try { return new URL(/^https?:\/\//i.test(u) ? u : "https://" + u).hostname.replace(/^www\./, ""); }
   catch (e) { return ""; }
 }
+const PRI_COLORS = { Routine: "#5f6f54", Urgent: "#b5791f", Emergency: "#9c3d28" };
+const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", priority: "Routine", dateReceived: todayStr(), problemDescription: "", subcontractorName: "" });
 function AppLogo({ app }) {
   const [err, setErr] = useState(false);
   if (err || !app.domain) {
@@ -722,8 +734,7 @@ function FollowUpDesk() {
   const [adminNewUsps, setAdminNewUsps] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
   const [uspsItems, setUspsItems] = useState([]);
-  const [uspsTitle, setUspsTitle] = useState("");
-  const [uspsNotes, setUspsNotes] = useState("");
+  const [uspsForm, setUspsForm] = useState(blankUspsForm());
   const sharedSyncedRef = useRef("");
   const uspsSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
@@ -1440,10 +1451,10 @@ function FollowUpDesk() {
       .then(() => {}).catch((e) => { console.error(e); flash("Couldn't save the USPS item — do you have access?"); });
   };
   const addUspsItem = () => {
-    if (!uspsTitle.trim() && !uspsNotes.trim()) return;
-    const item = { id: "u_" + Math.random().toString(36).slice(2, 9), title: uspsTitle.trim(), notes: uspsNotes.trim(), createdBy: (user && user.email) || "", createdAt: Date.now() };
+    if (!uspsForm.callNumber.trim() && !uspsForm.problemNumber.trim()) { flash("Add at least a Call Number"); return; }
+    const item = { ...uspsForm, id: "u_" + Math.random().toString(36).slice(2, 9), createdBy: (user && user.email) || "", createdAt: Date.now() };
     saveUsps([item, ...uspsItems]);
-    setUspsTitle(""); setUspsNotes("");
+    setUspsForm(blankUspsForm());
   };
   const removeUspsItem = (id) => saveUsps(uspsItems.filter((it) => it.id !== id));
   const grantUsps = () => {
@@ -2050,28 +2061,66 @@ function FollowUpDesk() {
         {section === "usps" && uspsHasAccess && (
         <>
           <div className="fd-panel">
-            <div className="fd-group-head">New item</div>
-            <label className="fd-label">Title</label>
-            <input className="fd-input" value={uspsTitle} onChange={(e) => setUspsTitle(e.target.value)} placeholder="Item title" />
-            <label className="fd-label" style={{ marginTop: 10 }}>Notes</label>
-            <textarea className="fd-input" rows={3} value={uspsNotes} onChange={(e) => setUspsNotes(e.target.value)} placeholder="Details (optional)" />
-            <button className="fd-btn primary" style={{ marginTop: 12 }} onClick={addUspsItem}>Add item</button>
-            <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>These are placeholder fields just to test it — send me the exact boxes you want and I'll swap them in.</p>
-          </div>
-          <div style={{ marginTop: 16 }}>
-            {uspsItems.length === 0 ? (
-              <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
-            ) : uspsItems.map((it) => (
-              <div className="fd-dir-row" key={it.id}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="fd-dir-name">{it.title || "(untitled)"}</div>
-                  {it.notes ? <div className="fd-dir-role" style={{ whiteSpace: "pre-wrap" }}>{it.notes}</div> : null}
-                  <div className="fd-sub" style={{ fontSize: 11.5, marginTop: 4 }}>Added by {it.createdBy || "someone"}{it.createdAt ? " · " + new Date(it.createdAt).toLocaleDateString() : ""}</div>
-                </div>
-                <button className="fd-icon-btn sm" title="Delete" onClick={() => removeUspsItem(it.id)}><Trash2 size={15} /></button>
+            <div className="fd-group-head">New USPS item</div>
+            <div className="fd-form-grid">
+              <div>
+                <label className="fd-label">Call Number</label>
+                <input className="fd-input" value={uspsForm.callNumber} onChange={(e) => setUspsForm((f) => ({ ...f, callNumber: e.target.value }))} />
               </div>
-            ))}
+              <div>
+                <label className="fd-label">Problem Number</label>
+                <input className="fd-input" value={uspsForm.problemNumber} onChange={(e) => setUspsForm((f) => ({ ...f, problemNumber: e.target.value }))} />
+              </div>
+              <div>
+                <label className="fd-label">Facility Name</label>
+                <input className="fd-input" value={uspsForm.facilityName} onChange={(e) => setUspsForm((f) => ({ ...f, facilityName: e.target.value }))} />
+              </div>
+              <div>
+                <label className="fd-label">Facility Address</label>
+                <input className="fd-input" value={uspsForm.facilityAddress} onChange={(e) => setUspsForm((f) => ({ ...f, facilityAddress: e.target.value }))} />
+              </div>
+              <div>
+                <label className="fd-label">Priority</label>
+                <select className="fd-input" value={uspsForm.priority} onChange={(e) => setUspsForm((f) => ({ ...f, priority: e.target.value }))}>
+                  <option>Routine</option>
+                  <option>Urgent</option>
+                  <option>Emergency</option>
+                </select>
+              </div>
+              <div>
+                <label className="fd-label">Date Received</label>
+                <input type="date" className="fd-input" value={uspsForm.dateReceived} onChange={(e) => setUspsForm((f) => ({ ...f, dateReceived: e.target.value }))} />
+              </div>
+            </div>
+            <label className="fd-label" style={{ marginTop: 10 }}>Problem Description</label>
+            <textarea className="fd-input" rows={3} value={uspsForm.problemDescription} onChange={(e) => setUspsForm((f) => ({ ...f, problemDescription: e.target.value }))} />
+            <label className="fd-label" style={{ marginTop: 10 }}>Subcontractor Name</label>
+            <input className="fd-input" value={uspsForm.subcontractorName} onChange={(e) => setUspsForm((f) => ({ ...f, subcontractorName: e.target.value }))} />
+            <button className="fd-btn primary" style={{ marginTop: 14 }} onClick={addUspsItem}>Add item</button>
+            <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
           </div>
+
+          <div className="fd-group-head" style={{ marginTop: 18 }}>Items <span className="fd-count">{uspsItems.length}</span></div>
+          {uspsItems.length === 0 ? (
+            <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
+          ) : uspsItems.map((it) => (
+            <div className="fd-usps-card" key={it.id}>
+              <button className="fd-usps-del" title="Delete" onClick={() => removeUspsItem(it.id)}><Trash2 size={15} /></button>
+              <div className="fd-usps-head">
+                <span className="fd-usps-call">Call {it.callNumber || "—"}{it.problemNumber ? "  ·  Problem " + it.problemNumber : ""}</span>
+                <span className="fd-usps-pri" style={{ background: PRI_COLORS[it.priority] || "#6f7464" }}>{it.priority || "Routine"}</span>
+              </div>
+              {(it.facilityName || it.facilityAddress) && (
+                <div className="fd-usps-fac">{it.facilityName}{it.facilityName && it.facilityAddress ? " — " : ""}{it.facilityAddress}</div>
+              )}
+              {it.problemDescription ? <div className="fd-usps-desc">{it.problemDescription}</div> : null}
+              <div className="fd-usps-meta">
+                {it.dateReceived ? <span>Received {it.dateReceived}</span> : null}
+                {it.subcontractorName ? <span>Sub: {it.subcontractorName}</span> : null}
+                <span>Added by {it.createdBy || "someone"}</span>
+              </div>
+            </div>
+          ))}
         </>
         )}
 
