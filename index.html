@@ -2089,13 +2089,15 @@ function FollowUpDesk() {
               </div>
               <div>
                 <label className="fd-label">Date Received</label>
-                <input type="date" className="fd-input" value={uspsForm.dateReceived} onChange={(e) => setUspsForm((f) => ({ ...f, dateReceived: e.target.value }))} />
+                <input type="date" className="fd-input" style={{ maxWidth: 170 }} value={uspsForm.dateReceived} onChange={(e) => setUspsForm((f) => ({ ...f, dateReceived: e.target.value }))} />
+              </div>
+              <div>
+                <label className="fd-label">Subcontractor Name</label>
+                <input className="fd-input" value={uspsForm.subcontractorName} onChange={(e) => setUspsForm((f) => ({ ...f, subcontractorName: e.target.value }))} />
               </div>
             </div>
             <label className="fd-label" style={{ marginTop: 10 }}>Problem Description</label>
             <textarea className="fd-input" rows={3} value={uspsForm.problemDescription} onChange={(e) => setUspsForm((f) => ({ ...f, problemDescription: e.target.value }))} />
-            <label className="fd-label" style={{ marginTop: 10 }}>Subcontractor Name</label>
-            <input className="fd-input" value={uspsForm.subcontractorName} onChange={(e) => setUspsForm((f) => ({ ...f, subcontractorName: e.target.value }))} />
             <button className="fd-btn primary" style={{ marginTop: 14 }} onClick={addUspsItem}>Add item</button>
             <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
           </div>
