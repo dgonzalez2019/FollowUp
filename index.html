@@ -494,7 +494,7 @@ function domainFromUrl(u) {
 }
 const PRI_COLORS = { Routine: "#5f6f54", Urgent: "#b5791f", Emergency: "#9c3d28" };
 const BILLED_COLORS = { Pending: "#b5791f", "Work Done": "#1f6cb0", Billed: "#5f6f54", Cancelled: "#8a8a8a", JOC: "#7a5ea6" };
-const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", priority: "Routine", dateReceived: todayStr(), problemDescription: "", subcontractorName: "", billedStatus: "Pending" });
+const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", priority: "Routine", dateReceived: todayStr(), dueDate: addDays(todayStr(), 30), problemDescription: "", subcontractorName: "", billedStatus: "Pending" });
 function AppLogo({ app }) {
   const [err, setErr] = useState(false);
   if (err || !app.domain) {
@@ -2172,7 +2172,11 @@ function FollowUpDesk() {
               </div>
               <div>
                 <label className="fd-label">Date Received</label>
-                <input type="date" className="fd-input" style={{ maxWidth: 170 }} value={uspsForm.dateReceived} onChange={(e) => setUspsForm((f) => ({ ...f, dateReceived: e.target.value }))} />
+                <input type="date" className="fd-input" style={{ maxWidth: 170 }} value={uspsForm.dateReceived} onChange={(e) => setUspsForm((f) => ({ ...f, dateReceived: e.target.value, dueDate: e.target.value ? addDays(e.target.value, 30) : f.dueDate }))} />
+              </div>
+              <div>
+                <label className="fd-label">Due Date</label>
+                <input type="date" className="fd-input" style={{ maxWidth: 170 }} value={uspsForm.dueDate} onChange={(e) => setUspsForm((f) => ({ ...f, dueDate: e.target.value }))} />
               </div>
               <div>
                 <label className="fd-label">Subcontractor Name</label>
@@ -2237,6 +2241,7 @@ function FollowUpDesk() {
                 <div className="fd-usps-detail">
                   {it.facilityAddress ? <div className="fd-usps-detrow"><span className="fd-usps-k">Address</span><span>{it.facilityAddress}</span></div> : null}
                   {it.dateReceived ? <div className="fd-usps-detrow"><span className="fd-usps-k">Received</span><span>{it.dateReceived}</span></div> : null}
+                  {it.dueDate ? <div className="fd-usps-detrow"><span className="fd-usps-k">Due</span><span>{it.dueDate}</span></div> : null}
                   {it.subcontractorName ? <div className="fd-usps-detrow"><span className="fd-usps-k">Subcontractor</span><span>{it.subcontractorName}</span></div> : null}
                   {it.problemDescription ? <div className="fd-usps-detrow"><span className="fd-usps-k">Description</span><span style={{ whiteSpace: "pre-wrap" }}>{it.problemDescription}</span></div> : null}
                   <div className="fd-usps-detrow"><span className="fd-usps-k">Added by</span><span>{it.createdBy || "someone"}{it.createdAt ? " · " + new Date(it.createdAt).toLocaleDateString() : ""}</span></div>
