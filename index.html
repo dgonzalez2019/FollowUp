@@ -246,6 +246,8 @@ html,body{margin:0;padding:0;}
 .fd-usps-rowmain{flex:1; min-width:0;}
 .fd-usps-rowfac{font-size:13px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .fd-usps-billed{font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; border:1px solid; background:var(--surface); white-space:nowrap;}
+.fd-usps-bill{flex-shrink:0; width:30px; height:30px; border-radius:8px; border:1px solid #5f6f54; background:#fff; color:#5f6f54; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;}
+.fd-usps-bill:hover{background:#5f6f54; color:#fff;}
 .fd-usps-detail{padding:4px 15px 15px; border-top:1px solid var(--line);}
 .fd-usps-detrow{display:flex; gap:10px; padding:7px 0; font-size:13.5px; border-bottom:1px solid var(--line);}
 .fd-usps-k{flex-shrink:0; width:104px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.03em; padding-top:2px;}
@@ -1606,8 +1608,16 @@ function FollowUpDesk() {
   })();
   const STALE_MS = 7 * 24 * 60 * 60 * 1000;
   const isStale = (it) => (Date.now() - (it.updatedAt || it.createdAt || 0)) > STALE_MS;
-  const uspsStaleCount = uspsItems.filter(isStale).length;
-  const uspsDisplay = uspsTab === "stale" ? uspsView.filter(isStale) : uspsView;
+  const isFinished = (it) => { const s = it.billedStatus || "Pending"; return s === "Billed" || s === "Cancelled"; };
+  const isJoc = (it) => (it.billedStatus || "Pending") === "JOC";
+  const isActive = (it) => !isFinished(it) && !isJoc(it);
+  const uspsStaleCount = uspsItems.filter((it) => isActive(it) && isStale(it)).length;
+  const uspsFinishedCount = uspsItems.filter(isFinished).length;
+  const uspsJocCount = uspsItems.filter(isJoc).length;
+  const uspsDisplay = uspsTab === "finished" ? uspsView.filter(isFinished)
+    : uspsTab === "joc" ? uspsView.filter(isJoc)
+    : uspsTab === "stale" ? uspsView.filter((it) => isActive(it) && isStale(it))
+    : uspsView.filter(isActive);
   const inCalGroup = section === "calendar" || section === "followups" || section === "pending" || section === "deadlines";
 
   return (
@@ -2128,6 +2138,8 @@ function FollowUpDesk() {
           <div className="fd-subnav">
             <button className={"fd-subnav-btn" + (uspsTab === "all" ? " active" : "")} onClick={() => setUspsTab("all")}>All items</button>
             <button className={"fd-subnav-btn" + (uspsTab === "stale" ? " active" : "")} onClick={() => setUspsTab("stale")}>No activity 7+ days{uspsStaleCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsStaleCount}</span> : null}</button>
+            <button className={"fd-subnav-btn" + (uspsTab === "finished" ? " active" : "")} onClick={() => setUspsTab("finished")}>Finished jobs{uspsFinishedCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsFinishedCount}</span> : null}</button>
+            <button className={"fd-subnav-btn" + (uspsTab === "joc" ? " active" : "")} onClick={() => setUspsTab("joc")}>JOC{uspsJocCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsJocCount}</span> : null}</button>
           </div>
           {uspsTab === "all" && (
           <div className="fd-panel">
@@ -2181,7 +2193,7 @@ function FollowUpDesk() {
           </div>
           )}
 
-          <div className="fd-group-head" style={{ marginTop: 18 }}>{uspsTab === "stale" ? "No activity in 7+ days" : "Items"} <span className="fd-count">{uspsDisplay.length}</span></div>
+          <div className="fd-group-head" style={{ marginTop: 18 }}>{uspsTab === "finished" ? "Finished jobs" : uspsTab === "joc" ? "JOC" : uspsTab === "stale" ? "No activity in 7+ days" : "Items"} <span className="fd-count">{uspsDisplay.length}</span></div>
           <div className="fd-usps-controls">
             <input className="fd-input" placeholder="Search facility, notes, problem #…" value={uspsQuery} onChange={(e) => setUspsQuery(e.target.value)} />
             <select className="fd-input" value={uspsSort} onChange={(e) => setUspsSort(e.target.value)}>
@@ -2195,7 +2207,7 @@ function FollowUpDesk() {
           {uspsItems.length === 0 ? (
             <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
           ) : uspsDisplay.length === 0 ? (
-            <div className="fd-empty" style={{ padding: 30 }}><p>{uspsTab === "stale" ? "Nothing has gone 7+ days without an update." : "No items match your search."}</p></div>
+            <div className="fd-empty" style={{ padding: 30 }}><p>{uspsTab === "stale" ? "Nothing has gone 7+ days without an update." : uspsTab === "finished" ? "No finished jobs yet." : uspsTab === "joc" ? "No JOC items yet." : "No items match your search."}</p></div>
           ) : uspsDisplay.map((it) => {
             const open = !!uspsOpen[it.id];
             const notes = [...(it.notes || [])].sort((a, b) => b.at - a.at);
@@ -2209,6 +2221,9 @@ function FollowUpDesk() {
                 </div>
                 <span className="fd-usps-pri" style={{ background: PRI_COLORS[it.priority] || "#6f7464" }}>{it.priority || "Routine"}</span>
                 <span className="fd-usps-billed" style={{ color: BILLED_COLORS[it.billedStatus] || "#b5791f", borderColor: BILLED_COLORS[it.billedStatus] || "#b5791f" }}>{it.billedStatus || "Pending"}</span>
+                {isActive(it) ? (
+                  <button className="fd-usps-bill" title="Mark completed / billed" onClick={(e) => { e.stopPropagation(); updateUspsItem(it.id, { billedStatus: "Billed" }); }}><Check size={15} /></button>
+                ) : null}
               </div>
               {open && (
                 <div className="fd-usps-detail">
