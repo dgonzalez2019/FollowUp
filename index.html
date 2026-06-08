@@ -233,6 +233,10 @@ html,body{margin:0;padding:0;}
 .fd-usps-fac{font-size:14px; font-weight:600; margin-top:6px;}
 .fd-usps-desc{font-size:13.5px; color:var(--ink); margin-top:6px; white-space:pre-wrap; line-height:1.45;}
 .fd-usps-meta{display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; font-size:12px; color:var(--muted);}
+.fd-usps-status{display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
+.fd-usps-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+.fd-usps-status-label{font-size:12px; color:var(--muted);}
+.fd-usps-statussel{margin-left:auto; font-family:inherit; font-size:13px; padding:5px 9px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer;}
 </style>
 </head>
 <body>
@@ -465,7 +469,8 @@ function domainFromUrl(u) {
   catch (e) { return ""; }
 }
 const PRI_COLORS = { Routine: "#5f6f54", Urgent: "#b5791f", Emergency: "#9c3d28" };
-const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", priority: "Routine", dateReceived: todayStr(), problemDescription: "", subcontractorName: "" });
+const BILLED_COLORS = { Pending: "#b5791f", "Work Done": "#1f6cb0", Billed: "#5f6f54" };
+const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", priority: "Routine", dateReceived: todayStr(), problemDescription: "", subcontractorName: "", billedStatus: "Pending" });
 function AppLogo({ app }) {
   const [err, setErr] = useState(false);
   if (err || !app.domain) {
@@ -1457,6 +1462,7 @@ function FollowUpDesk() {
     setUspsForm(blankUspsForm());
   };
   const removeUspsItem = (id) => saveUsps(uspsItems.filter((it) => it.id !== id));
+  const updateUspsItem = (id, patch) => saveUsps(uspsItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const grantUsps = () => {
     const em = adminNewUsps.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
@@ -2098,6 +2104,12 @@ function FollowUpDesk() {
             </div>
             <label className="fd-label" style={{ marginTop: 10 }}>Problem Description</label>
             <textarea className="fd-input" rows={3} value={uspsForm.problemDescription} onChange={(e) => setUspsForm((f) => ({ ...f, problemDescription: e.target.value }))} />
+            <label className="fd-label" style={{ marginTop: 10 }}>Billed Status</label>
+            <select className="fd-input" style={{ maxWidth: 200 }} value={uspsForm.billedStatus} onChange={(e) => setUspsForm((f) => ({ ...f, billedStatus: e.target.value }))}>
+              <option>Pending</option>
+              <option>Work Done</option>
+              <option>Billed</option>
+            </select>
             <button className="fd-btn primary" style={{ marginTop: 14 }} onClick={addUspsItem}>Add item</button>
             <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
           </div>
@@ -2106,7 +2118,7 @@ function FollowUpDesk() {
           {uspsItems.length === 0 ? (
             <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
           ) : uspsItems.map((it) => (
-            <div className="fd-usps-card" key={it.id}>
+            <div className="fd-usps-card" key={it.id} style={{ borderLeft: "4px solid " + (BILLED_COLORS[it.billedStatus] || "#b5791f") }}>
               <button className="fd-usps-del" title="Delete" onClick={() => removeUspsItem(it.id)}><Trash2 size={15} /></button>
               <div className="fd-usps-head">
                 <span className="fd-usps-call">Call {it.callNumber || "—"}{it.problemNumber ? "  ·  Problem " + it.problemNumber : ""}</span>
@@ -2120,6 +2132,15 @@ function FollowUpDesk() {
                 {it.dateReceived ? <span>Received {it.dateReceived}</span> : null}
                 {it.subcontractorName ? <span>Sub: {it.subcontractorName}</span> : null}
                 <span>Added by {it.createdBy || "someone"}</span>
+              </div>
+              <div className="fd-usps-status">
+                <span className="fd-usps-dot" style={{ background: BILLED_COLORS[it.billedStatus] || "#b5791f" }} />
+                <span className="fd-usps-status-label">Billed status</span>
+                <select className="fd-usps-statussel" value={it.billedStatus || "Pending"} onChange={(e) => updateUspsItem(it.id, { billedStatus: e.target.value })}>
+                  <option>Pending</option>
+                  <option>Work Done</option>
+                  <option>Billed</option>
+                </select>
               </div>
             </div>
           ))}
