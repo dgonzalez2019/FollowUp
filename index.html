@@ -2170,7 +2170,7 @@ function FollowUpDesk() {
                 <label className="fd-label">Facility Address</label>
                 <input className="fd-input" value={uspsForm.facilityAddress} onChange={(e) => setUspsForm((f) => ({ ...f, facilityAddress: e.target.value }))} />
               </div>
-              <div>
+              <div style={{ gridColumnStart: 1 }}>
                 <label className="fd-label">Date Received</label>
                 <input type="date" className="fd-input" style={{ maxWidth: 170 }} value={uspsForm.dateReceived} onChange={(e) => setUspsForm((f) => ({ ...f, dateReceived: e.target.value, dueDate: e.target.value ? addDays(e.target.value, 30) : f.dueDate }))} />
               </div>
