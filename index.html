@@ -769,6 +769,7 @@ function FollowUpDesk() {
   const [uspsSort, setUspsSort] = useState("act_desc");
   const [noteDrafts, setNoteDrafts] = useState({});
   const [uspsTab, setUspsTab] = useState("all");
+  const [uspsFinFilter, setUspsFinFilter] = useState("all");
   const sharedSyncedRef = useRef("");
   const uspsSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
@@ -1614,7 +1615,7 @@ function FollowUpDesk() {
   const uspsStaleCount = uspsItems.filter((it) => isActive(it) && isStale(it)).length;
   const uspsFinishedCount = uspsItems.filter(isFinished).length;
   const uspsJocCount = uspsItems.filter(isJoc).length;
-  const uspsDisplay = uspsTab === "finished" ? uspsView.filter(isFinished)
+  const uspsDisplay = uspsTab === "finished" ? uspsView.filter((it) => isFinished(it) && (uspsFinFilter === "all" || (it.billedStatus || "Pending") === uspsFinFilter))
     : uspsTab === "joc" ? uspsView.filter(isJoc)
     : uspsTab === "stale" ? uspsView.filter((it) => isActive(it) && isStale(it))
     : uspsView.filter(isActive);
@@ -2204,6 +2205,13 @@ function FollowUpDesk() {
               <option value="pri">Priority — high to low</option>
             </select>
           </div>
+          {uspsTab === "finished" && (
+            <div className="fd-subnav" style={{ marginTop: 0, marginBottom: 10 }}>
+              <button className={"fd-subnav-btn" + (uspsFinFilter === "all" ? " active" : "")} onClick={() => setUspsFinFilter("all")}>All</button>
+              <button className={"fd-subnav-btn" + (uspsFinFilter === "Billed" ? " active" : "")} onClick={() => setUspsFinFilter("Billed")}>Billed</button>
+              <button className={"fd-subnav-btn" + (uspsFinFilter === "Cancelled" ? " active" : "")} onClick={() => setUspsFinFilter("Cancelled")}>Cancelled</button>
+            </div>
+          )}
           {uspsItems.length === 0 ? (
             <div className="fd-empty" style={{ padding: 30 }}><p>No items yet. Add the first one above.</p></div>
           ) : uspsDisplay.length === 0 ? (
