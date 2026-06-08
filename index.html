@@ -469,7 +469,7 @@ function domainFromUrl(u) {
   catch (e) { return ""; }
 }
 const PRI_COLORS = { Routine: "#5f6f54", Urgent: "#b5791f", Emergency: "#9c3d28" };
-const BILLED_COLORS = { Pending: "#b5791f", "Work Done": "#1f6cb0", Billed: "#5f6f54" };
+const BILLED_COLORS = { Pending: "#b5791f", "Work Done": "#1f6cb0", Billed: "#5f6f54", Cancelled: "#8a8a8a", JOC: "#7a5ea6" };
 const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", priority: "Routine", dateReceived: todayStr(), problemDescription: "", subcontractorName: "", billedStatus: "Pending" });
 function AppLogo({ app }) {
   const [err, setErr] = useState(false);
@@ -2078,20 +2078,20 @@ function FollowUpDesk() {
                 <input className="fd-input" value={uspsForm.problemNumber} onChange={(e) => setUspsForm((f) => ({ ...f, problemNumber: e.target.value }))} />
               </div>
               <div>
-                <label className="fd-label">Facility Name</label>
-                <input className="fd-input" value={uspsForm.facilityName} onChange={(e) => setUspsForm((f) => ({ ...f, facilityName: e.target.value }))} />
-              </div>
-              <div>
-                <label className="fd-label">Facility Address</label>
-                <input className="fd-input" value={uspsForm.facilityAddress} onChange={(e) => setUspsForm((f) => ({ ...f, facilityAddress: e.target.value }))} />
-              </div>
-              <div>
                 <label className="fd-label">Priority</label>
                 <select className="fd-input" value={uspsForm.priority} onChange={(e) => setUspsForm((f) => ({ ...f, priority: e.target.value }))}>
                   <option>Routine</option>
                   <option>Urgent</option>
                   <option>Emergency</option>
                 </select>
+              </div>
+              <div>
+                <label className="fd-label">Facility Name</label>
+                <input className="fd-input" value={uspsForm.facilityName} onChange={(e) => setUspsForm((f) => ({ ...f, facilityName: e.target.value }))} />
+              </div>
+              <div>
+                <label className="fd-label">Facility Address</label>
+                <input className="fd-input" value={uspsForm.facilityAddress} onChange={(e) => setUspsForm((f) => ({ ...f, facilityAddress: e.target.value }))} />
               </div>
               <div>
                 <label className="fd-label">Date Received</label>
@@ -2109,6 +2109,8 @@ function FollowUpDesk() {
               <option>Pending</option>
               <option>Work Done</option>
               <option>Billed</option>
+              <option>Cancelled</option>
+              <option>JOC</option>
             </select>
             <button className="fd-btn primary" style={{ marginTop: 14 }} onClick={addUspsItem}>Add item</button>
             <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
@@ -2140,6 +2142,8 @@ function FollowUpDesk() {
                   <option>Pending</option>
                   <option>Work Done</option>
                   <option>Billed</option>
+                  <option>Cancelled</option>
+                  <option>JOC</option>
                 </select>
               </div>
             </div>
