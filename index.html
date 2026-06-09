@@ -1550,7 +1550,7 @@ function FollowUpDesk() {
           const notes = comments ? [{ text: comments, by: "imported", at: recAt }] : [];
           return { ...obj, id: "u_" + Math.random().toString(36).slice(2, 9), createdBy: (user && user.email) || "", createdAt: now, updatedAt: now, notes };
         }).filter((it) => it.callNumber || it.problemNumber);
-        const keyOf = (it) => String(it.callNumber || it.problemNumber || "").trim().toLowerCase();
+        const keyOf = (it) => (String(it.callNumber || "").trim().toLowerCase() + "|" + String(it.problemNumber || "").trim().toLowerCase());
         const existingKeys = new Set(uspsItems.map(keyOf).filter(Boolean));
         const seen = new Set();
         const kept = [];
