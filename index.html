@@ -241,8 +241,14 @@ html,body{margin:0;padding:0;}
 .fd-usps-statussel{margin-left:auto; font-family:inherit; font-size:13px; padding:5px 9px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer;}
 .fd-usps-controls{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;}
 .fd-usps-controls .fd-btn.active{background:var(--accent); color:#fff; border-color:var(--accent);}
-.fd-filter-panel{background:#f4f7f2; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:10px;}
-.fd-filter-cat{font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600;}
+.fd-filter-panel{background:#f4f7f2; border:1px solid var(--line); border-radius:12px; padding:6px 12px 4px; margin-bottom:10px;}
+.fd-filter-cat{font-size:13px; font-weight:600; color:var(--ink);}
+.fd-filter-cat-block{border-top:1px solid var(--line);}
+.fd-filter-cat-block:first-child{border-top:none;}
+.fd-filter-cathead{display:flex; align-items:center; gap:8px; width:100%; background:none; border:none; padding:9px 0; cursor:pointer; text-align:left;}
+.fd-filter-chev{display:inline-flex; color:var(--muted); transition:transform .15s; flex-shrink:0;}
+.fd-filter-sel{margin-left:auto; font-size:12px; color:var(--accent); font-weight:600; max-width:50%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.fd-filter-clear{background:none; border:none; color:#9c3d28; font-size:12.5px; cursor:pointer; text-decoration:underline; padding:6px 0;}
 .fd-usps-topbar{display:flex; justify-content:flex-end; margin-bottom:8px;}
 .fd-usps-add{width:38px; height:38px; border-radius:10px; border:none; background:var(--accent); color:#fff; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;}
 .fd-usps-add:hover{background:var(--accent-d);}
@@ -801,7 +807,8 @@ function FollowUpDesk() {
   const [uspsTab, setUspsTab] = useState("all");
   const [uspsFinFilter, setUspsFinFilter] = useState("all");
   const [showFilter, setShowFilter] = useState(false);
-  const [uspsFilterPM, setUspsFilterPM] = useState("");
+  const [uspsFilters, setUspsFilters] = useState({ pm: "", priority: "", billed: "", subcontractor: "", location: "" });
+  const [openFilterCat, setOpenFilterCat] = useState("");
   const [importInfo, setImportInfo] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [uspsEditId, setUspsEditId] = useState(null);
@@ -1808,7 +1815,11 @@ function FollowUpDesk() {
       const notesText = (it.notes || []).map((n) => n.text).join(" ");
       return [it.callNumber, it.problemNumber, it.facilityName, it.facilityAddress, it.subcontractorName, it.projectManager, it.problemDescription, it.priority, it.billedStatus, notesText].join(" ").toLowerCase().indexOf(q) >= 0;
     });
-    if (uspsFilterPM) arr = arr.filter((it) => (it.projectManager || "") === uspsFilterPM);
+    if (uspsFilters.pm) arr = arr.filter((it) => (it.projectManager || "") === uspsFilters.pm);
+    if (uspsFilters.priority) arr = arr.filter((it) => (it.priority || "") === uspsFilters.priority);
+    if (uspsFilters.billed) arr = arr.filter((it) => (it.billedStatus || "") === uspsFilters.billed);
+    if (uspsFilters.subcontractor) arr = arr.filter((it) => (it.subcontractorName || "") === uspsFilters.subcontractor);
+    if (uspsFilters.location) arr = arr.filter((it) => (it.facilityName || "") === uspsFilters.location);
     const act = (it) => it.updatedAt || it.createdAt || 0;
     const priRank = (it) => ({ Emergency: 0, Urgent: 1, Routine: 2 }[it.priority] != null ? { Emergency: 0, Urgent: 1, Routine: 2 }[it.priority] : 3);
     return [...arr].sort((a, b) => {
@@ -1821,7 +1832,15 @@ function FollowUpDesk() {
       }
     });
   })();
-  const uspsPMs = Array.from(new Set(uspsItems.map((it) => (it.projectManager || "").trim()).filter(Boolean))).sort();
+  const FILTER_CATS = [
+    { key: "pm", label: "Project Managers", field: "projectManager" },
+    { key: "priority", label: "Priority", field: "priority" },
+    { key: "billed", label: "Billed Status", field: "billedStatus" },
+    { key: "subcontractor", label: "Subcontractor", field: "subcontractorName" },
+    { key: "location", label: "Location", field: "facilityName" },
+  ];
+  const distinctVals = (field) => Array.from(new Set(uspsItems.map((it) => (it[field] || "").trim()).filter(Boolean))).sort();
+  const activeFilterCount = Object.keys(uspsFilters).filter((k) => uspsFilters[k]).length;
   const STALE_MS = 7 * 24 * 60 * 60 * 1000;
   const isStale = (it) => (Date.now() - (it.updatedAt || it.createdAt || 0)) > STALE_MS;
   const isFinished = (it) => { const s = it.billedStatus || "Pending"; return s === "Billed" || s === "Cancelled"; };
@@ -2482,19 +2501,40 @@ function FollowUpDesk() {
               <option value="date_asc">Date received — oldest first</option>
               <option value="pri">Priority — high to low</option>
             </select>
-            <button className={"fd-btn" + (showFilter || uspsFilterPM ? " active" : "")} onClick={() => setShowFilter((v) => !v)}><Flag size={15} /> Filter{uspsFilterPM ? " · " + uspsFilterPM : ""}</button>
+            <button className={"fd-btn" + (showFilter || activeFilterCount ? " active" : "")} onClick={() => setShowFilter((v) => !v)}><Flag size={15} /> Filter{activeFilterCount ? " · " + activeFilterCount : ""}</button>
             <button className="fd-btn" onClick={exportUspsExcel}><FileText size={15} /> Export to Excel</button>
           </div>
           {showFilter && (
             <div className="fd-filter-panel">
-              <div className="fd-filter-cat">Project Managers</div>
-              <div className="fd-subnav" style={{ marginTop: 6, marginBottom: 0 }}>
-                <button className={"fd-subnav-btn" + (!uspsFilterPM ? " active" : "")} onClick={() => setUspsFilterPM("")}>All</button>
-                {uspsPMs.map((pm) => (
-                  <button key={pm} className={"fd-subnav-btn" + (uspsFilterPM === pm ? " active" : "")} onClick={() => setUspsFilterPM(pm)}>{pm}</button>
-                ))}
-              </div>
-              {uspsPMs.length === 0 ? <p className="fd-sub" style={{ fontSize: 12.5, margin: "6px 0 0" }}>No project managers entered yet.</p> : null}
+              {activeFilterCount ? (
+                <button className="fd-filter-clear" onClick={() => setUspsFilters({ pm: "", priority: "", billed: "", subcontractor: "", location: "" })}>Clear all filters</button>
+              ) : null}
+              {FILTER_CATS.map((cat) => {
+                const vals = distinctVals(cat.field);
+                const open = openFilterCat === cat.key;
+                const sel = uspsFilters[cat.key];
+                return (
+                  <div className="fd-filter-cat-block" key={cat.key}>
+                    <button className="fd-filter-cathead" onClick={() => setOpenFilterCat(open ? "" : cat.key)}>
+                      <span className="fd-filter-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}><ChevronRight size={15} /></span>
+                      <span className="fd-filter-cat">{cat.label}</span>
+                      {sel ? <span className="fd-filter-sel">{sel}</span> : null}
+                    </button>
+                    {open ? (
+                      vals.length === 0 ? (
+                        <p className="fd-sub" style={{ fontSize: 12.5, margin: "0 0 8px 24px" }}>Nothing entered yet.</p>
+                      ) : (
+                        <div className="fd-subnav" style={{ marginTop: 4, marginBottom: 8, paddingLeft: 24 }}>
+                          <button className={"fd-subnav-btn" + (!sel ? " active" : "")} onClick={() => setUspsFilters((f) => ({ ...f, [cat.key]: "" }))}>All</button>
+                          {vals.map((v) => (
+                            <button key={v} className={"fd-subnav-btn" + (sel === v ? " active" : "")} onClick={() => setUspsFilters((f) => ({ ...f, [cat.key]: v }))}>{v}</button>
+                          ))}
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           )}
           {uspsTab === "finished" && (
