@@ -782,10 +782,11 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
+  const [adminNewMgr, setAdminNewMgr] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
   const [uspsItems, setUspsItems] = useState([]);
   const [uspsForm, setUspsForm] = useState(blankUspsForm());
@@ -909,7 +910,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: c.usps || { access: [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -920,8 +921,9 @@ function FollowUpDesk() {
   useEffect(() => {
     if (!cloudOn || !user) return;
     const access = (sharedConfig.usps && sharedConfig.usps.access) || [];
+    const managers = (sharedConfig.usps && sharedConfig.usps.managers) || [];
     const email = (user.email || "").toLowerCase();
-    const has = access.indexOf(email) >= 0 || ADMINS.indexOf(email) >= 0;
+    const has = access.indexOf(email) >= 0 || managers.indexOf(email) >= 0 || ADMINS.indexOf(email) >= 0;
     if (!has) { setUspsItems([]); return; }
     const ref = fbDb.collection("shared").doc("usps");
     const unsub = ref.onSnapshot((snap) => {
@@ -1503,7 +1505,8 @@ function FollowUpDesk() {
     const json = JSON.stringify(next);
     sharedSyncedRef.current = json;
     const uspsAccessList = ((next.usps && next.usps.access) || []).map((e) => String(e).toLowerCase());
-    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, updatedAt: Date.now() })
+    const uspsManagers = ((next.usps && next.usps.managers) || []).map((e) => String(e).toLowerCase());
+    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, updatedAt: Date.now() })
       .then(() => flash("Saved for everyone"))
       .catch((e) => { console.error(e); flash("Couldn't save — make sure the admin rule is published"); });
   };
@@ -1596,12 +1599,27 @@ function FollowUpDesk() {
     const em = adminNewUsps.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
     const cur = ((sharedConfig.usps && sharedConfig.usps.access) || []).filter((x) => x !== em);
-    saveSharedConfig({ ...sharedConfig, usps: { access: [...cur, em] } });
+    const mgrs = (sharedConfig.usps && sharedConfig.usps.managers) || [];
+    saveSharedConfig({ ...sharedConfig, usps: { access: [...cur, em], managers: mgrs } });
     setAdminNewUsps("");
   };
   const revokeUsps = (em) => {
     const cur = ((sharedConfig.usps && sharedConfig.usps.access) || []).filter((x) => x !== em);
-    saveSharedConfig({ ...sharedConfig, usps: { access: cur } });
+    const mgrs = (sharedConfig.usps && sharedConfig.usps.managers) || [];
+    saveSharedConfig({ ...sharedConfig, usps: { access: cur, managers: mgrs } });
+  };
+  const addUspsManager = () => {
+    const em = adminNewMgr.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const access = (sharedConfig.usps && sharedConfig.usps.access) || [];
+    const cur = ((sharedConfig.usps && sharedConfig.usps.managers) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, usps: { access, managers: [...cur, em] } });
+    setAdminNewMgr("");
+  };
+  const removeUspsManager = (em) => {
+    const access = (sharedConfig.usps && sharedConfig.usps.access) || [];
+    const cur = ((sharedConfig.usps && sharedConfig.usps.managers) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, usps: { access, managers: cur } });
   };
   const toggleTab = (key) => {
     const tabs = { ...sharedConfig.tabs, [key]: sharedConfig.tabs[key] === false ? true : false };
@@ -1671,7 +1689,9 @@ function FollowUpDesk() {
   };
 
   const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
-  const uspsHasAccess = isAdmin || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(((user && user.email) || "").toLowerCase()) >= 0;
+  const myEmailLc = ((user && user.email) || "").toLowerCase();
+  const isUspsManager = isAdmin || ((sharedConfig.usps && sharedConfig.usps.managers) || []).indexOf(myEmailLc) >= 0;
+  const uspsHasAccess = isUspsManager || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(myEmailLc) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
   const tabVisible = (key) => {
     if (myOverride[key] !== undefined) return myOverride[key] !== false;
@@ -2305,7 +2325,7 @@ function FollowUpDesk() {
             <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
           </div>
           )}
-          {uspsTab === "all" && showAdd && isAdmin && (
+          {uspsTab === "all" && showAdd && isUspsManager && (
           <div className="fd-panel" style={{ marginTop: 14 }}>
             <div className="fd-group-head">Import from spreadsheet</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Upload an Excel or CSV export from Access. Each row is added as an item, with its Comments saved as the first note.</p>
@@ -2321,6 +2341,25 @@ function FollowUpDesk() {
                 </div>
               </div>
             )}
+          </div>
+          )}
+          {uspsTab === "all" && showAdd && isUspsManager && (
+          <div className="fd-panel" style={{ marginTop: 14 }}>
+            <div className="fd-group-head">Manage access</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Add or remove who can see the USPS tab. Everyone here shares this one list.</p>
+            {((sharedConfig.usps && sharedConfig.usps.access) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one added yet besides managers.</p>
+            ) : ((sharedConfig.usps && sharedConfig.usps.access) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove access" onClick={() => revokeUsps(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to grant USPS access" value={adminNewUsps}
+                onChange={(e) => setAdminNewUsps(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantUsps(); }} />
+              <button className="fd-btn primary" onClick={grantUsps}>Grant access</button>
+            </div>
           </div>
           )}
 
@@ -2544,6 +2583,23 @@ function FollowUpDesk() {
               <input className="fd-input" placeholder="Email to grant USPS access" value={adminNewUsps}
                 onChange={(e) => setAdminNewUsps(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantUsps(); }} />
               <button className="fd-btn primary" onClick={grantUsps}>Grant access</button>
+            </div>
+          </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">USPS managers</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Managers can add/remove people and import spreadsheets from inside the USPS tab — without seeing this Admin tab. They automatically have USPS access. Only you can set managers.</p>
+            {((sharedConfig.usps && sharedConfig.usps.managers) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No managers yet.</p>
+            ) : ((sharedConfig.usps && sharedConfig.usps.managers) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove manager" onClick={() => removeUspsManager(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to make a USPS manager" value={adminNewMgr}
+                onChange={(e) => setAdminNewMgr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addUspsManager(); }} />
+              <button className="fd-btn primary" onClick={addUspsManager}>Add manager</button>
             </div>
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
