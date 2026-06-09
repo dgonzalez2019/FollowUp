@@ -1841,6 +1841,14 @@ function FollowUpDesk() {
   ];
   const distinctVals = (field) => Array.from(new Set(uspsItems.map((it) => (it[field] || "").trim()).filter(Boolean))).sort();
   const activeFilterCount = Object.keys(uspsFilters).filter((k) => uspsFilters[k]).length;
+  const facilityIndex = (() => {
+    const idx = {};
+    [...uspsItems].sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0)).forEach((it) => {
+      const key = (it.facilityName || "").trim().toLowerCase();
+      if (key && !idx[key]) idx[key] = { address: it.facilityAddress || "", contact: it.facilityContact || "", phone: it.phone || "" };
+    });
+    return idx;
+  })();
   const STALE_MS = 7 * 24 * 60 * 60 * 1000;
   const isStale = (it) => (Date.now() - (it.updatedAt || it.createdAt || 0)) > STALE_MS;
   const isFinished = (it) => { const s = it.billedStatus || "Pending"; return s === "Billed" || s === "Cancelled"; };
@@ -2386,6 +2394,12 @@ function FollowUpDesk() {
           {uspsTab === "all" && showAdd && (
           <div className="fd-panel">
             <div className="fd-group-head">New USPS item</div>
+            <datalist id="fd-dl-facilityName">{distinctVals("facilityName").map((v) => <option key={v} value={v} />)}</datalist>
+            <datalist id="fd-dl-facilityAddress">{distinctVals("facilityAddress").map((v) => <option key={v} value={v} />)}</datalist>
+            <datalist id="fd-dl-facilityContact">{distinctVals("facilityContact").map((v) => <option key={v} value={v} />)}</datalist>
+            <datalist id="fd-dl-phone">{distinctVals("phone").map((v) => <option key={v} value={v} />)}</datalist>
+            <datalist id="fd-dl-subcontractorName">{distinctVals("subcontractorName").map((v) => <option key={v} value={v} />)}</datalist>
+            <datalist id="fd-dl-projectManager">{distinctVals("projectManager").map((v) => <option key={v} value={v} />)}</datalist>
             <div className="fd-form-grid fd-form-grid-key">
               <div>
                 <label className="fd-label">Call Number</label>
@@ -2408,19 +2422,19 @@ function FollowUpDesk() {
             <div className="fd-form-grid">
               <div>
                 <label className="fd-label">Facility Name</label>
-                <input className="fd-input" value={uspsForm.facilityName} onChange={(e) => setUspsForm((f) => ({ ...f, facilityName: e.target.value }))} />
+                <input className="fd-input" list="fd-dl-facilityName" value={uspsForm.facilityName} onChange={(e) => { const name = e.target.value; setUspsForm((f) => { const rec = facilityIndex[name.trim().toLowerCase()]; return rec ? { ...f, facilityName: name, facilityAddress: rec.address, facilityContact: rec.contact, phone: rec.phone } : { ...f, facilityName: name }; }); }} />
               </div>
               <div>
                 <label className="fd-label">Facility Address</label>
-                <input className="fd-input" value={uspsForm.facilityAddress} onChange={(e) => setUspsForm((f) => ({ ...f, facilityAddress: e.target.value }))} />
+                <input className="fd-input" list="fd-dl-facilityAddress" value={uspsForm.facilityAddress} onChange={(e) => setUspsForm((f) => ({ ...f, facilityAddress: e.target.value }))} />
               </div>
               <div>
                 <label className="fd-label">Facility Contact</label>
-                <input className="fd-input" value={uspsForm.facilityContact} onChange={(e) => setUspsForm((f) => ({ ...f, facilityContact: e.target.value }))} />
+                <input className="fd-input" list="fd-dl-facilityContact" value={uspsForm.facilityContact} onChange={(e) => setUspsForm((f) => ({ ...f, facilityContact: e.target.value }))} />
               </div>
               <div>
                 <label className="fd-label">Phone Number</label>
-                <input className="fd-input" value={uspsForm.phone} onChange={(e) => setUspsForm((f) => ({ ...f, phone: e.target.value }))} />
+                <input className="fd-input" list="fd-dl-phone" value={uspsForm.phone} onChange={(e) => setUspsForm((f) => ({ ...f, phone: e.target.value }))} />
               </div>
               <div style={{ gridColumnStart: 1 }}>
                 <label className="fd-label">Date Received</label>
@@ -2432,11 +2446,11 @@ function FollowUpDesk() {
               </div>
               <div>
                 <label className="fd-label">Subcontractor Name</label>
-                <input className="fd-input" value={uspsForm.subcontractorName} onChange={(e) => setUspsForm((f) => ({ ...f, subcontractorName: e.target.value }))} />
+                <input className="fd-input" list="fd-dl-subcontractorName" value={uspsForm.subcontractorName} onChange={(e) => setUspsForm((f) => ({ ...f, subcontractorName: e.target.value }))} />
               </div>
               <div>
                 <label className="fd-label">USPS Project Manager</label>
-                <input className="fd-input" value={uspsForm.projectManager} onChange={(e) => setUspsForm((f) => ({ ...f, projectManager: e.target.value }))} />
+                <input className="fd-input" list="fd-dl-projectManager" value={uspsForm.projectManager} onChange={(e) => setUspsForm((f) => ({ ...f, projectManager: e.target.value }))} />
               </div>
             </div>
             <label className="fd-label" style={{ marginTop: 10 }}>Problem Description</label>
