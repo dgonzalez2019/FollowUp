@@ -264,8 +264,12 @@ html,body{margin:0;padding:0;}
 .fd-usps-note-text{font-size:13.5px; white-space:pre-wrap; line-height:1.45;}
 .fd-usps-addnote{display:flex; flex-direction:column; gap:8px; margin-top:8px;}
 .fd-usps-addnote .fd-btn{align-self:flex-start;}
-.fd-usps-deletebtn{display:inline-flex; align-items:center; gap:6px; margin-top:14px; background:none; border:1px solid var(--line); color:#9c3d28; border-radius:9px; padding:7px 12px; font-size:13px; cursor:pointer;}
+.fd-usps-deletebtn{display:inline-flex; align-items:center; gap:6px; background:none; border:1px solid var(--line); color:#9c3d28; border-radius:9px; padding:7px 12px; font-size:13px; cursor:pointer;}
 .fd-usps-deletebtn:hover{background:#fbece9;}
+.fd-usps-actions{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+.fd-usps-editbtn{display:inline-flex; align-items:center; gap:6px; background:none; border:1px solid var(--line); color:var(--ink); border-radius:9px; padding:7px 12px; font-size:13px; cursor:pointer;}
+.fd-usps-editbtn:hover{background:#f4f7f2;}
+.fd-usps-noteremove{margin-top:6px; background:none; border:none; color:#9c3d28; font-size:12px; cursor:pointer; padding:2px 0; text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -793,6 +797,8 @@ function FollowUpDesk() {
   const [uspsFinFilter, setUspsFinFilter] = useState("all");
   const [importInfo, setImportInfo] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [uspsEditId, setUspsEditId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
   const importInputRef = useRef(null);
   const sharedSyncedRef = useRef("");
   const uspsSyncedRef = useRef("");
@@ -1577,6 +1583,15 @@ function FollowUpDesk() {
     flash("Imported " + importInfo.count + " items");
     setImportInfo(null);
   };
+  const startEdit = (it) => { setUspsEditId(it.id); setEditForm({ ...it, notes: (it.notes || []).map((n) => ({ ...n })) }); };
+  const cancelEdit = () => { setUspsEditId(null); setEditForm(null); };
+  const saveEdit = () => {
+    if (!editForm) return;
+    saveUsps(uspsItems.map((it) => (it.id === uspsEditId ? { ...editForm } : it)));
+    setUspsEditId(null); setEditForm(null);
+  };
+  const setEditNote = (idx, text) => setEditForm((f) => ({ ...f, notes: f.notes.map((n, i) => (i === idx ? { ...n, text } : n)) }));
+  const removeEditNote = (idx) => setEditForm((f) => ({ ...f, notes: f.notes.filter((_, i) => i !== idx) }));
   const grantUsps = () => {
     const em = adminNewUsps.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
@@ -2350,6 +2365,50 @@ function FollowUpDesk() {
               </div>
               {open && (
                 <div className="fd-usps-detail">
+                  {uspsEditId === it.id && editForm ? (
+                    <div>
+                      <div className="fd-form-grid">
+                        <div><label className="fd-label">Call Number</label><input className="fd-input" value={editForm.callNumber || ""} onChange={(e) => setEditForm((f) => ({ ...f, callNumber: e.target.value }))} /></div>
+                        <div><label className="fd-label">Problem Number</label><input className="fd-input" value={editForm.problemNumber || ""} onChange={(e) => setEditForm((f) => ({ ...f, problemNumber: e.target.value }))} /></div>
+                        <div><label className="fd-label">Priority</label>
+                          <select className="fd-input" value={editForm.priority || "Routine"} onChange={(e) => setEditForm((f) => ({ ...f, priority: e.target.value }))}>
+                            <option>Routine</option><option>Urgent</option><option>Emergency</option>
+                          </select>
+                        </div>
+                        <div><label className="fd-label">Facility Name</label><input className="fd-input" value={editForm.facilityName || ""} onChange={(e) => setEditForm((f) => ({ ...f, facilityName: e.target.value }))} /></div>
+                        <div><label className="fd-label">Facility Address</label><input className="fd-input" value={editForm.facilityAddress || ""} onChange={(e) => setEditForm((f) => ({ ...f, facilityAddress: e.target.value }))} /></div>
+                        <div><label className="fd-label">Facility Contact</label><input className="fd-input" value={editForm.facilityContact || ""} onChange={(e) => setEditForm((f) => ({ ...f, facilityContact: e.target.value }))} /></div>
+                        <div><label className="fd-label">Phone Number</label><input className="fd-input" value={editForm.phone || ""} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} /></div>
+                        <div><label className="fd-label">Date Received</label><input type="date" className="fd-input" style={{ maxWidth: 170 }} value={editForm.dateReceived || ""} onChange={(e) => setEditForm((f) => ({ ...f, dateReceived: e.target.value }))} /></div>
+                        <div><label className="fd-label">Due Date</label><input type="date" className="fd-input" style={{ maxWidth: 170 }} value={editForm.dueDate || ""} onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))} /></div>
+                        <div><label className="fd-label">Subcontractor Name</label><input className="fd-input" value={editForm.subcontractorName || ""} onChange={(e) => setEditForm((f) => ({ ...f, subcontractorName: e.target.value }))} /></div>
+                        <div><label className="fd-label">Billed Status</label>
+                          <select className="fd-input" value={editForm.billedStatus || "Pending"} onChange={(e) => setEditForm((f) => ({ ...f, billedStatus: e.target.value }))}>
+                            <option>Pending</option><option>Work Done</option><option>Billed</option><option>Cancelled</option><option>JOC</option>
+                          </select>
+                        </div>
+                      </div>
+                      <label className="fd-label" style={{ marginTop: 10 }}>Problem Description</label>
+                      <textarea className="fd-input" rows={3} value={editForm.problemDescription || ""} onChange={(e) => setEditForm((f) => ({ ...f, problemDescription: e.target.value }))} />
+                      {editForm.notes && editForm.notes.length > 0 ? (
+                        <div className="fd-usps-notes">
+                          <div className="fd-usps-notes-head">Edit notes</div>
+                          {editForm.notes.map((n, ni) => (
+                            <div className="fd-usps-note" key={ni}>
+                              <div className="fd-usps-note-meta">{new Date(n.at).toLocaleString()} · {n.by || "someone"}</div>
+                              <textarea className="fd-input" rows={2} value={n.text} onChange={(e) => setEditNote(ni, e.target.value)} />
+                              <button className="fd-usps-noteremove" onClick={() => removeEditNote(ni)}>Remove note</button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="fd-usps-actions">
+                        <button className="fd-btn primary" onClick={saveEdit}>Save changes</button>
+                        <button className="fd-btn" onClick={cancelEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                  <>
                   {it.facilityAddress ? <div className="fd-usps-detrow"><span className="fd-usps-k">Address</span><span>{it.facilityAddress}</span></div> : null}
                   {it.facilityContact ? <div className="fd-usps-detrow"><span className="fd-usps-k">Contact</span><span>{it.facilityContact}</span></div> : null}
                   {it.phone ? <div className="fd-usps-detrow"><span className="fd-usps-k">Phone</span><span>{it.phone}</span></div> : null}
@@ -2380,7 +2439,12 @@ function FollowUpDesk() {
                       <button className="fd-btn primary" onClick={() => addNote(it.id)}>Add note</button>
                     </div>
                   </div>
-                  <button className="fd-usps-deletebtn" onClick={() => removeUspsItem(it.id)}><Trash2 size={14} /> Delete item</button>
+                  <div className="fd-usps-actions">
+                    <button className="fd-usps-editbtn" onClick={() => startEdit(it)}><Pencil size={14} /> Edit</button>
+                    <button className="fd-usps-deletebtn" onClick={() => removeUspsItem(it.id)}><Trash2 size={14} /> Delete item</button>
+                  </div>
+                  </>
+                  )}
                 </div>
               )}
             </div>
