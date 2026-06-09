@@ -240,6 +240,9 @@ html,body{margin:0;padding:0;}
 .fd-usps-status-label{font-size:12px; color:var(--muted);}
 .fd-usps-statussel{margin-left:auto; font-family:inherit; font-size:13px; padding:5px 9px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer;}
 .fd-usps-controls{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;}
+.fd-usps-topbar{display:flex; justify-content:flex-end; margin-bottom:8px;}
+.fd-usps-add{width:38px; height:38px; border-radius:10px; border:none; background:var(--accent); color:#fff; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;}
+.fd-usps-add:hover{background:var(--accent-d);}
 .fd-usps-controls .fd-input{flex:1; min-width:160px;}
 .fd-usps-card{padding:0; overflow:hidden;}
 .fd-usps-row{display:flex; align-items:center; gap:10px; padding:13px 15px; cursor:pointer; user-select:none;}
@@ -2208,17 +2211,19 @@ function FollowUpDesk() {
 
         {section === "usps" && uspsHasAccess && (
         <>
+          {uspsTab === "all" && (
+            <div className="fd-usps-topbar">
+              <button className="fd-usps-add" title={showAdd ? "Close" : "New item / Import"} onClick={() => setShowAdd((v) => !v)}>
+                {showAdd ? <X size={18} /> : <Plus size={18} />}
+              </button>
+            </div>
+          )}
           <div className="fd-subnav">
             <button className={"fd-subnav-btn" + (uspsTab === "all" ? " active" : "")} onClick={() => setUspsTab("all")}>All items</button>
             <button className={"fd-subnav-btn" + (uspsTab === "stale" ? " active" : "")} onClick={() => setUspsTab("stale")}>No activity 7+ days{uspsStaleCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsStaleCount}</span> : null}</button>
             <button className={"fd-subnav-btn" + (uspsTab === "finished" ? " active" : "")} onClick={() => setUspsTab("finished")}>Finished jobs{uspsFinishedCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsFinishedCount}</span> : null}</button>
             <button className={"fd-subnav-btn" + (uspsTab === "joc" ? " active" : "")} onClick={() => setUspsTab("joc")}>JOC{uspsJocCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsJocCount}</span> : null}</button>
           </div>
-          {uspsTab === "all" && (
-            <button className="fd-btn primary" style={{ marginBottom: showAdd ? 14 : 0 }} onClick={() => setShowAdd((v) => !v)}>
-              {showAdd ? (<><X size={15} /> Hide</>) : (<><Plus size={15} /> {isAdmin ? "New item / Import" : "New item"}</>)}
-            </button>
-          )}
           {uspsTab === "all" && showAdd && (
           <div className="fd-panel">
             <div className="fd-group-head">New USPS item</div>
