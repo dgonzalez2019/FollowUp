@@ -1583,7 +1583,7 @@ function FollowUpDesk() {
     flash("Imported " + importInfo.count + " items");
     setImportInfo(null);
   };
-  const startEdit = (it) => { setUspsEditId(it.id); setEditForm({ ...it, notes: (it.notes || []).map((n) => ({ ...n })) }); };
+  const startUspsEdit = (it) => { setUspsEditId(it.id); setEditForm({ ...it, notes: (it.notes || []).map((n) => ({ ...n })) }); };
   const cancelEdit = () => { setUspsEditId(null); setEditForm(null); };
   const saveEdit = () => {
     if (!editForm) return;
@@ -2440,7 +2440,7 @@ function FollowUpDesk() {
                     </div>
                   </div>
                   <div className="fd-usps-actions">
-                    <button className="fd-usps-editbtn" onClick={() => startEdit(it)}><Pencil size={14} /> Edit</button>
+                    <button className="fd-usps-editbtn" onClick={() => startUspsEdit(it)}><Pencil size={14} /> Edit</button>
                     <button className="fd-usps-deletebtn" onClick={() => removeUspsItem(it.id)}><Trash2 size={14} /> Delete item</button>
                   </div>
                   </>
