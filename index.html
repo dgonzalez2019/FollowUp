@@ -789,6 +789,7 @@ function FollowUpDesk() {
   const [uspsTab, setUspsTab] = useState("all");
   const [uspsFinFilter, setUspsFinFilter] = useState("all");
   const [importInfo, setImportInfo] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
   const importInputRef = useRef(null);
   const sharedSyncedRef = useRef("");
   const uspsSyncedRef = useRef("");
@@ -2214,6 +2215,11 @@ function FollowUpDesk() {
             <button className={"fd-subnav-btn" + (uspsTab === "joc" ? " active" : "")} onClick={() => setUspsTab("joc")}>JOC{uspsJocCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsJocCount}</span> : null}</button>
           </div>
           {uspsTab === "all" && (
+            <button className="fd-btn primary" style={{ marginBottom: showAdd ? 14 : 0 }} onClick={() => setShowAdd((v) => !v)}>
+              {showAdd ? (<><X size={15} /> Hide</>) : (<><Plus size={15} /> {isAdmin ? "New item / Import" : "New item"}</>)}
+            </button>
+          )}
+          {uspsTab === "all" && showAdd && (
           <div className="fd-panel">
             <div className="fd-group-head">New USPS item</div>
             <div className="fd-form-grid fd-form-grid-key">
@@ -2279,7 +2285,7 @@ function FollowUpDesk() {
             <p className="fd-sub" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Facility Address will auto-fill from the facility database once we build it. Date Received defaults to today.</p>
           </div>
           )}
-          {uspsTab === "all" && isAdmin && (
+          {uspsTab === "all" && showAdd && isAdmin && (
           <div className="fd-panel" style={{ marginTop: 14 }}>
             <div className="fd-group-head">Import from spreadsheet</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Upload an Excel or CSV export from Access. Each row is added as an item, with its Comments saved as the first note.</p>
