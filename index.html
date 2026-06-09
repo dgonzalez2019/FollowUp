@@ -1586,6 +1586,32 @@ function FollowUpDesk() {
     flash("Imported " + importInfo.count + " items");
     setImportInfo(null);
   };
+  const exportUspsExcel = () => {
+    if (!window.XLSX) { flash("Spreadsheet tool didn't load — check your connection"); return; }
+    if (!uspsDisplay.length) { flash("Nothing to export here"); return; }
+    const rows = uspsDisplay.map((it) => ({
+      "Call Number": it.callNumber || "",
+      "Problem Number": it.problemNumber || "",
+      "Priority": it.priority || "",
+      "Facility Name": it.facilityName || "",
+      "Facility Address": it.facilityAddress || "",
+      "Facility Contact": it.facilityContact || "",
+      "Phone Number": it.phone || "",
+      "Date Received": it.dateReceived || "",
+      "Due Date": it.dueDate || "",
+      "Subcontractor Name": it.subcontractorName || "",
+      "Problem Description": it.problemDescription || "",
+      "Billed Status": it.billedStatus || "",
+      "Notes": (it.notes || []).map((n) => (n.at ? new Date(n.at).toLocaleString() + " — " : "") + (n.by ? n.by + ": " : "") + (n.text || "")).join("\n"),
+      "Added By": it.createdBy || "",
+      "Added On": it.createdAt ? new Date(it.createdAt).toLocaleDateString() : "",
+    }));
+    const ws = window.XLSX.utils.json_to_sheet(rows);
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, ws, "USPS");
+    const tabName = uspsTab === "finished" ? "finished" : uspsTab === "joc" ? "joc" : uspsTab === "stale" ? "inactive" : "all";
+    window.XLSX.writeFile(wb, "USPS_" + tabName + "_" + todayStr() + ".xlsx");
+  };
   const startUspsEdit = (it) => { setUspsEditId(it.id); setEditForm({ ...it, notes: (it.notes || []).map((n) => ({ ...n })) }); };
   const cancelEdit = () => { setUspsEditId(null); setEditForm(null); };
   const saveEdit = () => {
@@ -2373,6 +2399,7 @@ function FollowUpDesk() {
               <option value="date_asc">Date received — oldest first</option>
               <option value="pri">Priority — high to low</option>
             </select>
+            <button className="fd-btn" onClick={exportUspsExcel}><FileText size={15} /> Export to Excel</button>
           </div>
           {uspsTab === "finished" && (
             <div className="fd-subnav" style={{ marginTop: 0, marginBottom: 10 }}>
