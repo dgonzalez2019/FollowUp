@@ -283,6 +283,7 @@ html,body{margin:0;padding:0;}
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
@@ -1586,31 +1587,100 @@ function FollowUpDesk() {
     flash("Imported " + importInfo.count + " items");
     setImportInfo(null);
   };
-  const exportUspsExcel = () => {
-    if (!window.XLSX) { flash("Spreadsheet tool didn't load — check your connection"); return; }
+  const exportUspsExcel = async () => {
+    const EJS = window.ExcelJS;
+    if (!EJS) { flash("Excel tool didn't load — check your connection and retry"); return; }
     if (!uspsDisplay.length) { flash("Nothing to export here"); return; }
-    const rows = uspsDisplay.map((it) => ({
-      "Call Number": it.callNumber || "",
-      "Problem Number": it.problemNumber || "",
-      "Priority": it.priority || "",
-      "Facility Name": it.facilityName || "",
-      "Facility Address": it.facilityAddress || "",
-      "Facility Contact": it.facilityContact || "",
-      "Phone Number": it.phone || "",
-      "Date Received": it.dateReceived || "",
-      "Due Date": it.dueDate || "",
-      "Subcontractor Name": it.subcontractorName || "",
-      "Problem Description": it.problemDescription || "",
-      "Billed Status": it.billedStatus || "",
-      "Notes": (it.notes || []).map((n) => (n.at ? new Date(n.at).toLocaleString() + " — " : "") + (n.by ? n.by + ": " : "") + (n.text || "")).join("\n"),
-      "Added By": it.createdBy || "",
-      "Added On": it.createdAt ? new Date(it.createdAt).toLocaleDateString() : "",
-    }));
-    const ws = window.XLSX.utils.json_to_sheet(rows);
-    const wb = window.XLSX.utils.book_new();
-    window.XLSX.utils.book_append_sheet(wb, ws, "USPS");
-    const tabName = uspsTab === "finished" ? "finished" : uspsTab === "joc" ? "joc" : uspsTab === "stale" ? "inactive" : "all";
-    window.XLSX.writeFile(wb, "USPS_" + tabName + "_" + todayStr() + ".xlsx");
+    try {
+      const cols = [
+        { key: "callNumber", header: "Call Number", width: 14 },
+        { key: "problemNumber", header: "Problem Number", width: 16 },
+        { key: "priority", header: "Priority", width: 11 },
+        { key: "facilityName", header: "Facility Name", width: 26 },
+        { key: "facilityAddress", header: "Facility Address", width: 30 },
+        { key: "facilityContact", header: "Facility Contact", width: 18 },
+        { key: "phone", header: "Phone Number", width: 16 },
+        { key: "dateReceived", header: "Date Received", width: 14 },
+        { key: "dueDate", header: "Due Date", width: 14 },
+        { key: "subcontractorName", header: "Subcontractor", width: 20 },
+        { key: "problemDescription", header: "Problem Description", width: 42 },
+        { key: "billedStatus", header: "Billed Status", width: 14 },
+        { key: "notes", header: "Notes", width: 42 },
+        { key: "createdBy", header: "Added By", width: 22 },
+        { key: "createdOn", header: "Added On", width: 14 },
+      ];
+      const nCols = cols.length;
+      const colLetter = (n) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+      const last = colLetter(nCols);
+      const wb = new EJS.Workbook();
+      wb.creator = "The Follow-Up Desk"; wb.created = new Date();
+      const ws = wb.addWorksheet("USPS", { views: [{ state: "frozen", ySplit: 3 }] });
+      ws.columns = cols.map((c) => ({ key: c.key, width: c.width }));
+
+      ws.mergeCells("A1:" + last + "1");
+      const title = ws.getCell("A1");
+      title.value = "BDI CONSTRUCTION  ·  USPS Call Log";
+      title.font = { name: "Calibri", size: 16, bold: true, color: { argb: "FFFFFFFF" } };
+      title.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+      title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F6CB0" } };
+      ws.getRow(1).height = 30;
+
+      ws.mergeCells("A2:" + last + "2");
+      const meta = ws.getCell("A2");
+      const tabLabel = uspsTab === "finished" ? "Finished jobs" : uspsTab === "joc" ? "JOC" : uspsTab === "stale" ? "No activity 7+ days" : "All items";
+      meta.value = "Exported " + new Date().toLocaleDateString() + "    ·    " + tabLabel + "    ·    " + uspsDisplay.length + " item" + (uspsDisplay.length === 1 ? "" : "s");
+      meta.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF6F7464" } };
+      meta.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+      meta.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF1EC" } };
+      ws.getRow(2).height = 18;
+
+      const headerRow = ws.getRow(3);
+      cols.forEach((c, i) => { headerRow.getCell(i + 1).value = c.header; });
+      headerRow.eachCell((cell) => {
+        cell.font = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185A93" } };
+        cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+      });
+      headerRow.height = 20;
+
+      uspsDisplay.forEach((it, idx) => {
+        const noteText = (it.notes || []).map((n) => (n.at ? new Date(n.at).toLocaleString() + " — " : "") + (n.by ? n.by + ": " : "") + (n.text || "")).join("\n");
+        const r = ws.addRow({
+          callNumber: it.callNumber || "", problemNumber: it.problemNumber || "", priority: it.priority || "",
+          facilityName: it.facilityName || "", facilityAddress: it.facilityAddress || "", facilityContact: it.facilityContact || "",
+          phone: it.phone || "", dateReceived: it.dateReceived || "", dueDate: it.dueDate || "",
+          subcontractorName: it.subcontractorName || "", problemDescription: it.problemDescription || "",
+          billedStatus: it.billedStatus || "", notes: noteText, createdBy: it.createdBy || "",
+          createdOn: it.createdAt ? new Date(it.createdAt).toLocaleDateString() : "",
+        });
+        const zebra = idx % 2 === 1;
+        r.eachCell({ includeEmpty: true }, (cell) => {
+          cell.font = { name: "Calibri", size: 10, color: { argb: "FF23271F" } };
+          cell.alignment = { vertical: "top", wrapText: true };
+          if (zebra) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF4F7F2" } };
+          cell.border = { bottom: { style: "hair", color: { argb: "FFD8DDD2" } } };
+        });
+      });
+
+      ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: nCols } };
+
+      try {
+        const b64 = (LOGO_SRC || "").split(",").pop();
+        if (b64) {
+          const imgId = wb.addImage({ base64: b64, extension: "png" });
+          ws.addImage(imgId, { tl: { col: nCols - 2.05, row: 0.18 }, ext: { width: 132, height: 26 } });
+        }
+      } catch (e) { /* logo optional */ }
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const tabName = uspsTab === "finished" ? "finished" : uspsTab === "joc" ? "joc" : uspsTab === "stale" ? "inactive" : "all";
+      a.href = url; a.download = "BDI_USPS_" + tabName + "_" + todayStr() + ".xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch (err) { console.error(err); flash("Couldn't build the Excel file"); }
   };
   const startUspsEdit = (it) => { setUspsEditId(it.id); setEditForm({ ...it, notes: (it.notes || []).map((n) => ({ ...n })) }); };
   const cancelEdit = () => { setUspsEditId(null); setEditForm(null); };
