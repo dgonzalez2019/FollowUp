@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>The Follow-Up Desk</title>
+<title>BDI University</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
 
@@ -1113,11 +1113,11 @@ function FollowUpDesk() {
     desc.push("To: " + f.email);
     if (f.cc && f.cc.trim()) desc.push("Cc: " + f.cc.trim());
     if (f.attachments && f.attachments.trim()) desc.push("Attach: " + f.attachments.trim());
-    desc.push("(Reminder created by The Follow-Up Desk.)");
+    desc.push("(Reminder created by BDI University.)");
     return [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//The Follow-Up Desk//EN",
+      "PRODID:-//BDI University//EN",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
       "BEGIN:VEVENT",
@@ -1143,7 +1143,7 @@ function FollowUpDesk() {
     return [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//The Follow-Up Desk//EN",
+      "PRODID:-//BDI University//EN",
       "CALSCALE:GREGORIAN",
       "METHOD:CANCEL",
       "BEGIN:VEVENT",
@@ -1331,9 +1331,9 @@ function FollowUpDesk() {
     const lead = Math.max(0, Number(d.leadDays) || 0);
     const desc = [];
     if (d.notes) desc.push(d.notes);
-    desc.push("(Deadline reminder from The Follow-Up Desk.)");
+    desc.push("(Deadline reminder from BDI University.)");
     return [
-      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//The Follow-Up Desk//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BDI University//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
       "BEGIN:VEVENT",
       "UID:deadline-" + d.id + "@followup-desk",
       "SEQUENCE:0",
@@ -1361,7 +1361,7 @@ function FollowUpDesk() {
     const mmdd = String(b.m).padStart(2, "0") + String(b.d).padStart(2, "0");
     const uid = "birthday-" + b.n.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + "@followup-desk";
     return [
-      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//The Follow-Up Desk//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BDI University//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
       "BEGIN:VEVENT",
       "UID:" + uid,
       "SEQUENCE:0",
@@ -1370,7 +1370,7 @@ function FollowUpDesk() {
       "DTEND;VALUE=DATE:" + yr + mmdd,
       "RRULE:FREQ=YEARLY",
       "SUMMARY:" + icsEscape(b.n + "'s Birthday"),
-      "DESCRIPTION:" + icsEscape("BDI birthday (from The Follow-Up Desk)."),
+      "DESCRIPTION:" + icsEscape("BDI birthday (from BDI University)."),
       "BEGIN:VALARM", "ACTION:DISPLAY",
       "DESCRIPTION:" + icsEscape(b.n + "'s birthday today"),
       "TRIGGER:-P0D",
@@ -1515,7 +1515,7 @@ function FollowUpDesk() {
         <div className="fd-auth">
           <div className="fd-auth-box">
             <img src={LOGO_SRC} alt="BDI Construction" style={{ height: 56, width: "auto", display: "block", marginBottom: 20 }} />
-            <div className="fd-kicker">THE FOLLOW-UP DESK</div>
+            <div className="fd-kicker">BDI UNIVERSITY</div>
             <h1 className="fd-title" style={{ fontSize: 30, margin: "0 0 6px" }}>{authMode === "signup" ? "Create account" : "Sign in"}</h1>
             <p className="fd-sub" style={{ marginBottom: 18 }}>{authMode === "signup" ? "Make an account to sync your follow-ups, documents, and deadlines across devices." : "Sign in to load your data on any device."}</p>
             <label className="fd-label">Email</label>
@@ -1654,7 +1654,7 @@ function FollowUpDesk() {
       const colLetter = (n) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
       const last = colLetter(nCols);
       const wb = new EJS.Workbook();
-      wb.creator = "The Follow-Up Desk"; wb.created = new Date();
+      wb.creator = "BDI University"; wb.created = new Date();
       const ws = wb.addWorksheet("USPS", { views: [{ state: "frozen", ySplit: 3 }] });
       ws.columns = cols.map((c) => ({ key: c.key, width: c.width }));
 
@@ -1901,7 +1901,7 @@ function FollowUpDesk() {
         <header className="fd-head">
           <div>
             <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>
-            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "The Follow-Up Desk")}</h1>
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "BDI University")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
                 pending: "Documents you've sent out that are still awaiting a signature.",
