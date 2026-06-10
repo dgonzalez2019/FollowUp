@@ -22,7 +22,8 @@ html,body{margin:0;padding:0;}
 .fd-wrap{max-width:760px; margin:0 auto; padding:40px 22px 60px;}
 
 .fd-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:26px;}
-.fd-brand{display:flex; align-items:center; gap:14px; padding-bottom:20px; margin-bottom:26px; border-bottom:1px solid var(--line);}
+.fd-brand{display:flex; align-items:center; justify-content:space-between; gap:14px; padding-bottom:20px; margin-bottom:26px; border-bottom:1px solid var(--line);}
+.fd-brandname{font-family:'Fraunces',serif; font-weight:600; font-size:26px; line-height:1; color:var(--ink); letter-spacing:-.01em;}
 .fd-logo{height:66px; width:auto; display:block;}
 .fd-kicker{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.22em; color:var(--accent); margin-bottom:8px;}
 .fd-title{font-family:'Fraunces',serif; font-weight:600; font-size:42px; line-height:1; margin:0 0 12px; letter-spacing:-.01em;}
@@ -1896,12 +1897,13 @@ function FollowUpDesk() {
     <div className="fd-root">
       <div className="fd-wrap">
         <div className="fd-brand">
+          <div className="fd-brandname">BDI University</div>
           <img src={LOGO_SRC} alt="BDI Construction" className="fd-logo" />
         </div>
         <header className="fd-head">
           <div>
             <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>
-            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "BDI University")}</h1>
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
                 pending: "Documents you've sent out that are still awaiting a signature.",
@@ -1912,7 +1914,7 @@ function FollowUpDesk() {
                 apps: "Quick links to the tools BDI uses — tap any one to jump straight in.",
                 admin: "Control what everyone sees and add company-wide tabs. Changes apply to all users.",
                 usps: "A shared list — visible to everyone you've given access, and kept in sync between you all.",
-              }[section] || "Track who still owes you documents. The desk tells you exactly who's due, writes the note, and opens it in your mail app in one click.")}
+              }[section] || "Track who still owes you documents — see exactly who's due, write the note, and open it in your mail app in one click.")}
             </p>
           </div>
           <div className="fd-head-actions">
