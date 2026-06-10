@@ -224,6 +224,11 @@ html,body{margin:0;padding:0;}
 .fd-admin-chip{display:inline-flex; align-items:center; gap:6px; background:#edf2ee; border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer;}
 .fd-admin-chip input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer;}
 .fd-form-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;}
+.fd-suggest{position:relative;}
+.fd-suggest-list{position:absolute; top:100%; left:0; right:0; z-index:40; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14); max-height:220px; overflow-y:auto; margin-top:3px;}
+.fd-suggest-item{display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); padding:10px 12px; font-size:14px; color:var(--ink); cursor:pointer;}
+.fd-suggest-item:last-child{border-bottom:none;}
+.fd-suggest-item:active, .fd-suggest-item:hover{background:#f4f7f2;}
 .fd-form-grid-key .fd-label{font-weight:600; color:var(--ink);}
 .fd-form-divider{height:1px; margin:16px 0 4px; background:linear-gradient(90deg, transparent, var(--line) 15%, var(--line) 85%, transparent);}
 .fd-usps-card{position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:10px;}
@@ -513,6 +518,26 @@ function domainFromUrl(u) {
   catch (e) { return ""; }
 }
 const PRI_COLORS = { Routine: "#5f6f54", Urgent: "#b5791f", Emergency: "#9c3d28" };
+function Suggest({ value, onChange, onPick, options, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const q = (value || "").trim().toLowerCase();
+  const matches = q ? (options || []).filter((o) => o.toLowerCase().indexOf(q) >= 0 && o.toLowerCase() !== q).slice(0, 8) : [];
+  return (
+    <div className="fd-suggest">
+      <input className="fd-input" value={value} placeholder={placeholder || ""}
+        onChange={(e) => { onChange(e.target.value); if (!open) setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)} />
+      {open && matches.length > 0 ? (
+        <div className="fd-suggest-list">
+          {matches.map((m) => (
+            <button type="button" key={m} className="fd-suggest-item" onMouseDown={(e) => { e.preventDefault(); (onPick || onChange)(m); setOpen(false); }}>{m}</button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 const BILLED_COLORS = { Pending: "#b5791f", "Work Done": "#1f6cb0", Billed: "#5f6f54", Cancelled: "#8a8a8a", JOC: "#7a5ea6" };
 const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", facilityContact: "", phone: "", priority: "Routine", dateReceived: todayStr(), dueDate: addDays(todayStr(), 30), problemDescription: "", subcontractorName: "", projectManager: "", billedStatus: "Pending" });
 const USPS_IMPORT_MAP = {
@@ -1849,6 +1874,7 @@ function FollowUpDesk() {
     });
     return idx;
   })();
+  const applyFacility = (name) => setUspsForm((f) => { const rec = facilityIndex[(name || "").trim().toLowerCase()]; return rec ? { ...f, facilityName: name, facilityAddress: rec.address, facilityContact: rec.contact, phone: rec.phone } : { ...f, facilityName: name }; });
   const STALE_MS = 7 * 24 * 60 * 60 * 1000;
   const isStale = (it) => (Date.now() - (it.updatedAt || it.createdAt || 0)) > STALE_MS;
   const isFinished = (it) => { const s = it.billedStatus || "Pending"; return s === "Billed" || s === "Cancelled"; };
@@ -2390,16 +2416,11 @@ function FollowUpDesk() {
             <button className={"fd-subnav-btn" + (uspsTab === "stale" ? " active" : "")} onClick={() => setUspsTab("stale")}>No activity 7+ days{uspsStaleCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsStaleCount}</span> : null}</button>
             <button className={"fd-subnav-btn" + (uspsTab === "finished" ? " active" : "")} onClick={() => setUspsTab("finished")}>Finished jobs{uspsFinishedCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsFinishedCount}</span> : null}</button>
             <button className={"fd-subnav-btn" + (uspsTab === "joc" ? " active" : "")} onClick={() => setUspsTab("joc")}>JOC{uspsJocCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsJocCount}</span> : null}</button>
+            {isUspsManager ? <button className={"fd-subnav-btn" + (uspsTab === "access" ? " active" : "")} onClick={() => setUspsTab("access")}><Shield size={13} /> Manage access</button> : null}
           </div>
           {uspsTab === "all" && showAdd && (
           <div className="fd-panel">
             <div className="fd-group-head">New USPS item</div>
-            <datalist id="fd-dl-facilityName">{distinctVals("facilityName").map((v) => <option key={v} value={v} />)}</datalist>
-            <datalist id="fd-dl-facilityAddress">{distinctVals("facilityAddress").map((v) => <option key={v} value={v} />)}</datalist>
-            <datalist id="fd-dl-facilityContact">{distinctVals("facilityContact").map((v) => <option key={v} value={v} />)}</datalist>
-            <datalist id="fd-dl-phone">{distinctVals("phone").map((v) => <option key={v} value={v} />)}</datalist>
-            <datalist id="fd-dl-subcontractorName">{distinctVals("subcontractorName").map((v) => <option key={v} value={v} />)}</datalist>
-            <datalist id="fd-dl-projectManager">{distinctVals("projectManager").map((v) => <option key={v} value={v} />)}</datalist>
             <div className="fd-form-grid fd-form-grid-key">
               <div>
                 <label className="fd-label">Call Number</label>
@@ -2422,19 +2443,19 @@ function FollowUpDesk() {
             <div className="fd-form-grid">
               <div>
                 <label className="fd-label">Facility Name</label>
-                <input className="fd-input" list="fd-dl-facilityName" value={uspsForm.facilityName} onChange={(e) => { const name = e.target.value; setUspsForm((f) => { const rec = facilityIndex[name.trim().toLowerCase()]; return rec ? { ...f, facilityName: name, facilityAddress: rec.address, facilityContact: rec.contact, phone: rec.phone } : { ...f, facilityName: name }; }); }} />
+                <Suggest value={uspsForm.facilityName} options={distinctVals("facilityName")} onChange={applyFacility} onPick={applyFacility} />
               </div>
               <div>
                 <label className="fd-label">Facility Address</label>
-                <input className="fd-input" list="fd-dl-facilityAddress" value={uspsForm.facilityAddress} onChange={(e) => setUspsForm((f) => ({ ...f, facilityAddress: e.target.value }))} />
+                <Suggest value={uspsForm.facilityAddress} options={distinctVals("facilityAddress")} onChange={(v) => setUspsForm((f) => ({ ...f, facilityAddress: v }))} />
               </div>
               <div>
                 <label className="fd-label">Facility Contact</label>
-                <input className="fd-input" list="fd-dl-facilityContact" value={uspsForm.facilityContact} onChange={(e) => setUspsForm((f) => ({ ...f, facilityContact: e.target.value }))} />
+                <Suggest value={uspsForm.facilityContact} options={distinctVals("facilityContact")} onChange={(v) => setUspsForm((f) => ({ ...f, facilityContact: v }))} />
               </div>
               <div>
                 <label className="fd-label">Phone Number</label>
-                <input className="fd-input" list="fd-dl-phone" value={uspsForm.phone} onChange={(e) => setUspsForm((f) => ({ ...f, phone: e.target.value }))} />
+                <Suggest value={uspsForm.phone} options={distinctVals("phone")} onChange={(v) => setUspsForm((f) => ({ ...f, phone: v }))} />
               </div>
               <div style={{ gridColumnStart: 1 }}>
                 <label className="fd-label">Date Received</label>
@@ -2446,11 +2467,11 @@ function FollowUpDesk() {
               </div>
               <div>
                 <label className="fd-label">Subcontractor Name</label>
-                <input className="fd-input" list="fd-dl-subcontractorName" value={uspsForm.subcontractorName} onChange={(e) => setUspsForm((f) => ({ ...f, subcontractorName: e.target.value }))} />
+                <Suggest value={uspsForm.subcontractorName} options={distinctVals("subcontractorName")} onChange={(v) => setUspsForm((f) => ({ ...f, subcontractorName: v }))} />
               </div>
               <div>
                 <label className="fd-label">USPS Project Manager</label>
-                <input className="fd-input" list="fd-dl-projectManager" value={uspsForm.projectManager} onChange={(e) => setUspsForm((f) => ({ ...f, projectManager: e.target.value }))} />
+                <Suggest value={uspsForm.projectManager} options={distinctVals("projectManager")} onChange={(v) => setUspsForm((f) => ({ ...f, projectManager: v }))} />
               </div>
             </div>
             <label className="fd-label" style={{ marginTop: 10 }}>Problem Description</label>
@@ -2485,10 +2506,10 @@ function FollowUpDesk() {
             )}
           </div>
           )}
-          {uspsTab === "all" && showAdd && isUspsManager && (
-          <div className="fd-panel" style={{ marginTop: 14 }}>
+          {uspsTab === "access" && isUspsManager && (
+          <div className="fd-panel" style={{ marginTop: 4 }}>
             <div className="fd-group-head">Manage access</div>
-            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Add or remove who can see the USPS tab. Everyone here shares this one list.</p>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Add or remove who can see the USPS tab. Everyone here shares this one list.{isAdmin ? " To add or remove managers, use the Admin tab." : ""}</p>
             {((sharedConfig.usps && sharedConfig.usps.access) || []).length === 0 ? (
               <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one added yet besides managers.</p>
             ) : ((sharedConfig.usps && sharedConfig.usps.access) || []).map((em) => (
@@ -2505,7 +2526,10 @@ function FollowUpDesk() {
           </div>
           )}
 
+          {uspsTab !== "access" && (
           <div className="fd-group-head" style={{ marginTop: 18 }}>{uspsTab === "finished" ? "Finished jobs" : uspsTab === "joc" ? "JOC" : uspsTab === "stale" ? "No activity in 7+ days" : "Items"} <span className="fd-count">{uspsDisplay.length}</span></div>
+          )}
+          {uspsTab !== "access" && (<>
           <div className="fd-usps-controls">
             <input className="fd-input" placeholder="Search facility, notes, problem #…" value={uspsQuery} onChange={(e) => setUspsQuery(e.target.value)} />
             <select className="fd-input" value={uspsSort} onChange={(e) => setUspsSort(e.target.value)}>
@@ -2672,6 +2696,8 @@ function FollowUpDesk() {
             </div>
             );
           })}
+          </>
+          )}
         </>
         )}
 
