@@ -225,6 +225,9 @@ html,body{margin:0;padding:0;}
 .fd-admin-chip input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer;}
 .fd-form-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items:start;}
 .fd-form-grid > div{display:flex; flex-direction:column; min-width:0;}
+.fd-form-rows{display:flex; flex-wrap:wrap; gap:12px;}
+.fd-form-rows > div{flex:1 1 220px; min-width:220px; max-width:100%; display:flex; flex-direction:column;}
+.fd-form-rows > div .fd-suggest, .fd-form-rows > div .fd-input{width:100%;}
 .fd-suggest{position:relative; display:block; width:100%;}
 .fd-suggest-list{position:absolute; top:100%; left:0; right:0; z-index:40; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14); max-height:220px; overflow-y:auto; margin-top:3px;}
 .fd-suggest-item{display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); padding:10px 12px; font-size:14px; color:var(--ink); cursor:pointer;}
@@ -2441,7 +2444,7 @@ function FollowUpDesk() {
               </div>
             </div>
             <div className="fd-form-divider" />
-            <div className="fd-form-grid">
+            <div className="fd-form-rows">
               <div>
                 <label className="fd-label">Facility Name</label>
                 <Suggest value={uspsForm.facilityName} options={distinctVals("facilityName")} onChange={applyFacility} onPick={applyFacility} />
