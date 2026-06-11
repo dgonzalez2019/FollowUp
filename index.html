@@ -47,15 +47,8 @@ html,body{margin:0;padding:0;}
   min-height:100vh; width:100%;
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
 }
-.fd-wrap{max-width:1180px; margin:0 auto; padding:0 40px 72px;}
+.fd-wrap{max-width:1180px; margin:0 auto; padding:28px 40px 72px;}
 
-/* ===== Brand bar (sticky) ===== */
-.fd-brand{position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:14px;
-  margin:0 -40px 28px; padding:14px 40px;
-  background:rgba(13,21,30,.82); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line);}
-.fd-brandname{font-family:'Archivo',sans-serif; font-weight:800; font-size:21px; line-height:1; color:var(--ink); letter-spacing:-.015em;}
-.fd-logo{height:44px; width:auto; display:block;}
 
 /* ===== Page header ===== */
 .fd-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:26px;}
@@ -91,7 +84,12 @@ html,body{margin:0;padding:0;}
 .fd-tab-n{font-family:'IBM Plex Mono',monospace; font-size:11px; opacity:.65;}
 
 /* ===== Primary nav ===== */
-.fd-nav{display:flex; gap:2px; margin-bottom:22px; border-bottom:1px solid var(--line); overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+.fd-nav{position:sticky; top:0; z-index:40; display:flex; gap:2px; margin:0 -40px 22px; padding:6px 40px 0;
+  border-bottom:1px solid var(--line); overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  background-color:rgba(13,21,30,.85); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  background-image:linear-gradient(90deg, var(--accent) 0%, var(--accent) 38%, var(--lime) 62%, transparent 92%);
+  background-size:220% 2px; background-repeat:no-repeat; background-position:0% 100%;
+  animation:fdSweep 9s ease-in-out infinite alternate;}
 .fd-nav::-webkit-scrollbar{display:none;}
 .fd-nav-btn{position:relative; display:inline-flex; align-items:center; gap:8px; background:none; border:none; font-family:inherit; font-size:14px; font-weight:500; color:var(--muted); padding:11px 12px 13px; cursor:pointer; transition:color .15s; white-space:nowrap; border-radius:8px 8px 0 0;}
 .fd-nav-btn:hover{color:var(--ink); background:linear-gradient(180deg, transparent, rgba(14,118,180,.05));}
@@ -366,15 +364,14 @@ html,body{margin:0;padding:0;}
 
 /* ===== Responsive ===== */
 @media(max-width:900px){
-  .fd-wrap{padding:0 22px 56px;}
-  .fd-brand{margin:0 -22px 24px; padding:12px 22px;}
+  .fd-wrap{padding:22px 22px 56px;}
+  .fd-nav{margin:0 -22px 22px; padding:6px 22px 0;}
   .fd-title{font-size:29px;}
 }
 @media(max-width:560px){
-  .fd-wrap{padding:0 14px 48px;}
-  .fd-brand{margin:0 -14px 20px; padding:10px 14px;}
-  .fd-logo{height:36px;}
-  .fd-brandname{font-size:18px;}
+  .fd-wrap{padding:16px 14px 48px;}
+  .fd-nav{margin:0 -14px 18px; padding:4px 14px 0;}
+  .fd-hero-logo{height:44px;}
   .fd-stats{grid-template-columns:1fr; gap:10px;}
   .fd-grid{grid-template-columns:1fr;}
   .fd-title{font-size:26px;}
@@ -406,11 +403,7 @@ html,body{margin:0;padding:0;}
 @keyframes fdGridDrift{from{transform:translate3d(0,0,0);} to{transform:translate3d(140px,140px,0);}}
 @keyframes fdGlow{from{opacity:.6; transform:translate3d(0,0,0) scale(1);} to{opacity:1; transform:translate3d(0,-24px,0) scale(1.03);}}
 
-/* brand bar accent — survey line, blue to lime */
-.fd-brand::after{content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
-  background:linear-gradient(90deg, var(--accent) 0%, var(--accent) 38%, var(--lime) 62%, transparent 92%);
-  background-size:220% 100%; animation:fdSweep 9s ease-in-out infinite alternate;}
-@keyframes fdSweep{from{background-position:0% 0;} to{background-position:100% 0;}}
+@keyframes fdSweep{from{background-position:0% 100%;} to{background-position:100% 100%;}}
 
 /* ===== Skyline & crane artwork ===== */
 .fd-scape{position:fixed; left:0; right:0; bottom:0; z-index:0; pointer-events:none; opacity:.75;}
@@ -425,7 +418,8 @@ html,body{margin:0;padding:0;}
 @keyframes fdBeacon{0%,100%{opacity:.2;} 50%{opacity:1;}}
 
 /* ===== Landing hero ===== */
-.fd-head.hero{position:relative; flex-direction:column; align-items:center; text-align:center; margin:30px 0 30px; padding-top:8px;}
+.fd-head.hero{position:relative; flex-direction:column; align-items:center; text-align:center; margin:18px 0 30px; padding-top:8px;}
+.fd-hero-logo{height:56px; width:auto; display:block; margin:0 auto 18px; filter:drop-shadow(0 8px 28px rgba(47,155,224,.3)); animation:fdRise .45s ease both;}
 .fd-head.hero::before{content:""; position:absolute; top:-60px; left:50%; transform:translateX(-50%); width:560px; height:280px; border-radius:50%;
   background:radial-gradient(closest-side, rgba(47,155,224,.14), transparent 72%); pointer-events:none; animation:fdGlow 12s ease-in-out infinite alternate;}
 .fd-head.hero .fd-kicker{justify-content:center;}
@@ -469,8 +463,8 @@ html,body{margin:0;padding:0;}
 
 /* ===== Entrance choreography ===== */
 @keyframes fdRise{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
-.fd-head, .fd-nav, .fd-subnav{animation:fdRise .35s ease both;}
-.fd-nav{animation-delay:.05s;} .fd-subnav{animation-delay:.1s;}
+.fd-head, .fd-subnav{animation:fdRise .35s ease both;}
+.fd-subnav{animation-delay:.1s;}
 .fd-stats .fd-stat{animation:fdRise .4s ease both;}
 .fd-stats .fd-stat:nth-child(2){animation-delay:.07s;}
 .fd-stats .fd-stat:nth-child(3){animation-delay:.14s;}
@@ -2190,12 +2184,9 @@ function FollowUpDesk() {
     <div className="fd-root">
       <CityScape />
       <div className="fd-wrap">
-        <div className="fd-brand">
-          <div className="fd-brandname">BDI University</div>
-          <img src={LOGO_SRC} alt="BDI Construction" className="fd-logo" />
-        </div>
         <header className={"fd-head" + (section === "home" ? " hero" : "")}>
           <div>
+            {section === "home" && <img src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" />}
             <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ home: "BDI CONSTRUCTION \u2014 INTERNAL HUB", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>
             <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
@@ -2219,6 +2210,70 @@ function FollowUpDesk() {
               </button>
             )}
     
+            {section === "followups" && (
+              <button className="fd-icon-btn" title="Settings" onClick={() => setShowSettings((s) => !s)}>
+                <SettingsIcon size={18} />
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div className="fd-nav">
+          <button className={"fd-nav-btn" + (section === "home" ? " active" : "")} onClick={() => setSection("home")}>
+            <Home size={15} /> Home
+          </button>
+          <button className={"fd-nav-btn" + (inCalGroup ? " active" : "")} onClick={() => setSection("calendar")}>
+            <Calendar size={15} /> Calendar{(counts.attention + deadlineCounts.attention) > 0 ? " (" + (counts.attention + deadlineCounts.attention) + ")" : ""}
+          </button>
+          {tabVisible("officelist") && (
+            <button className={"fd-nav-btn" + (section === "officelist" ? " active" : "")} onClick={() => setSection("officelist")}>
+              <Users size={15} /> Office list
+            </button>
+          )}
+          {tabVisible("birthdays") && (
+            <button className={"fd-nav-btn" + (section === "birthdays" ? " active" : "")} onClick={() => setSection("birthdays")}>
+              <Cake size={15} /> Birthdays
+            </button>
+          )}
+          {tabVisible("apps") && (
+            <button className={"fd-nav-btn" + (section === "apps" ? " active" : "")} onClick={() => setSection("apps")}>
+              <Grid size={15} /> Apps
+            </button>
+          )}
+          {sharedConfig.customTabs.filter((t) => tabVisible(t.id)).map((t) => (
+            <button key={t.id} className={"fd-nav-btn" + (section === t.id ? " active" : "")} onClick={() => setSection(t.id)}>
+              <Grid size={15} /> {t.name}
+            </button>
+          ))}
+          {uspsHasAccess && (
+            <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
+              <Inbox size={15} /> USPS
+            </button>
+          )}
+          {isAdmin && (
+            <button className={"fd-nav-btn" + (section === "admin" ? " active" : "")} onClick={() => setSection("admin")}>
+              <Shield size={15} /> Admin
+            </button>
+          )}
+        </div>
+
+        {inCalGroup && (
+          <div className="fd-subnav">
+            <button className={"fd-subnav-btn" + (section === "calendar" ? " active" : "")} onClick={() => setSection("calendar")}>
+              <Calendar size={14} /> Month
+            </button>
+            <button className={"fd-subnav-btn" + (section === "followups" ? " active" : "")} onClick={() => setSection("followups")}>
+              <Mail size={14} /> Follow-ups{counts.attention > 0 ? " (" + counts.attention + ")" : ""}
+            </button>
+            <button className={"fd-subnav-btn" + (section === "pending" ? " active" : "")} onClick={() => setSection("pending")}>
+              <FileText size={14} /> Pending signatures{pendingCounts.total > 0 ? " (" + pendingCounts.total + ")" : ""}
+            </button>
+            <button className={"fd-subnav-btn" + (section === "deadlines" ? " active" : "")} onClick={() => setSection("deadlines")}>
+              <Flag size={14} /> Deadlines{deadlineCounts.attention > 0 ? " (" + deadlineCounts.attention + ")" : ""}
+            </button>
+          </div>
+        )}
+
         {section === "home" && (
           <div className="fd-launch-grid">
             <button className="fd-launch" onClick={() => setSection("calendar")}>
@@ -2297,70 +2352,6 @@ function FollowUpDesk() {
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
-          </div>
-        )}
-
-        {section === "followups" && (
-              <button className="fd-icon-btn" title="Settings" onClick={() => setShowSettings((s) => !s)}>
-                <SettingsIcon size={18} />
-              </button>
-            )}
-          </div>
-        </header>
-
-        <div className="fd-nav">
-          <button className={"fd-nav-btn" + (section === "home" ? " active" : "")} onClick={() => setSection("home")}>
-            <Home size={15} /> Home
-          </button>
-          <button className={"fd-nav-btn" + (inCalGroup ? " active" : "")} onClick={() => setSection("calendar")}>
-            <Calendar size={15} /> Calendar{(counts.attention + deadlineCounts.attention) > 0 ? " (" + (counts.attention + deadlineCounts.attention) + ")" : ""}
-          </button>
-          {tabVisible("officelist") && (
-            <button className={"fd-nav-btn" + (section === "officelist" ? " active" : "")} onClick={() => setSection("officelist")}>
-              <Users size={15} /> Office list
-            </button>
-          )}
-          {tabVisible("birthdays") && (
-            <button className={"fd-nav-btn" + (section === "birthdays" ? " active" : "")} onClick={() => setSection("birthdays")}>
-              <Cake size={15} /> Birthdays
-            </button>
-          )}
-          {tabVisible("apps") && (
-            <button className={"fd-nav-btn" + (section === "apps" ? " active" : "")} onClick={() => setSection("apps")}>
-              <Grid size={15} /> Apps
-            </button>
-          )}
-          {sharedConfig.customTabs.filter((t) => tabVisible(t.id)).map((t) => (
-            <button key={t.id} className={"fd-nav-btn" + (section === t.id ? " active" : "")} onClick={() => setSection(t.id)}>
-              <Grid size={15} /> {t.name}
-            </button>
-          ))}
-          {uspsHasAccess && (
-            <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
-              <Inbox size={15} /> USPS
-            </button>
-          )}
-          {isAdmin && (
-            <button className={"fd-nav-btn" + (section === "admin" ? " active" : "")} onClick={() => setSection("admin")}>
-              <Shield size={15} /> Admin
-            </button>
-          )}
-        </div>
-
-        {inCalGroup && (
-          <div className="fd-subnav">
-            <button className={"fd-subnav-btn" + (section === "calendar" ? " active" : "")} onClick={() => setSection("calendar")}>
-              <Calendar size={14} /> Month
-            </button>
-            <button className={"fd-subnav-btn" + (section === "followups" ? " active" : "")} onClick={() => setSection("followups")}>
-              <Mail size={14} /> Follow-ups{counts.attention > 0 ? " (" + counts.attention + ")" : ""}
-            </button>
-            <button className={"fd-subnav-btn" + (section === "pending" ? " active" : "")} onClick={() => setSection("pending")}>
-              <FileText size={14} /> Pending signatures{pendingCounts.total > 0 ? " (" + pendingCounts.total + ")" : ""}
-            </button>
-            <button className={"fd-subnav-btn" + (section === "deadlines" ? " active" : "")} onClick={() => setSection("deadlines")}>
-              <Flag size={14} /> Deadlines{deadlineCounts.attention > 0 ? " (" + deadlineCounts.attention + ")" : ""}
-            </button>
           </div>
         )}
 
