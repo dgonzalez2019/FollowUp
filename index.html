@@ -1097,25 +1097,135 @@ function FilePreviewModal({ file, onClose }) {
 const WC_GROUPS = { A:["MEX","RSA","KOR","CZE"], B:["CAN","BIH","QAT","SUI"], C:["BRA","MAR","HAI","SCO"], D:["USA","PAR","AUS","TUR"], E:["GER","CUW","CIV","ECU"], F:["NED","JPN","SWE","TUN"], G:["BEL","EGY","IRN","NZL"], H:["ESP","CPV","KSA","URU"], I:["FRA","SEN","IRQ","NOR"], J:["ARG","ALG","AUT","JOR"], K:["POR","COD","UZB","COL"], L:["ENG","CRO","GHA","PAN"] };
 const WC_TEAMS = { MEX:["Mexico","\u{1F1F2}\u{1F1FD}"], RSA:["South Africa","\u{1F1FF}\u{1F1E6}"], KOR:["South Korea","\u{1F1F0}\u{1F1F7}"], CZE:["Czechia","\u{1F1E8}\u{1F1FF}"], CAN:["Canada","\u{1F1E8}\u{1F1E6}"], BIH:["Bosnia & Herzegovina","\u{1F1E7}\u{1F1E6}"], QAT:["Qatar","\u{1F1F6}\u{1F1E6}"], SUI:["Switzerland","\u{1F1E8}\u{1F1ED}"], BRA:["Brazil","\u{1F1E7}\u{1F1F7}"], MAR:["Morocco","\u{1F1F2}\u{1F1E6}"], HAI:["Haiti","\u{1F1ED}\u{1F1F9}"], SCO:["Scotland","\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}"], USA:["United States","\u{1F1FA}\u{1F1F8}"], PAR:["Paraguay","\u{1F1F5}\u{1F1FE}"], AUS:["Australia","\u{1F1E6}\u{1F1FA}"], TUR:["T\u00FCrkiye","\u{1F1F9}\u{1F1F7}"], GER:["Germany","\u{1F1E9}\u{1F1EA}"], CUW:["Cura\u00E7ao","\u{1F1E8}\u{1F1FC}"], CIV:["Ivory Coast","\u{1F1E8}\u{1F1EE}"], ECU:["Ecuador","\u{1F1EA}\u{1F1E8}"], NED:["Netherlands","\u{1F1F3}\u{1F1F1}"], JPN:["Japan","\u{1F1EF}\u{1F1F5}"], SWE:["Sweden","\u{1F1F8}\u{1F1EA}"], TUN:["Tunisia","\u{1F1F9}\u{1F1F3}"], BEL:["Belgium","\u{1F1E7}\u{1F1EA}"], EGY:["Egypt","\u{1F1EA}\u{1F1EC}"], IRN:["Iran","\u{1F1EE}\u{1F1F7}"], NZL:["New Zealand","\u{1F1F3}\u{1F1FF}"], ESP:["Spain","\u{1F1EA}\u{1F1F8}"], CPV:["Cape Verde","\u{1F1E8}\u{1F1FB}"], KSA:["Saudi Arabia","\u{1F1F8}\u{1F1E6}"], URU:["Uruguay","\u{1F1FA}\u{1F1FE}"], FRA:["France","\u{1F1EB}\u{1F1F7}"], SEN:["Senegal","\u{1F1F8}\u{1F1F3}"], IRQ:["Iraq","\u{1F1EE}\u{1F1F6}"], NOR:["Norway","\u{1F1F3}\u{1F1F4}"], ARG:["Argentina","\u{1F1E6}\u{1F1F7}"], ALG:["Algeria","\u{1F1E9}\u{1F1FF}"], AUT:["Austria","\u{1F1E6}\u{1F1F9}"], JOR:["Jordan","\u{1F1EF}\u{1F1F4}"], POR:["Portugal","\u{1F1F5}\u{1F1F9}"], COD:["DR Congo","\u{1F1E8}\u{1F1E9}"], UZB:["Uzbekistan","\u{1F1FA}\u{1F1FF}"], COL:["Colombia","\u{1F1E8}\u{1F1F4}"], ENG:["England","\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"], CRO:["Croatia","\u{1F1ED}\u{1F1F7}"], GHA:["Ghana","\u{1F1EC}\u{1F1ED}"], PAN:["Panama","\u{1F1F5}\u{1F1E6}"] };
 const wcLabel = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][1] + " " + WC_TEAMS[c][0] : c);
-const BR_SCORING = { group: 10, R32: 20, R16: 40, QF: 60, SF: 80, F: 100, champ: 80 };
+const BR_SCORING = { pos: 10, adv: 5, third: 5, R16: 15, QF: 25, SF: 40, F: 60, champ: 100 };
 const BR_STAGES = [["R32", "Round of 32"], ["R16", "Round of 16"], ["QF", "Quarterfinals"], ["SF", "Semifinals"], ["F", "Final"]];
 const brOutcome = (m) => (m.status === "final" && m.hs != null && m.as != null ? (m.hs > m.as ? "H" : m.hs < m.as ? "A" : "D") : null);
 const brWinner = (m) => { const o = brOutcome(m); return o === "H" ? m.home : o === "A" ? m.away : null; };
 const brLocked = (m, globalLock) => !!globalLock || m.status !== "scheduled" || (m.kickoff && new Date(m.kickoff).getTime() <= Date.now());
-function brScore(p, matchesObj) {
-  let g = 0, b = 0, bonus = 0, finalWinner = null;
-  Object.values(matchesObj || {}).forEach((m) => {
-    if (m.stage === "group") {
-      const o = brOutcome(m);
-      if (o && p.group && p.group[m.id] === o) g += BR_SCORING.group;
-    } else {
-      const w = brWinner(m);
-      if (m.stage === "F" && w) finalWinner = w;
-      if (w && p.bracket && p.bracket[m.id] === w) b += BR_SCORING[m.stage] || 0;
+
+// real group standings from admin-entered finals (pts -> GD -> GF -> h2h pts)
+function brStandings(matchesObj, grp) {
+  const ms = Object.values(matchesObj || {}).filter((m) => m.stage === "group" && m.group === grp);
+  const done = ms.filter((m) => m.status === "final" && m.hs != null && m.as != null);
+  const t = {};
+  (WC_GROUPS[grp] || []).forEach((c) => (t[c] = { c, p: 0, gd: 0, gf: 0 }));
+  done.forEach((m) => {
+    if (!t[m.home] || !t[m.away]) return;
+    t[m.home].gf += m.hs; t[m.away].gf += m.as;
+    t[m.home].gd += m.hs - m.as; t[m.away].gd += m.as - m.hs;
+    if (m.hs > m.as) t[m.home].p += 3; else if (m.hs < m.as) t[m.away].p += 3; else { t[m.home].p += 1; t[m.away].p += 1; }
+  });
+  const h2h = (a, b) => {
+    const g = done.find((m) => (m.home === a && m.away === b) || (m.home === b && m.away === a));
+    if (!g) return 0;
+    const w = brWinner(g);
+    return w === a ? -1 : w === b ? 1 : 0;
+  };
+  const order = Object.values(t).sort((x, y) => y.p - x.p || y.gd - x.gd || y.gf - x.gf || h2h(x.c, y.c) || x.c.localeCompare(y.c)).map((x) => x.c);
+  return { order, complete: done.length >= 6 };
+}
+const brRealRound = (matchesObj, stage) => {
+  const s = {};
+  Object.values(matchesObj || {}).forEach((m) => { if (m.stage === stage) { s[m.home] = 1; s[m.away] = 1; } });
+  return s;
+};
+function brRealThirds(matchesObj) {
+  const inR32 = brRealRound(matchesObj, "R32");
+  const out = {};
+  Object.keys(WC_GROUPS).forEach((grp) => {
+    const st = brStandings(matchesObj, grp);
+    if (st.complete && inR32[st.order[2]]) out[st.order[2]] = 1;
+  });
+  return out;
+}
+
+// personal R32 template: winners vs thirds, runners-up vs runners-up, same group split apart
+const BR_TPL = [
+  ["M1",  ["1", "A"], ["3", ["C","E","F","H","I"]]], ["M2",  ["1", "C"], ["2", "F"]],
+  ["M3",  ["1", "E"], ["3", ["A","B","C","D","F"]]], ["M4",  ["1", "F"], ["2", "C"]],
+  ["M5",  ["2", "E"], ["2", "I"]],                   ["M6",  ["1", "I"], ["3", ["C","D","F","G","H"]]],
+  ["M7",  ["1", "L"], ["3", ["E","H","I","J","K"]]], ["M8",  ["1", "G"], ["3", ["A","E","H","I","J"]]],
+  ["M9",  ["1", "D"], ["3", ["B","E","F","I","J"]]], ["M10", ["1", "H"], ["2", "J"]],
+  ["M11", ["1", "J"], ["2", "H"]],                   ["M12", ["1", "K"], ["3", ["D","E","I","J","L"]]],
+  ["M13", ["1", "B"], ["3", ["A","C","D","F","G"]]], ["M14", ["2", "A"], ["2", "B"]],
+  ["M15", ["2", "D"], ["2", "G"]],                   ["M16", ["2", "K"], ["2", "L"]],
+];
+const BR_TREE = { "R16-1": ["M1","M2"], "R16-2": ["M3","M4"], "R16-3": ["M5","M6"], "R16-4": ["M7","M8"], "R16-5": ["M9","M10"], "R16-6": ["M11","M12"], "R16-7": ["M13","M14"], "R16-8": ["M15","M16"], "QF-1": ["R16-1","R16-2"], "QF-2": ["R16-3","R16-4"], "QF-3": ["R16-5","R16-6"], "QF-4": ["R16-7","R16-8"], "SF-1": ["QF-1","QF-2"], "SF-2": ["QF-3","QF-4"], "F-1": ["SF-1","SF-2"] };
+const brRankOf = (myBr, grp) => {
+  const r = (myBr.rank || {})[grp];
+  return Array.isArray(r) && r.length === 4 ? r : WC_GROUPS[grp].slice();
+};
+function brBuildR32(myBr) {
+  const thirds = (myBr.thirds || []).slice(0, 8);
+  const thirdGroup = {};
+  Object.keys(WC_GROUPS).forEach((g) => { thirdGroup[brRankOf(myBr, g)[2]] = g; });
+  const remaining = thirds.slice();
+  const slots = BR_TPL.filter(([, , away]) => away[0] === "3");
+  const assigned = {};
+  slots.forEach(([id, , away]) => {
+    let pick = remaining.find((c) => away[1].indexOf(thirdGroup[c]) >= 0);
+    if (pick === undefined) pick = remaining[0];
+    if (pick !== undefined) { assigned[id] = pick; remaining.splice(remaining.indexOf(pick), 1); }
+  });
+  return BR_TPL.map(([id, h, a]) => {
+    const side = (s) => (s[0] === "3" ? (assigned[id] || null) : brRankOf(myBr, s[1])[s[0] === "1" ? 0 : 1]);
+    return { id, home: side(h), away: a[0] === "3" ? (assigned[id] || null) : side(a) };
+  });
+}
+function brMyBracket(myBr) {
+  const ko = myBr.ko || {};
+  const slots = {};
+  brBuildR32(myBr).forEach((m) => {
+    const pick = ko[m.id];
+    slots[m.id] = { id: m.id, stage: "R32", home: m.home, away: m.away, pick: pick === m.home || pick === m.away ? pick : null };
+  });
+  [["R16", 8], ["QF", 4], ["SF", 2], ["F", 1]].forEach(([stg, n]) => {
+    for (let i = 1; i <= n; i++) {
+      const id = stg + "-" + i;
+      const [fa, fb] = BR_TREE[id];
+      const home = slots[fa] ? slots[fa].pick : null;
+      const away = slots[fb] ? slots[fb].pick : null;
+      const pick = ko[id];
+      slots[id] = { id, stage: stg, home, away, pick: pick && (pick === home || pick === away) ? pick : null };
     }
   });
-  if (p.champion && finalWinner && p.champion === finalWinner) bonus = BR_SCORING.champ;
-  return { g, b, bonus, total: g + b + bonus };
+  return slots;
+}
+function brScore(p, matchesObj) {
+  let g = 0, t = 0, b = 0;
+  let anyR32 = Object.values(matchesObj || {}).some((m) => m.stage === "R32");
+  Object.keys(WC_GROUPS).forEach((grp) => {
+    const st = brStandings(matchesObj, grp);
+    if (!st.complete) return;
+    const mine = brRankOf(p, grp);
+    mine.forEach((c, i) => {
+      if (st.order[i] === c) g += BR_SCORING.pos;
+      else if (i < 2 && st.order.indexOf(c) >= 0 && st.order.indexOf(c) < 2) g += BR_SCORING.adv;
+    });
+  });
+  if (anyR32) {
+    const rt = brRealThirds(matchesObj);
+    (p.thirds || []).forEach((c) => { if (rt[c]) t += BR_SCORING.third; });
+  }
+  const slots = brMyBracket(p);
+  const mineInto = { R16: {}, QF: {}, SF: {}, F: {} };
+  Object.values(slots).forEach((s) => {
+    if (!s.pick) return;
+    if (s.stage === "R32") mineInto.R16[s.pick] = 1;
+    else if (s.stage === "R16") mineInto.QF[s.pick] = 1;
+    else if (s.stage === "QF") mineInto.SF[s.pick] = 1;
+    else if (s.stage === "SF") mineInto.F[s.pick] = 1;
+  });
+  ["R16", "QF", "SF", "F"].forEach((stg) => {
+    const real = brRealRound(matchesObj, stg);
+    Object.keys(mineInto[stg]).forEach((c) => { if (real[c]) b += BR_SCORING[stg]; });
+  });
+  let champBonus = 0;
+  const fm = Object.values(matchesObj || {}).find((m) => m.stage === "F");
+  const realChamp = fm ? brWinner(fm) : null;
+  const myChamp = slots["F-1"] && slots["F-1"].pick;
+  if (realChamp && myChamp && realChamp === myChamp) champBonus = BR_SCORING.champ;
+  return { g, t, b: b + champBonus, total: g + t + b + champBonus };
 }
 function brSeedMatches() {
   const RR = [[0, 1], [2, 3], [0, 2], [3, 1], [3, 0], [1, 2]];
@@ -2483,7 +2593,7 @@ function FollowUpDesk() {
             <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
-                bracket: "Pick every group match, build your knockout bracket, and battle the office for the top spot. Scores update live.",
+                bracket: "Order each group 1\u20134, pick your best thirds, then advance teams through your own bracket to the trophy. Scores update live.",
                 home: "Everything the office runs on, one tap away. Pick where you\u2019re headed \u2014 the badges show what needs your attention.",
                 pending: "Documents you've sent out that are still awaiting a signature.",
                 deadlines: "Track time-sensitive due dates and get a heads-up as they approach.",
@@ -3543,114 +3653,115 @@ function FollowUpDesk() {
 
           {bracketView === "picks" && (
           <>
-            {Object.keys(brData.matches).filter((id) => brData.matches[id].stage === "group").length === 0 ? (
-              <div className="fd-empty">
-                <Trophy size={28} />
-                <span>Fixtures aren\u2019t published yet.{isAdmin ? " Head to Manage to seed the 72 group matches." : " Check back soon."}</span>
-              </div>
-            ) : (
+            <div className="fd-panel">
+              <div className="fd-panel-head">Order every group <span className="fd-count">{BR_SCORING.pos} pts exact spot \u00B7 {BR_SCORING.adv} pts advanced, wrong order</span></div>
+              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Use the arrows to set who finishes 1st\u20134th. Spots 1\u20132 advance automatically; your 3rd-place teams feed the best-thirds picker below.</p>
+            </div>
             <div className="fd-grid">
               {Object.keys(WC_GROUPS).map((grp) => {
-                const ms = Object.values(brData.matches).filter((m) => m.stage === "group" && m.group === grp).sort((a, b) => a.id.localeCompare(b.id));
-                if (ms.length === 0) return null;
+                const order = brRankOf(myBr, grp);
+                const move = (i, dir) => {
+                  if (brData.groupLocked) return;
+                  const j = i + dir;
+                  if (j < 0 || j > 3) return;
+                  const next = order.slice();
+                  const tmp = next[i]; next[i] = next[j]; next[j] = tmp;
+                  saveMyBr({ rank: { ...(myBr.rank || {}), [grp]: next } });
+                };
                 return (
                   <div className="fd-panel" key={grp} style={{ marginBottom: 0 }}>
                     <div className="fd-panel-head">Group {grp}</div>
-                    {ms.map((m) => {
-                      const my = (myBr.group || {})[m.id];
-                      const res = brOutcome(m);
-                      const locked = brLocked(m, brData.groupLocked);
-                      const optStyle = (o) => {
-                        if (res && my === o) return my === res ? { borderColor: "var(--ok)", color: "var(--ok)", background: "rgba(76,175,125,.12)" } : { borderColor: "var(--danger)", color: "var(--danger)", background: "rgba(224,97,73,.1)" };
-                        return undefined;
-                      };
-                      return (
-                        <div key={m.id} style={{ marginBottom: 12 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 13.5 }}>
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcLabel(m.home)} <span className="fd-hint">vs</span> {wcLabel(m.away)}</span>
-                            {m.status !== "scheduled" && (
-                              <span className="fd-meta" style={{ marginTop: 0, color: m.status === "live" ? "var(--danger)" : undefined }}>
-                                {(m.hs == null ? 0 : m.hs)}\u2013{(m.as == null ? 0 : m.as)}{m.status === "live" ? " LIVE" : ""}
-                              </span>
-                            )}
-                          </div>
-                          <div className="fd-seg" style={{ marginTop: 6 }}>
-                            {[["H", "Home"], ["D", "Draw"], ["A", "Away"]].map(([o, lbl]) => (
-                              <button key={o} disabled={locked}
-                                className={"fd-seg-btn" + (my === o ? " active" : "")}
-                                style={optStyle(o)}
-                                onClick={() => !locked && saveMyBr({ group: { ...(myBr.group || {}), [m.id]: o } })}>{lbl}</button>
-                            ))}
-                            {locked && m.status === "scheduled" && <span className="fd-hint" style={{ alignSelf: "center", fontSize: 11, padding: "0 6px" }}>locked</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {order.map((c, i) => (
+                      <div key={c} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 0", borderBottom: i < 3 ? "1px solid var(--line)" : "none" }}>
+                        <span className="fd-ext" style={i < 2 ? { color: "var(--accent)", borderColor: "rgba(47,155,224,.4)" } : i === 2 ? { color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.08)" } : { color: "var(--faint)", background: "transparent", borderColor: "var(--line)" }}>{i + 1}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcLabel(c)}</span>
+                        <button className="fd-icon-btn sm" disabled={brData.groupLocked || i === 0} style={i === 0 ? { opacity: .3 } : undefined} onClick={() => move(i, -1)} title="Move up">\u25B2</button>
+                        <button className="fd-icon-btn sm" disabled={brData.groupLocked || i === 3} style={i === 3 ? { opacity: .3 } : undefined} onClick={() => move(i, 1)} title="Move down">\u25BC</button>
+                      </div>
+                    ))}
                   </div>
                 );
               })}
             </div>
-            )}
+            <div className="fd-panel" style={{ marginTop: 20 }}>
+              <div className="fd-panel-head">Best thirds \u2014 pick 8 of your 12 <span className="fd-count">{((myBr.thirds || []).length)}/8 \u00B7 {BR_SCORING.third} pts each</span></div>
+              <p className="fd-hint" style={{ fontSize: 12.5, marginTop: 0 }}>These are the teams you placed 3rd in each group. Choose the 8 you think squeak into the Round of 32.</p>
+              <div className="fd-admin-toggles">
+                {Object.keys(WC_GROUPS).map((grp) => {
+                  const c = brRankOf(myBr, grp)[2];
+                  const sel = (myBr.thirds || []).indexOf(c) >= 0;
+                  const full = (myBr.thirds || []).length >= 8;
+                  return (
+                    <button key={grp} className="fd-admin-chip" disabled={brData.groupLocked}
+                      style={sel ? { borderColor: "var(--lime)", background: "rgba(183,212,74,.12)", color: "var(--lime)" } : (!sel && full ? { opacity: .45 } : undefined)}
+                      onClick={() => {
+                        if (brData.groupLocked) return;
+                        let th = (myBr.thirds || []).filter((x) => Object.keys(WC_GROUPS).some((g) => brRankOf(myBr, g)[2] === x));
+                        if (sel) th = th.filter((x) => x !== c);
+                        else if (th.length < 8) th = th.concat([c]);
+                        else return;
+                        saveMyBr({ thirds: th });
+                      }}>
+                      <span className="fd-hint" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10 }}>{grp}</span> {wcLabel(c)}
+                    </button>
+                  );
+                })}
+              </div>
+              {brData.groupLocked && <p className="fd-hint" style={{ fontSize: 12, marginBottom: 0 }}>Group ordering is locked by the admin.</p>}
+            </div>
           </>
           )}
 
           {bracketView === "knockout" && (
           <>
-            <div className="fd-panel">
-              <div className="fd-panel-head">Champion bonus <span className="fd-count">+{BR_SCORING.champ} pts</span></div>
-              <label className="fd-label">Call the trophy winner before the knockouts lock</label>
-              <select className="fd-select" value={myBr.champion || ""} disabled={!!brData.bracketLocked}
-                onChange={(e) => saveMyBr({ champion: e.target.value })}>
-                <option value="">\u2014 pick your champion \u2014</option>
-                {Object.keys(WC_TEAMS).map((c) => <option key={c} value={c}>{WC_TEAMS[c][1]} {WC_TEAMS[c][0]}</option>)}
-              </select>
-            </div>
-            {BR_STAGES.every(([k]) => Object.values(brData.matches).filter((m) => m.stage === k).length === 0) && (
+            {((myBr.thirds || []).length !== 8) ? (
               <div className="fd-empty">
-                <Flag size={28} />
-                <span>Knockout ties appear once the Round of 32 is set after the group stage (June 27). Your champion pick is open now \u2014 R32 {BR_SCORING.R32}, R16 {BR_SCORING.R16}, QF {BR_SCORING.QF}, SF {BR_SCORING.SF}, Final {BR_SCORING.F} pts.</span>
+                <Trophy size={28} />
+                <span>Finish your group ordering first \u2014 pick your 8 best thirds on the Group picks tab and your personal Round of 32 builds itself here.</span>
               </div>
+            ) : (
+            <>
+              <div className="fd-panel">
+                <div className="fd-panel-head">Your bracket <span className="fd-count">R16 {BR_SCORING.R16} \u00B7 QF {BR_SCORING.QF} \u00B7 SF {BR_SCORING.SF} \u00B7 Final {BR_SCORING.F} \u00B7 Champion +{BR_SCORING.champ}</span></div>
+                <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Built from your group ordering. Tap a team to advance them \u2014 winners flow into the next round. Points are awarded for every team you correctly carry into each round, even if the real matchups differ.</p>
+              </div>
+              {(() => {
+                const slots = brMyBracket(myBr);
+                const pickKo = (slot, team) => {
+                  if (brData.bracketLocked || !team) return;
+                  const ko = { ...(myBr.ko || {}) };
+                  ko[slot.id] = team;
+                  saveMyBr({ ko });
+                };
+                return BR_STAGES.map(([stg, label]) => {
+                  const list = Object.values(slots).filter((x) => x.stage === stg).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+                  if (stg === "R32" && list.length === 0) return null;
+                  return (
+                    <div className="fd-panel" key={stg}>
+                      <div className="fd-panel-head">{label}{stg === "F" && slots["F-1"].pick ? <span className="fd-count">your champion: {wcLabel(slots["F-1"].pick)}</span> : null}</div>
+                      <div className="fd-grid">
+                        {list.map((m) => (
+                          <div key={m.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
+                            <div className="fd-hint" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, marginBottom: 6 }}>{m.id}</div>
+                            <div className="fd-seg" style={{ width: "100%" }}>
+                              {[m.home, m.away].map((team, ti) => (
+                                <button key={ti} disabled={brData.bracketLocked || !team}
+                                  className={"fd-seg-btn" + (team && m.pick === team ? " active" : "")}
+                                  style={{ flex: 1, opacity: team ? 1 : .45 }}
+                                  onClick={() => pickKo(m, team)}>
+                                  {team ? wcLabel(team) : "Pick above"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </>
             )}
-            {BR_STAGES.map(([k, label]) => {
-              const ms = Object.values(brData.matches).filter((m) => m.stage === k).sort((a, b) => a.id.localeCompare(b.id));
-              if (ms.length === 0) return null;
-              return (
-                <div className="fd-panel" key={k}>
-                  <div className="fd-panel-head">{label} <span className="fd-count">{BR_SCORING[k]} pts each</span></div>
-                  <div className="fd-grid">
-                    {ms.map((m) => {
-                      const my = (myBr.bracket || {})[m.id];
-                      const w = brWinner(m);
-                      const locked = brLocked(m, brData.bracketLocked);
-                      const tStyle = (team) => {
-                        if (w && my === team) return my === w ? { borderColor: "var(--ok)", color: "var(--ok)", background: "rgba(76,175,125,.12)" } : { borderColor: "var(--danger)", color: "var(--danger)", background: "rgba(224,97,73,.1)" };
-                        return undefined;
-                      };
-                      return (
-                        <div key={m.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                            <span className="fd-hint" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{m.id}</span>
-                            {m.status !== "scheduled" && (
-                              <span className="fd-meta" style={{ marginTop: 0, color: m.status === "live" ? "var(--danger)" : undefined }}>
-                                {(m.hs == null ? 0 : m.hs)}\u2013{(m.as == null ? 0 : m.as)}{m.status === "live" ? " LIVE" : ""}
-                              </span>
-                            )}
-                          </div>
-                          <div className="fd-seg" style={{ width: "100%" }}>
-                            {[m.home, m.away].map((team) => (
-                              <button key={team} disabled={locked}
-                                className={"fd-seg-btn" + (my === team ? " active" : "")}
-                                style={{ flex: 1, ...(tStyle(team) || {}) }}
-                                onClick={() => !locked && saveMyBr({ bracket: { ...(myBr.bracket || {}), [m.id]: team } })}>{wcLabel(team)}</button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
           </>
           )}
 
@@ -3674,7 +3785,7 @@ function FollowUpDesk() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>}</div>
                         <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
-                          group {r.s.g} \u00B7 bracket {r.s.b} \u00B7 bonus {r.s.bonus}
+                          groups {r.s.g} \u00B7 thirds {r.s.t} \u00B7 bracket {r.s.b}
                         </div>
                       </div>
                       <span className="fd-ext" style={{ color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.1)" }}>{r.s.total}</span>
