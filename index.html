@@ -419,7 +419,7 @@ html,body{margin:0;padding:0;}
 
 /* ===== Landing hero ===== */
 .fd-head.hero{position:relative; flex-direction:column; align-items:center; text-align:center; margin:18px 0 30px; padding-top:8px;}
-.fd-hero-logo{height:64px; width:auto; display:block; margin:0 auto 18px; filter:drop-shadow(0 8px 28px rgba(47,155,224,.3)); animation:fdRise .45s ease both;}
+.fd-hero-logo{height:64px; width:auto; display:block; margin:0 auto 18px; filter:drop-shadow(0 8px 28px rgba(47,155,224,.3)); transition:opacity .25s ease;}
 .fd-head.hero::before{content:""; position:absolute; top:-60px; left:50%; transform:translateX(-50%); width:560px; height:280px; border-radius:50%;
   background:radial-gradient(closest-side, rgba(47,155,224,.14), transparent 72%); pointer-events:none; animation:fdGlow 12s ease-in-out infinite alternate;}
 .fd-head.hero .fd-kicker{justify-content:center;}
@@ -434,7 +434,7 @@ html,body{margin:0;padding:0;}
 .fd-launch{position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:9px; text-align:left; font-family:inherit; color:var(--ink);
   background:linear-gradient(180deg, rgba(47,155,224,.06), transparent 56%), var(--surface);
   border:1px solid var(--line); border-radius:16px; padding:20px 18px 16px; cursor:pointer; overflow:hidden;
-  box-shadow:var(--shadow-sm); animation:fdRise .45s ease both;
+  box-shadow:var(--shadow-sm); animation:fdBuild .55s cubic-bezier(.2,.7,.25,1) both;
   transition:transform .18s ease, border-color .18s, box-shadow .18s;}
 .fd-launch::before{content:""; position:absolute; top:-30%; bottom:-30%; left:-70%; width:46%;
   background:linear-gradient(100deg, transparent, rgba(255,255,255,.06), transparent);
@@ -460,6 +460,24 @@ html,body{margin:0;padding:0;}
 .fd-launch-grid .fd-launch:nth-child(8){animation-delay:.35s;}
 .fd-launch-grid .fd-launch:nth-child(9){animation-delay:.40s;}
 .fd-launch-grid .fd-launch:nth-child(10){animation-delay:.45s;}
+
+/* ===== Immersive intro reveal ===== */
+.fd-intro{position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(1000px 640px at 50% 44%, #122031, #0b1118 72%);
+  animation:fdFade .45s ease backwards; transition:opacity .6s ease .15s; pointer-events:none;}
+.fd-intro.fly{opacity:0;}
+.fd-intro-logo{width:min(450px, 62vw); height:auto; will-change:transform;
+  filter:drop-shadow(0 14px 44px rgba(47,155,224,.4));
+  animation:fdIntroIn 1s cubic-bezier(.2,.75,.2,1) backwards;
+  transition:transform .85s cubic-bezier(.6,.04,.22,1), opacity .85s ease;}
+.fd-intro.fly .fd-intro-logo{filter:drop-shadow(0 8px 28px rgba(47,155,224,.3));}
+@keyframes fdIntroIn{from{opacity:0; transform:scale(1.14);} 60%{opacity:1;} to{opacity:1; transform:scale(1);}}
+@keyframes fdBuild{from{opacity:0; transform:translateY(20px) skewX(-3deg) scale(.96);} to{opacity:1; transform:none;}}
+.fd-wrap[data-hold="1"]{pointer-events:none;}
+.fd-wrap[data-hold="1"] .fd-head, .fd-wrap[data-hold="1"] .fd-nav, .fd-wrap[data-hold="1"] .fd-subnav,
+.fd-wrap[data-hold="1"] .fd-launch, .fd-wrap[data-hold="1"] .fd-stats .fd-stat, .fd-wrap[data-hold="1"] .fd-foot,
+.fd-wrap[data-hold="1"] .fd-list .fd-card, .fd-wrap[data-hold="1"] .fd-cal-grid, .fd-wrap[data-hold="1"] .fd-cal-day-list{animation:none; opacity:0;}
+.fd-foot{animation:fdRise .45s ease both; animation-delay:.5s;}
 
 /* ===== Entrance choreography ===== */
 @keyframes fdRise{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
@@ -1102,6 +1120,11 @@ function FollowUpDesk() {
   const [previewSeed, setPreviewSeed] = useState(1);
   const [toast, setToast] = useState(null);
   const [section, setSection] = useState("home");
+  const [intro, setIntro] = useState(true);
+  const [hold, setHold] = useState(true);
+  const introStartedRef = useRef(false);
+  const splashRef = useRef(null);
+  const heroLogoRef = useRef(null);
   const [dirQuery, setDirQuery] = useState("");
   const [personalApps, setPersonalApps] = useState([]);
   const [appName, setAppName] = useState("");
@@ -1144,6 +1167,33 @@ function FollowUpDesk() {
   const [calSelected, setCalSelected] = useState(null);
   const [authReady, setAuthReady] = useState(!cloudOn);
   const [user, setUser] = useState(null);
+  const appVisible = (!cloudOn || (authReady && !!user));
+  useEffect(() => {
+    if (!appVisible || introStartedRef.current) return;
+    introStartedRef.current = true;
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setIntro(false); setHold(false); return; }
+    const t1 = setTimeout(() => {
+      setHold(false);
+      const sp = splashRef.current;
+      const tg = heroLogoRef.current;
+      if (sp) {
+        const aR = sp.getBoundingClientRect();
+        if (tg) {
+          const bR = tg.getBoundingClientRect();
+          const s = bR.height / aR.height;
+          const dx = (bR.left + bR.width / 2) - (aR.left + aR.width / 2);
+          const dy = (bR.top + bR.height / 2) - (aR.top + aR.height / 2);
+          sp.style.transform = "translate(" + dx + "px," + dy + "px) scale(" + s + ")";
+        } else {
+          sp.style.transform = "translateY(-30vh) scale(0.2)";
+          sp.style.opacity = "0";
+        }
+      }
+    }, 1250);
+    const t2 = setTimeout(() => setIntro(false), 2150);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [appVisible]);
   const [authMode, setAuthMode] = useState("signin");
   const [authEmail, setAuthEmail] = useState("");
   const [authPass, setAuthPass] = useState("");
@@ -2183,10 +2233,15 @@ function FollowUpDesk() {
   return (
     <div className="fd-root">
       <CityScape />
-      <div className="fd-wrap">
+      {intro && (
+        <div className={"fd-intro" + (hold ? "" : " fly")}>
+          <img ref={splashRef} src={LOGO_SRC} alt="BDI Construction" className="fd-intro-logo" />
+        </div>
+      )}
+      <div className="fd-wrap" data-hold={hold ? "1" : "0"}>
         <header className={"fd-head" + (section === "home" ? " hero" : "")}>
           <div>
-            {section === "home" && <img src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" />}
+            {section === "home" && <img ref={heroLogoRef} src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" style={{ opacity: intro ? 0 : undefined }} />}
             <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ home: "BDI CONSTRUCTION \u2014 INTERNAL HUB", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>
             <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
