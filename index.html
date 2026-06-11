@@ -292,6 +292,8 @@ html,body{margin:0;padding:0;}
 .fd-admin-chip{display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line-strong); border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer; transition:border-color .15s, background .15s;}
 .fd-admin-chip:hover{border-color:var(--accent);}
 button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
+.fd-team{display:inline-flex; align-items:center; gap:7px; min-width:0;}
+.fd-flag{width:20px; height:15px; object-fit:cover; border-radius:2.5px; flex-shrink:0; box-shadow:0 0 0 1px rgba(255,255,255,.1);}
 button.fd-admin-chip:disabled{cursor:default;}
 .fd-admin-chip input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer;}
 
@@ -1126,7 +1128,13 @@ function FilePreviewModal({ file, onClose }) {
 
 const WC_GROUPS = { A:["MEX","RSA","KOR","CZE"], B:["CAN","BIH","QAT","SUI"], C:["BRA","MAR","HAI","SCO"], D:["USA","PAR","AUS","TUR"], E:["GER","CUW","CIV","ECU"], F:["NED","JPN","SWE","TUN"], G:["BEL","EGY","IRN","NZL"], H:["ESP","CPV","KSA","URU"], I:["FRA","SEN","IRQ","NOR"], J:["ARG","ALG","AUT","JOR"], K:["POR","COD","UZB","COL"], L:["ENG","CRO","GHA","PAN"] };
 const WC_TEAMS = { MEX:["Mexico","\u{1F1F2}\u{1F1FD}"], RSA:["South Africa","\u{1F1FF}\u{1F1E6}"], KOR:["South Korea","\u{1F1F0}\u{1F1F7}"], CZE:["Czechia","\u{1F1E8}\u{1F1FF}"], CAN:["Canada","\u{1F1E8}\u{1F1E6}"], BIH:["Bosnia & Herzegovina","\u{1F1E7}\u{1F1E6}"], QAT:["Qatar","\u{1F1F6}\u{1F1E6}"], SUI:["Switzerland","\u{1F1E8}\u{1F1ED}"], BRA:["Brazil","\u{1F1E7}\u{1F1F7}"], MAR:["Morocco","\u{1F1F2}\u{1F1E6}"], HAI:["Haiti","\u{1F1ED}\u{1F1F9}"], SCO:["Scotland","\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}"], USA:["United States","\u{1F1FA}\u{1F1F8}"], PAR:["Paraguay","\u{1F1F5}\u{1F1FE}"], AUS:["Australia","\u{1F1E6}\u{1F1FA}"], TUR:["Türkiye","\u{1F1F9}\u{1F1F7}"], GER:["Germany","\u{1F1E9}\u{1F1EA}"], CUW:["Curaçao","\u{1F1E8}\u{1F1FC}"], CIV:["Ivory Coast","\u{1F1E8}\u{1F1EE}"], ECU:["Ecuador","\u{1F1EA}\u{1F1E8}"], NED:["Netherlands","\u{1F1F3}\u{1F1F1}"], JPN:["Japan","\u{1F1EF}\u{1F1F5}"], SWE:["Sweden","\u{1F1F8}\u{1F1EA}"], TUN:["Tunisia","\u{1F1F9}\u{1F1F3}"], BEL:["Belgium","\u{1F1E7}\u{1F1EA}"], EGY:["Egypt","\u{1F1EA}\u{1F1EC}"], IRN:["Iran","\u{1F1EE}\u{1F1F7}"], NZL:["New Zealand","\u{1F1F3}\u{1F1FF}"], ESP:["Spain","\u{1F1EA}\u{1F1F8}"], CPV:["Cape Verde","\u{1F1E8}\u{1F1FB}"], KSA:["Saudi Arabia","\u{1F1F8}\u{1F1E6}"], URU:["Uruguay","\u{1F1FA}\u{1F1FE}"], FRA:["France","\u{1F1EB}\u{1F1F7}"], SEN:["Senegal","\u{1F1F8}\u{1F1F3}"], IRQ:["Iraq","\u{1F1EE}\u{1F1F6}"], NOR:["Norway","\u{1F1F3}\u{1F1F4}"], ARG:["Argentina","\u{1F1E6}\u{1F1F7}"], ALG:["Algeria","\u{1F1E9}\u{1F1FF}"], AUT:["Austria","\u{1F1E6}\u{1F1F9}"], JOR:["Jordan","\u{1F1EF}\u{1F1F4}"], POR:["Portugal","\u{1F1F5}\u{1F1F9}"], COD:["DR Congo","\u{1F1E8}\u{1F1E9}"], UZB:["Uzbekistan","\u{1F1FA}\u{1F1FF}"], COL:["Colombia","\u{1F1E8}\u{1F1F4}"], ENG:["England","\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"], CRO:["Croatia","\u{1F1ED}\u{1F1F7}"], GHA:["Ghana","\u{1F1EC}\u{1F1ED}"], PAN:["Panama","\u{1F1F5}\u{1F1E6}"] };
-const wcLabel = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][1] + " " + WC_TEAMS[c][0] : c);
+const WC_ISO = { MEX:"mx", RSA:"za", KOR:"kr", CZE:"cz", CAN:"ca", BIH:"ba", QAT:"qa", SUI:"ch", BRA:"br", MAR:"ma", HAI:"ht", SCO:"gb-sct", USA:"us", PAR:"py", AUS:"au", TUR:"tr", GER:"de", CUW:"cw", CIV:"ci", ECU:"ec", NED:"nl", JPN:"jp", SWE:"se", TUN:"tn", BEL:"be", EGY:"eg", IRN:"ir", NZL:"nz", ESP:"es", CPV:"cv", KSA:"sa", URU:"uy", FRA:"fr", SEN:"sn", IRQ:"iq", NOR:"no", ARG:"ar", ALG:"dz", AUT:"at", JOR:"jo", POR:"pt", COD:"cd", UZB:"uz", COL:"co", ENG:"gb-eng", CRO:"hr", GHA:"gh", PAN:"pa" };
+const WCFlag = ({ c }) => (WC_ISO[c] ? (
+  <img className="fd-flag" alt="" loading="lazy"
+       src={"https://flagcdn.com/w40/" + WC_ISO[c] + ".png"}
+       srcSet={"https://flagcdn.com/w80/" + WC_ISO[c] + ".png 2x"} />
+) : null);
+const wcLabel = (c) => (WC_TEAMS[c] ? <span className="fd-team"><WCFlag c={c} />{WC_TEAMS[c][0]}</span> : c);
 const BR_SCORING = { pos: 10, adv: 5, third: 5, R16: 15, QF: 25, SF: 40, F: 60, champ: 100 };
 const BR_STAGES = [["R32", "Round of 32"], ["R16", "Round of 16"], ["QF", "Quarterfinals"], ["SF", "Semifinals"], ["F", "Final"]];
 const brOutcome = (m) => (m.status === "final" && m.hs != null && m.as != null ? (m.hs > m.as ? "H" : m.hs < m.as ? "A" : "D") : null);
@@ -1471,7 +1479,7 @@ function FollowUpDesk() {
   const [introRun, setIntroRun] = useState(0);
   const [fastIntro, setFastIntro] = useState(false);
   const [zoom, setZoom] = useState(null);
-  const [bracketView, setBracketView] = useState("picks");
+  const [bracketView, setBracketView] = useState("board");
   const [brData, setBrData] = useState({ matches: {}, groupLocked: false, bracketLocked: false });
   const [brPicksAll, setBrPicksAll] = useState({});
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
@@ -1570,6 +1578,9 @@ function FollowUpDesk() {
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
   }, []);
+  useEffect(() => {
+    if (section === "bracket") setBracketView("board");
+  }, [section]);
   useEffect(() => {
     if (!cloudOn || !user) return;
     const unsub = fbDb.collection("shared").doc("bracket").onSnapshot((snap) => {
@@ -3742,7 +3753,7 @@ function FollowUpDesk() {
         {section === "bracket" && (
         <>
           <div className="fd-subnav">
-            {[["picks", "Group picks"], ["knockout", "Knockout"], ["board", "Leaderboard"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
+            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
             ))}
           </div>
