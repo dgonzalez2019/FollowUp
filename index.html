@@ -357,9 +357,6 @@ html,body{margin:0;padding:0;}
 /* ===== Accessibility & motion ===== */
 .fd-root button:focus-visible, .fd-root a:focus-visible, .fd-root input:focus-visible, .fd-root select:focus-visible, .fd-root textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 .fd-root .fd-input:focus-visible, .fd-root .fd-select:focus-visible{outline:none;}
-@media (prefers-reduced-motion: reduce){
-  .fd-root *, .fd-root *::before, .fd-root *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
-}
 
 /* ===== Responsive ===== */
 @media(max-width:900px){
@@ -912,10 +909,9 @@ function Stat({ n, label, tone }) {
   const [disp, setDisp] = useState(0);
   const fromRef = useRef(0);
   useEffect(() => {
-    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const from = fromRef.current;
     const to = Number(n) || 0;
-    if (reduce || from === to) { fromRef.current = to; setDisp(to); return; }
+    if (from === to) { fromRef.current = to; setDisp(to); return; }
     const dur = 600;
     const t0 = performance.now();
     let raf;
@@ -1276,8 +1272,6 @@ function FollowUpDesk() {
   useEffect(() => {
     if (!appVisible || introStartedRef.current) return;
     introStartedRef.current = true;
-    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) { setIntro(false); setHold(false); return; }
     const flyAt = fastIntro ? 1500 : 2600;
     const endAt = fastIntro ? 2500 : 3750;
     const t1 = setTimeout(() => {
