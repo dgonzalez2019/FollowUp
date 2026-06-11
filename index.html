@@ -514,6 +514,24 @@ html,body{margin:0;padding:0;}
 .fd-wrap[data-hold="1"] .fd-list .fd-card, .fd-wrap[data-hold="1"] .fd-cal-grid, .fd-wrap[data-hold="1"] .fd-cal-day-list{animation:none; opacity:0;}
 .fd-foot{animation:fdRise .45s ease both; animation-delay:.5s;}
 
+/* ===== Knockout bracket layout ===== */
+.fd-bracket{display:flex; gap:26px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:6px 2px 16px;}
+.fd-br-col{flex:0 0 225px; display:flex; flex-direction:column;}
+.fd-br-col-head{font-weight:700; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:0 2px 10px; font-family:'IBM Plex Mono',monospace;}
+.fd-br-ties{flex:1; display:flex; flex-direction:column; justify-content:space-around; gap:10px;}
+.fd-br-tie{position:relative; border:1px solid var(--line); border-radius:10px; overflow:visible; background:var(--surface-2);}
+.fd-br-tie::after{content:""; position:absolute; right:-27px; top:50%; width:26px; height:1px; background:var(--line-strong);}
+.fd-br-col:last-child .fd-br-tie::after{display:none;}
+.fd-br-slot{display:flex; align-items:center; gap:6px; width:100%; padding:9px 11px; font-size:13px; background:transparent; border:none; color:var(--ink); cursor:pointer; text-align:left; font-family:inherit; transition:background .12s;}
+.fd-br-slot:first-child{border-radius:9px 9px 0 0;}
+.fd-br-slot:last-child{border-radius:0 0 9px 9px;}
+.fd-br-slot:only-child{border-radius:9px;}
+.fd-br-slot + .fd-br-slot{border-top:1px solid var(--line);}
+.fd-br-slot:hover:not(:disabled){background:var(--surface-3);}
+.fd-br-slot:disabled{cursor:default;}
+.fd-br-slot.on{background:var(--accent); color:#06121c; font-weight:700;}
+.fd-br-slot.ghost{color:var(--faint); font-style:italic;}
+
 /* ===== Drag-to-reorder rows ===== */
 .fd-drag-row{position:absolute; left:0; right:0; height:46px; display:flex; align-items:center; gap:9px; border-bottom:1px solid var(--line); will-change:transform;}
 .fd-drag-row.dragging{z-index:5; background:var(--surface-3); border:1px solid var(--accent-ring); border-bottom:1px solid var(--accent-ring); border-radius:10px; box-shadow:0 12px 28px rgba(0,0,0,.55); left:-8px; right:-8px; padding:0 8px;}
@@ -1577,7 +1595,7 @@ function FollowUpDesk() {
     setBrData(next);
     if (cloudOn && user) {
       fbDb.collection("shared").doc("bracket").set({ data: JSON.stringify(next), updatedAt: Date.now() })
-        .catch((e) => { console.error("bracket save failed", e); setToast("Bracket save failed"); });
+        .catch((e) => { console.error("bracket save failed", e); setToast("Bracket save failed" + (e && e.code ? " \u2014 " + e.code : "")); });
     }
   };
   const saveMyBr = (patch) => {
@@ -1585,7 +1603,7 @@ function FollowUpDesk() {
     const next = { name: myBrName, ...myBr, ...patch };
     setBrPicksAll((o) => ({ ...o, [user.uid]: next }));
     fbDb.collection("bracketPicks").doc(user.uid).set({ data: JSON.stringify(next), email: (user.email || "").toLowerCase(), updatedAt: Date.now() })
-      .catch((e) => { console.error("pick save failed", e); setToast("Pick save failed"); });
+      .catch((e) => { console.error("pick save failed", e); setToast("Pick save failed" + (e && e.code ? " \u2014 " + e.code : "")); });
   };
   const brUpdateMatch = (id, patch) => {
     const m = { ...(brData.matches[id] || {}), ...patch };
@@ -3789,38 +3807,51 @@ function FollowUpDesk() {
               </div>
               {(() => {
                 const slots = brMyBracket(myBr);
+                const COL_H = 16 * 88;
                 const pickKo = (slot, team) => {
                   if (brData.bracketLocked || !team) return;
                   const ko = { ...(myBr.ko || {}) };
                   ko[slot.id] = team;
                   saveMyBr({ ko });
                 };
-                return BR_STAGES.map(([stg, label]) => {
-                  const list = Object.values(slots).filter((x) => x.stage === stg).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-                  if (stg === "R32" && list.length === 0) return null;
-                  return (
-                    <div className="fd-panel" key={stg}>
-                      <div className="fd-panel-head">{label}{stg === "F" && slots["F-1"].pick ? <span className="fd-count">your champion: {wcLabel(slots["F-1"].pick)}</span> : null}</div>
-                      <div className="fd-grid">
-                        {list.map((m) => (
-                          <div key={m.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
-                            <div className="fd-hint" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, marginBottom: 6 }}>{m.id}</div>
-                            <div className="fd-seg" style={{ width: "100%" }}>
-                              {[m.home, m.away].map((team, ti) => (
-                                <button key={ti} disabled={brData.bracketLocked || !team}
-                                  className={"fd-seg-btn" + (team && m.pick === team ? " active" : "")}
-                                  style={{ flex: 1, opacity: team ? 1 : .45 }}
-                                  onClick={() => pickKo(m, team)}>
-                                  {team ? wcLabel(team) : "Pick above"}
-                                </button>
+                return (
+                  <div className="fd-panel" style={{ padding: "16px 14px" }}>
+                    <div className="fd-bracket">
+                      {BR_STAGES.map(([stg, label]) => {
+                        const list = Object.values(slots).filter((x) => x.stage === stg).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+                        return (
+                          <div className="fd-br-col" key={stg}>
+                            <div className="fd-br-col-head">{label}</div>
+                            <div className="fd-br-ties" style={{ height: COL_H }}>
+                              {list.map((m) => (
+                                <div className="fd-br-tie" key={m.id}>
+                                  {[m.home, m.away].map((team, ti) => (
+                                    <button key={ti} disabled={brData.bracketLocked || !team}
+                                      className={"fd-br-slot" + (team && m.pick === team ? " on" : "") + (!team ? " ghost" : "")}
+                                      onClick={() => pickKo(m, team)}>
+                                      {team ? wcLabel(team) : "Pick above"}
+                                    </button>
+                                  ))}
+                                </div>
                               ))}
                             </div>
                           </div>
-                        ))}
+                        );
+                      })}
+                      <div className="fd-br-col" key="champ">
+                        <div className="fd-br-col-head">Champion</div>
+                        <div className="fd-br-ties" style={{ height: COL_H }}>
+                          <div className="fd-br-tie" style={{ borderColor: "rgba(183,212,74,.5)", boxShadow: "0 0 22px rgba(183,212,74,.12)" }}>
+                            <div className="fd-br-slot" style={{ color: "var(--lime)", fontWeight: 700, cursor: "default" }}>
+                              {slots["F-1"].pick ? wcLabel(slots["F-1"].pick) : "\u2014 pick your final \u2014"}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  );
-                });
+                    <p className="fd-hint" style={{ fontSize: 12, margin: "8px 2px 0" }}>Scroll sideways to follow your bracket from the Round of 32 to the trophy.</p>
+                  </div>
+                );
               })()}
             </>
             )}
