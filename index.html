@@ -1186,18 +1186,46 @@ function brRealThirds(matchesObj) {
   return out;
 }
 
-// personal R32 template: winners vs thirds, runners-up vs runners-up, same group split apart
+// OFFICIAL FIFA 2026 Round of 32 (Matches 73-88) and progression to the Final (Match 104)
 const BR_TPL = [
-  ["M1",  ["1", "A"], ["3", ["C","E","F","H","I"]]], ["M2",  ["1", "C"], ["2", "F"]],
-  ["M3",  ["1", "E"], ["3", ["A","B","C","D","F"]]], ["M4",  ["1", "F"], ["2", "C"]],
-  ["M5",  ["2", "E"], ["2", "I"]],                   ["M6",  ["1", "I"], ["3", ["C","D","F","G","H"]]],
-  ["M7",  ["1", "L"], ["3", ["E","H","I","J","K"]]], ["M8",  ["1", "G"], ["3", ["A","E","H","I","J"]]],
-  ["M9",  ["1", "D"], ["3", ["B","E","F","I","J"]]], ["M10", ["1", "H"], ["2", "J"]],
-  ["M11", ["1", "J"], ["2", "H"]],                   ["M12", ["1", "K"], ["3", ["D","E","I","J","L"]]],
-  ["M13", ["1", "B"], ["3", ["A","C","D","F","G"]]], ["M14", ["2", "A"], ["2", "B"]],
-  ["M15", ["2", "D"], ["2", "G"]],                   ["M16", ["2", "K"], ["2", "L"]],
+  ["M73", ["2", "A"], ["2", "B"]],
+  ["M74", ["1", "E"], ["3", ["A","B","C","D","F"]]],
+  ["M75", ["1", "F"], ["2", "C"]],
+  ["M76", ["1", "C"], ["2", "F"]],
+  ["M77", ["1", "I"], ["3", ["C","D","F","G","H"]]],
+  ["M78", ["2", "E"], ["2", "I"]],
+  ["M79", ["1", "A"], ["3", ["C","E","F","H","I"]]],
+  ["M80", ["1", "L"], ["3", ["E","H","I","J","K"]]],
+  ["M81", ["1", "D"], ["3", ["B","E","F","I","J"]]],
+  ["M82", ["1", "G"], ["3", ["A","E","H","I","J"]]],
+  ["M83", ["2", "K"], ["2", "L"]],
+  ["M84", ["1", "H"], ["2", "J"]],
+  ["M85", ["1", "B"], ["3", ["E","F","G","I","J"]]],
+  ["M86", ["1", "J"], ["2", "H"]],
+  ["M87", ["1", "K"], ["3", ["D","E","I","J","L"]]],
+  ["M88", ["2", "D"], ["2", "G"]],
 ];
-const BR_TREE = { "R16-1": ["M1","M2"], "R16-2": ["M3","M4"], "R16-3": ["M5","M6"], "R16-4": ["M7","M8"], "R16-5": ["M9","M10"], "R16-6": ["M11","M12"], "R16-7": ["M13","M14"], "R16-8": ["M15","M16"], "QF-1": ["R16-1","R16-2"], "QF-2": ["R16-3","R16-4"], "QF-3": ["R16-5","R16-6"], "QF-4": ["R16-7","R16-8"], "SF-1": ["QF-1","QF-2"], "SF-2": ["QF-3","QF-4"], "F-1": ["SF-1","SF-2"] };
+const BR_TREE = {
+  M89: ["M74", "M77"], M90: ["M73", "M75"], M91: ["M76", "M78"], M92: ["M79", "M80"],
+  M93: ["M83", "M84"], M94: ["M81", "M82"], M95: ["M86", "M88"], M96: ["M85", "M87"],
+  M97: ["M89", "M90"], M98: ["M93", "M94"], M99: ["M91", "M92"], M100: ["M95", "M96"],
+  M101: ["M97", "M98"], M102: ["M99", "M100"],
+  M104: ["M101", "M102"],
+};
+const BR_ROUNDS = [
+  ["R16", ["M89", "M90", "M91", "M92", "M93", "M94", "M95", "M96"]],
+  ["QF", ["M97", "M98", "M99", "M100"]],
+  ["SF", ["M101", "M102"]],
+  ["F", ["M104"]],
+];
+// bracket-aligned display order (feeder ties sit next to each other)
+const BR_ORDER = {
+  R32: ["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82", "M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"],
+  R16: ["M89", "M90", "M93", "M94", "M91", "M92", "M95", "M96"],
+  QF: ["M97", "M98", "M99", "M100"],
+  SF: ["M101", "M102"],
+  F: ["M104"],
+};
 const brRankOf = (myBr, grp) => {
   const r = (myBr.rank || {})[grp];
   return Array.isArray(r) && r.length === 4 ? r : WC_GROUPS[grp].slice();
@@ -1206,17 +1234,30 @@ function brBuildR32(myBr) {
   const thirds = (myBr.thirds || []).slice(0, 8);
   const thirdGroup = {};
   Object.keys(WC_GROUPS).forEach((g) => { thirdGroup[brRankOf(myBr, g)[2]] = g; });
-  const remaining = thirds.slice();
-  const slots = BR_TPL.filter(([, , away]) => away[0] === "3");
+  const slots = BR_TPL.filter(([, , away]) => away[0] === "3").map(([id, , away]) => ({ id, cands: away[1] }));
+  // exact matching of the user's 8 thirds to FIFA's allowed slots (backtracking)
   const assigned = {};
-  slots.forEach(([id, , away]) => {
-    let pick = remaining.find((c) => away[1].indexOf(thirdGroup[c]) >= 0);
-    if (pick === undefined) pick = remaining[0];
-    if (pick !== undefined) { assigned[id] = pick; remaining.splice(remaining.indexOf(pick), 1); }
-  });
+  const used = {};
+  const solve = (i) => {
+    if (i === slots.length) return true;
+    const sl = slots[i];
+    for (let k = 0; k < thirds.length; k++) {
+      const c = thirds[k];
+      if (used[c] || sl.cands.indexOf(thirdGroup[c]) < 0) continue;
+      used[c] = 1; assigned[sl.id] = c;
+      if (solve(i + 1)) return true;
+      used[c] = 0; delete assigned[sl.id];
+    }
+    return false;
+  };
+  if (!solve(0)) {
+    // fallback (only possible with stale picks): greedy fill
+    const remaining = thirds.filter((c) => !used[c]);
+    slots.forEach((sl) => { if (!assigned[sl.id] && remaining.length) assigned[sl.id] = remaining.shift(); });
+  }
   return BR_TPL.map(([id, h, a]) => {
-    const side = (s) => (s[0] === "3" ? (assigned[id] || null) : brRankOf(myBr, s[1])[s[0] === "1" ? 0 : 1]);
-    return { id, home: side(h), away: a[0] === "3" ? (assigned[id] || null) : side(a) };
+    const side = (sd) => (sd[0] === "3" ? (assigned[id] || null) : brRankOf(myBr, sd[1])[sd[0] === "1" ? 0 : 1]);
+    return { id, home: side(h), away: side(a) };
   });
 }
 function brMyBracket(myBr) {
@@ -1226,15 +1267,14 @@ function brMyBracket(myBr) {
     const pick = ko[m.id];
     slots[m.id] = { id: m.id, stage: "R32", home: m.home, away: m.away, pick: pick === m.home || pick === m.away ? pick : null };
   });
-  [["R16", 8], ["QF", 4], ["SF", 2], ["F", 1]].forEach(([stg, n]) => {
-    for (let i = 1; i <= n; i++) {
-      const id = stg + "-" + i;
+  BR_ROUNDS.forEach(([stg, ids]) => {
+    ids.forEach((id) => {
       const [fa, fb] = BR_TREE[id];
       const home = slots[fa] ? slots[fa].pick : null;
       const away = slots[fb] ? slots[fb].pick : null;
       const pick = ko[id];
       slots[id] = { id, stage: stg, home, away, pick: pick && (pick === home || pick === away) ? pick : null };
-    }
+    });
   });
   return slots;
 }
@@ -1270,7 +1310,7 @@ function brScore(p, matchesObj) {
   let champBonus = 0;
   const fm = Object.values(matchesObj || {}).find((m) => m.stage === "F");
   const realChamp = fm ? brWinner(fm) : null;
-  const myChamp = slots["F-1"] && slots["F-1"].pick;
+  const myChamp = slots["M104"] && slots["M104"].pick;
   if (realChamp && myChamp && realChamp === myChamp) champBonus = BR_SCORING.champ;
   return { g, t, b: b + champBonus, total: g + t + b + champBonus };
 }
@@ -3908,7 +3948,7 @@ function FollowUpDesk() {
                   <div className="fd-panel" style={{ padding: "16px 14px" }}>
                     <div className="fd-bracket">
                       {BR_STAGES.map(([stg, label]) => {
-                        const list = Object.values(slots).filter((x) => x.stage === stg).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+                        const list = (BR_ORDER[stg] || []).map((id) => slots[id]).filter(Boolean);
                         return (
                           <div className="fd-br-col" key={stg}>
                             <div className="fd-br-col-head">{label}</div>
@@ -3933,7 +3973,7 @@ function FollowUpDesk() {
                         <div className="fd-br-ties" style={{ height: COL_H }}>
                           <div className="fd-br-tie" style={{ borderColor: "rgba(183,212,74,.5)", boxShadow: "0 0 22px rgba(183,212,74,.12)" }}>
                             <div className="fd-br-slot" style={{ color: "var(--lime)", fontWeight: 700, cursor: "default" }}>
-                              {slots["F-1"].pick ? wcLabel(slots["F-1"].pick) : "\u2014 pick your final \u2014"}
+                              {slots["M104"].pick ? wcLabel(slots["M104"].pick) : "\u2014 pick your final \u2014"}
                             </div>
                           </div>
                         </div>
