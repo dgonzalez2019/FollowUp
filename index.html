@@ -3941,6 +3941,15 @@ function FollowUpDesk() {
               </div>
               {brData.groupLocked && <p className="fd-hint" style={{ fontSize: 12, marginBottom: 0 }}>Group ordering is locked by the admin.</p>}
             </div>
+            {(myBr.thirds || []).length === 8 && !brData.groupLocked && (
+              <div style={{ textAlign: "center", margin: "6px 0 2px" }}>
+                <button className="fd-btn primary" style={{ padding: "12px 28px", fontSize: 14.5 }}
+                  onClick={() => { setBracketView("knockout"); window.scrollTo(0, 0); }}>
+                  Save Picks
+                </button>
+                <p className="fd-hint" style={{ fontSize: 12, marginTop: 8 }}>Your picks save automatically as you go \u2014 next: choose your knockout winners.</p>
+              </div>
+            )}
           </>
           )}
 
