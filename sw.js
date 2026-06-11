@@ -1,4 +1,4 @@
-const CACHE = "bdi-univ-v1";
+const CACHE = "bdi-univ-v2";
 const SHELL = ["./", "./index.html", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
