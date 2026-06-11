@@ -414,6 +414,9 @@ html,body{margin:0;padding:0;}
 @keyframes fdWinch{0%,100%{transform:translateY(0);} 50%{transform:translateY(16px);}}
 @keyframes fdFloatUp{0%{transform:translateY(0) skewX(-22deg); opacity:0;} 8%{opacity:1;} 90%{opacity:1;} 100%{transform:translateY(-118vh) skewX(-22deg); opacity:0;}}
 
+/* content always stacks above the background artwork */
+.fd-wrap, .fd-auth{position:relative; z-index:1;}
+
 /* ===== Skyline & crane artwork ===== */
 .fd-scape{position:fixed; left:0; right:0; bottom:0; z-index:0; pointer-events:none; opacity:.95;}
 .fd-scape svg{display:block; width:100%; height:auto; max-height:36vh;}
