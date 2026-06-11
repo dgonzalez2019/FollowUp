@@ -511,6 +511,14 @@ html,body{margin:0;padding:0;}
 .fd-wrap[data-hold="1"] .fd-list .fd-card, .fd-wrap[data-hold="1"] .fd-cal-grid, .fd-wrap[data-hold="1"] .fd-cal-day-list{animation:none; opacity:0;}
 .fd-foot{animation:fdRise .45s ease both; animation-delay:.5s;}
 
+/* ===== Tile-grow tab transition ===== */
+.fd-zoom{position:fixed; z-index:75; pointer-events:none; border-radius:16px;
+  background:linear-gradient(180deg, rgba(47,155,224,.12), rgba(13,16,20,.94) 60%), var(--surface);
+  border:1px solid var(--accent-ring); box-shadow:0 24px 70px rgba(0,0,0,.55);
+  transition:transform .5s cubic-bezier(.4,.08,.2,1), opacity .5s ease; transform-origin:center;}
+.fd-zoom.on{transform:scale(7); opacity:0;}
+.fd-launch:active{transform:scale(.97);}
+
 /* ===== Entrance choreography ===== */
 @keyframes fdRise{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
 .fd-head, .fd-subnav{animation:fdRise .35s ease both;}
@@ -635,6 +643,7 @@ const ExternalLink = (p) => <Svg {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 
 const Shield = (p) => <Svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Svg>;
 const ChevronLeft = (p) => <Svg {...p}><polyline points="15 18 9 12 15 6"/></Svg>;
 const ChevronRight = (p) => <Svg {...p}><polyline points="9 18 15 12 9 6"/></Svg>;
+const Trophy = (p) => <Svg {...p}><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a3 3 0 0 0 3 4"/><path d="M17 6h3a3 3 0 0 1-3 4"/></Svg>;
 const Home = (p) => <Svg {...p}><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v11h14V10"/><path d="M9 21v-6h6v6"/></Svg>;
 
 // ---------- date helpers ----------
@@ -893,6 +902,7 @@ const prettySize = (n) => {
 
 const STORE_KEY = "followup-desk-v1";
 const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAvgAAAEWCAMAAAAkWhO+AAAB/lBMVEUAAAD///+s0yYXe8b///++wcb///////////////////////8YgtDFyM0Dfr6t0ySs0yV//wD//wAXesS34CgWfMYWfMUAVaoYeMgVe8QAAP9/fwCr0yW+vr4A//8Af38Aqv8We8UAqqrExMm9wcWq0SWt0yWqqqoAf/8WesOs/wCq0SWq/1WqqgC/vwC9vcfAw8i+wcYA/wDAwMWozSSoziR/f3++vj6q0SWqyye+wca9wMW6vcN/vwC8vsS8vsO9wMV/vz+7wcS3xceqqv+//z8AP78AVf+pziSw2B7AwscAZsxVqgCayS+tyh0Web6qqlXBw8gMbbcaisQna9Z/f/+czBWq///MzDPU1NTP0td/v79//////1V/f7+fvx+R2iS9v8Wq4hyu4zUAAH8fX58XgNAYgc4Ygc4qf9Qkkdp//z9//3+RtiSf3x+Z/zO4v7+/v/+qzyW50Lm22trBwcjB7SvM/zP/AAD/AP///38AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD1Cf1CAAAAgHRSTlMA/v7+BP4xr4tNz2/+/AUszAIBUv/PqAMSLAECsQYBAgOKAw5TcRUDAm8DjgMDBBrR1wEzLUwCBFIVr48wBE9vcAQuFQMEBANqELUFAwcOJwNVDAwGAg0DBQf/BAIDBAgHgwkJAghjp9wGBwQCBwgFJASCCwdr/wUBAQIAAAAAABvpS4kAACooSURBVHja7Z2Jd9S4ssbVoOc1aZKGpENnhUASlgCTgQBzgWFYZt/XO3d/975937e//tmS1ekktvWVLct2onrn3HcmdLtl+edyqfypijFnzsj2kaXfGcGf/CD7/4fu4jij2mSPXVtaXtLYcvJ/l9mejQHts0tra2sLGltbSD5ziS2m3+Ds1csbOvvmxTffuKvtbGpDdm0OsuXh5sTCeBbZ04UrFxC7cmckuF9nN+Z/Na+3X/2nu9rOjri/NXcRsLmlIbPB/Wi0s3ABsztsVfr7Z/Pzf6a3+ZfuajtTtsUuX8Tsqp1A5zZbw/z9hYU/LI5EfL/+AOL+F8mjwZkzYXvsKsz92MaAHrM7KPdPhcPnfPc9iPtP1zkXnzdt5k6+m6OiD7P73G+y4RIW6FxOng0W7LfsCRjnXLiUPBxEgP8LiPsH95vK/XTzaveGwVYSOuOtZYz7W8lawEqc8xDl/hF7Lrl/CXE//4rtSiDiwITFwsIZtgxwFnZyVCfvKN0UxsknOh/gX8O4v2aH+89x7m+ye/Iq3EAWtvPzL9gb+XlvYNp8P4g9jyvOqgPlNTgqbhD8UPPTcdfBhxM6y8O9DQvjWR09BRM6V+4kiwFxEd7FEjrvZwvbJsCXFvmxxKwqZI0MLYqCsN6wziD4QzChM7e0kiwGLCQy979GEzpri/sH4hrcn6cldJoDX3Im4a/EWIP3ZAa/GfZ7D/6YkNC5bmNA9/CEzs5oJC7kfSyR+Snb5VbAl5TxSug3OzQ5LGYA/b6Dv8dWLnYqoXOb3cQTOukbW77LsUTmg38/Wus1Dr7w+1XQb3xo6pbk5xr8jcnKUqcSOh/gicyHbJ+SyJy/f3QhrICfWEBH38bQklBM/FKz4AcdBn9jvLmMJnQ+tDGgfXYJ5f6JXNius/exhM4zmdCxCn6GftfAT7M9YU2v32+PP0QTmcuTLVvKNDChc1O+uCIkMtdZC+An15+TnL61oaXo10Cz1+DjyrTvNqwkdBb/CU9k3k2/sYsq094/ptCxCf4g8ijkWxya9PrnEPwhuzzXV2XazmodZZpV8KXT7yD4tdDvcYzfOWUaIZH5iUzoHG5jCZ33to9fXsvgD3ycfMtD872K8U5/Pf4eW4GVaUM73D8iJnQ4qkxbP3ENbIMvwp1Ogi+W31Wcfm/Bn+x91jVl2iNcmZYldEBl2rsnL4F1ugYDlHz7Q4vCKk6/t+DDyrRlO9wTEpmZMm2dvcASOjdOXYEWwEfJb2NoQQUhZV/BxxM6K1aUaaPRl3hCR1RVeIMldOZPJHRaowskv5WhJU6fGu70FHw0oWNPmba/BnK/NrotlWnP5itvNWyHLuiFUStDSyll/ByA3zllGmGr4ZeZMm39HUyZNnrDO0KXj7jVlsCnJJ76m87EE5mWlGn32MdUZRq4xfbBOj/skFvtLvhU8vsI/sZG55RphEQmaYvt/Ovc2W+LLiDMbw18Qsq1p+BPrm8sd2qr4T6+1fCJXNgSlGm7XaILCPPbAx9PufY0xseVaeOxHWXaDp7QuV0zkdkyXSHrMvgU8vsHPiGRObGjTPtHlPs1pcispEzrAl1Rpz0+hfzegU+pmWZDoXNAUaaJmmm8fs209ujSuvx2wR8QpBX9Ap+iTLOS0CHVTBPcH4KJzPe2d3l1umKv3EJZVSaipzQ7DT5BWtEr8PGaaZYSOs+pWw2TWAFNZBbXTNPT5aNPfM692CeApUsatg3+gKPSij5ldSZ73y51LKFD2Gp4Vy5s/xytmcZr0BWQalNynP2wPviRX1bBzE//1Y8qg+9jOxJ7Bf5kyJZRZZqVOGeEc/+xUqa9jyZ03tShC71qU/y9wEysA4DvQeNKg7FK/AfMDPgdCnXgRObSyqYdZdoOsWbaLprIfFlaDNwc+FP8E/QjE6GEfmgRoUpygj95GYIR2yfwP4SVaUMrWw1H+4ugMu3CGtuvrUxrEHy59uCBgdUjAj6ifDjin4cBkfwQklb0BvytHivTnkplGnuNJTLfYz/9j2Xwhboxrk+VIfBn+BdrEJLbR3Sk/QEfTmTOWVOm3cQTOp+Lq7j9KZbQ2eaHzDr4qdMPaofQZsGfxmEs9M2G+b0Bf2My7G3NtEcqoQMr037DWgA/RSyqu7o1Dz7LKilQ0PcAaUU/sjqTjevdUqaNKMq0as0frIMPJeE13DYCfsZ+GJkLdvri8XFl2md7dpRpn+AJHZHI/DVaM+2GCe1vULXoRtBR8AnLb4janoCPK9O+tbPVcHGHqEzbZa/Qbp7rrD3wuddZ8MXyG3b6OpffD/C71s3z4DGuTPsy6+Z5f95cN88GPb42ym8R/NTpg28btBPQixi/g1sN0YSOqpmGKjJP1kyzDH7yLd0SMqo7tIjXqvWKhjse5333+JsJ93MX5wC7ZUuhQ+jmKZRpP/z83q/mAXuwbaiGR3Xw4w57fBnuBCZcfh/A3/h+eW4JsL+xltB5cuEKSZnG2cv5d/T24MEzbUKncfDDboMPvm3QuvxexPjDb//yuxW9Da2sa9nBaOfOGmZZEfzE7q9vA3ZorE7f2QUfJj9gvQcfj4ns2GIDn5R2yLoPfqsxPoX80rdY/QB/gpm18RwsYjaavVq4JrHT4ActvLk9RT7367r8M+Xxz421CX7cPvjoNi9eupenz83fHPj2szphB8AHsBVD5Q58B76pPD7vAvistpC02+BvYaYWtZMxZJsO/OID697cRrzu1kMz4CNC0rKb9CzF+OTFLTXnsjoC8/y0JS3vEPi8Lg6WwMeCnZJYp8vgb2xcW4bslthhu8FWLl+9rLWrl69mt8gqOpD/Hp0EWmNfTGe3dx7fr5MjtAm+fqils9Bh8FMlMmQXr6YZ/I1x2hRL/+G5uctSyHaPfbyA2R3B/G32EPz8wo68SQ4Z8tZq/f7rroAP7RRnnQAfcvklP9Vd8FEl8kXJPa7Yz7gfobW9ryzsHIxkbVhMqHDliQyi0J0n77ym97FpawdWzDoDPpLM9/oH/nVUiZwp02DFfiZkI9T2vpQGRaPVpwtwCZ2M+xfzkL1L34rX2p5brzPgQy4/rgF+O1kduNlPttVwE7xP5pZlBYZVuLZ3wv1digKf3NztBiZMaxx8pMqCb6BMuDHwgcSO3zfw8e7NsmYaep+kTRDTle1oEd05eOGJEJp9gJYSubK2mJXQeVWzFrhd8LGNfV6HwAdetpUkNLsZ6kw2v1ui1EzbBO+TtAmiCPBx/32TvWVpbVh458nTA9ncbRutBf6v7Wd10EpqgYntwAbB96rfqd0EfwutkSm7ecJNsVTN/OfsDrxj9jkjdS1Xzd34e2DpqF3WLviE2plYoSZr4DMg1ol7BT4lofMR4T5ROxPxkjhrP6YKS0JNZGJztwfbh82kHdFqyapKH1SzJjTS9dAg+PpYJ+gT+Gj35hTkDymJzCyhcxvmeGEn9d+EhfATxT1WE/nB66rvmUzVx6fUZQ2Yke3AJsEHakL0B/zrcEKHmMi8phKZl0g7ZkejHbRr+U1ZQud3aE3kZ5UCHSMdUbKuKL5vsEiTffCr14ToXlZnT2wtx0H+CE5kblxPlQ2rBz8ukEqgjeCEzh3V3O0Vxv2LCgkdeFln2kBebYIPKCwG1cG37PHx7s3LwzQziScyhxsp96P9D1D//bGoaf+W3aQ1d/sBrYn8flXuWwHfQ1vsWAU/rjrsroE/+WiyDBfB3yA0xVKlpu7Btb3vEBM6C1/KhM7//fwOmMjkrD/gx8b2wRsFP6y6IO8a+FvgQjUDeTIegvdJlsh8iybk09J/B4x9TUnoiAT+Ltjc7b0qeuTWwA/xNppWwfeq3rAdi/G34ETmZSE9ICjTsoQO7L93RkKZ9hSvifyBTOhgzd3eWZ9w1hfwI0rjZKvg86qpqG55/E1YmSZB3iMr0y6RXkStwk2uLtxUtcDBhM6reuXErILvU3qYWAZfl9bx+wA+VZm2hSvThlWUaaOvCcq0rLnbM5T7X7O+gB9TdtQ48DukTFv+XirTcGXxI5GQJyjTVCITVmSus56A73uMshixCn5iZwD8ySba7GdpmCrTkvvkIkmZdpeoTCPURH66SlKmvazHvU3wQ+IGSrvg6xP5PQD/w4aVaffYv8Fxy3PxeViZtpMldGBl2u9YX8D3VPe1joIf9B58ijJtXEGZ9hj232u/JyrTZC1wWJn26fY/8N6APwg8xhjnXQU/bgx8S+lMijJtWEmZ9oikTFtkP9IWBMlqtVllWmuLWz/krJvpTADfroO/2TVl2uIfiMq0dbS526uKyrQ28/gxR52+A5+sTLvYiDJtc7zBKiiLb9OVaXBC5w3rG/gJregi9+yAbyPGJyjT2HiC3ydzS8OJVKY9Rpu13RQvYN/iiczRvljYMiihM19DmdaySC3ooDqz0RjfAviTj/CETgryBluhKdOeE/03vkUrWRCsisXfOrrF9g3rJ/ip0+e8c+D3Op1JVKZt7IHKtGxnIkWZNrp7QNmiNd1iy+AttpO+go+9wnUvsBpIZM5draRMe07w36PVNKHzEFem3aUkMh+85oesv+Aj4Y6TLBBeXNGUadSaabcpNdNSZdoBoWYaVZn2A+sz+IBc7eyA33RWZ8y+IiUyCco08eKKoCwWJRIO9kdoIvOOUDawXTSR+cziLuvGyO9Gffz+g48r066JkgqUmmkbVZRpz+nKtKa32HYI/BQk3iHwG9yI0myoM9lbARM6y6L4H0WZtklSpl2QL6IIyrQvhTLtEEvoGEpktg5+J5q/Eeahq1sPcWWaaN882SQq0x4TEpk0ZdrCU1kEH1Wm/cIc962Cr9mF6DabG1empVts4dqCcmciwX+viRIJpIUwTZn2M+cWwY88jltaYCfCyfc47wz4fj/BpyjTtiop057g/ntVNn8g1dwRNdOgROZ9dsgsgh/Qj4kWVCuvFX52Cko1CH6naqaNUmXaH/Ettr+V0/fCckIHBZ8TTRwXqRyrCXY6V0Kwg1mdTaIybQw+H+aWx6mgJ3HhT0nKtIPfErbYPpeJzGdoQucNsws+vcuKgJ8j6JcVE7RbLbl6J4sWwd88GJK22G7gicyDvxDKtC/WYP/9mKTIXBt9LZs/3Lez1dAG+Ip9z6+V2bHr8f3KI20v1JmM8YTOplCmfUcugg/773si8XmTpGxg/AdYmWaW+yY7mydfCxCX3wHwgao6XWwMgSrTsr3iG2NcmZYlMj8mvYgiNH94KLu74co00zPYHPhYC7iSKN8q+Prub7xzoQ4lkUlK6GTKNIKy+ItV6hZbWvOH9cM+gQ+R73cCfH2/T593rd3nJjmR2WA3T2rzB9JWQ7OJTAvgQ+0ESzypva6H+rd4Qdf63O4RE5nXicq0VaIybbT/S+IWW44rMndZv8CvU4TYap/beiFZG+BvTK5enIPsWlYj8yqo0Pl+UyjT2FOwC3mmTBvB3eDuiCLKiRN/hnVvfmF6YWsBfCBdErQOPuLwix9MbYHPbv31tWWtXVu+9tlkwthksrIEOXylTFv84s4FijJt9PjOf124ordkIfxY1kw7vP9Ow80fWgWfh1XptQc+4PD9srRrF9t9nsx8spWrwxWtDVe+ZdnGvi8u7UAmhArpA+ImaPILif38bH37vs62183H93Y8Pq+aJ7QFPqTTi7sH/mQM2XXyo4RoI+oXDqjXp4/gA7FO3C74yAK8tH1R95q/FRAN2dFG7hFo6vP7dyH7YDQ79agEpo/gxxV/wBb4ekFyuZquL+A76xj4fqvgYxsSQge+A990QrNV8LFAp/SHerG4dWYffD2+7YEPqSo0c2AZ/K0hZHvq85uYHS09F1cRW5wuUVexz48c+GCK3Ar4SICv6cxrF/yN/vvan3b19hPvP/hhRawsgI+I0zS7BiyDv8duXQPs1rXL8haZ7F3FbKhykz9eAuzhw4c7Mi05Yg+xL1zKzuDw3Hj8uLPgg9xrN8XbAz8VmkF28aqocfwhKshcXpHBzm2G7jx5KAT19xj+gvdzyf2zG3p78c033IHfEPgc5b7c4dvM6qAl0FSNY1iQubQiHxD30J0nFx6JF1dwc6Ard6QA/ydQoPOrlw0nBCyAH3QTfA7G99pe7PbAxwWZl0XJtC1YuJzVAsebXD0SO2bxnSdrXy/KnYb/Mg8KdH7Tb48PlC9oB3yObQoe6GsdWgt1NuFSgapE5lX4+TBmFI4zYTG+82Thk6wG/usH4I6rN6zv4IeDivg2CX6CMrIjWJ/SsQj+ZA8vkTmcUO6TbMfV5+jOk3Sn4QGxyzmtmec6570HX7+3yfoLrHRWwTAHOH9L4OMl0Jb/Ni2RifcGynZc4aVE1nZShc5o/+0aHBiRSqY1sePKMvjI+tE2+Cn2aJijq/ZmEXzKQjUtFTiE7xO2lSrTRiN0B1XWuwcuwXDhiSg9IkqmgaWjdlm/wYcEAXZFagJ72N0j0NoB/0NaiUx8Z/nSymbK/QFcEieJW9LE5FtCQofWzPNGIztPbIKPCQIsypK5xJ5Q3dPXd+uyktW5TkjobBGfD5sykXkTTmTeZYTmQMmCIG2KhZdMe98G902XF0Fca2gH/Eza7VGK2upXtpbAp+4spyT8x5L7J/CLqMe0hM6O3GnI2iodZRt8jiYMm9+BNd3PwEN/QLKQId0ZGw91NthwiVLrdQwnMi+rmsiXSHHLIrwQThYEoqnh4TaYyDzY/d8egy9LCEK+Naqz2Zywh4d7MZF68NybB39yfQtdqG5cn1B6A2UJHbjJ1ZW1kUhkjv60AJceEQkdtGTag21uR8JtHnyFGponr1FlYQCOjHth4EcDskXQxrfmQx18oSpLZO59tkyqBT4awf77qdhqiDcHmtbAxxKZ8/dtbV0wXyacEWOKGnV1Bn7olVoYB35ig4rmgR3YG/b4eKnAr0RCBy6puTwWiUx2e4RyLEte4oqemyqReaM7iUyULp98SFJMEdWopNaweeAKomHwqQvVPTyhIxSceJMrWTItrSULLwj+Xs7Qi1Zq4NcDfxB74Ywd+4/TFgfEkCKuUTuzWQtBXBsGf0xIZMqeJ2DvB6VMWyQo0+7RlGlv92VC590uJTI771ZbHhpMa7PgN65MuwtzTFemHYhmnh1LZHYD/KBOY4hOcN8s+JNNPJG5Je6Try6SlGn7hETmXUZSpsmEDue7oDLtPufnB3yvo+ATWG0SfLznyfKwaWXaLxeFMu2f12BFJrEGftMS/L7EEx3uPW0tnUlIZIrmzfB9IpXLbLS4Q1Om3SMo0zKFzsuuJXQ6AH5porzFocWMdwL8YVPKtOXv90Qi83mHlGl2aw+1C35Yr89ty3nMxsHfIid0SMplmjLttrhPHlGVaa8w7l/aXNi2Dn6gqV7QztAiGvfNxfhjcvNm4hbbESGhQ1SmfTKSiczX891L6LQOvkby29LQfLLWuSHw8Sa2Spn2FUm5nPjwh00p055myjR4i631Gostgh9pN3G3MbSYXJC9KfCv76EJnclYbLEdNqZME3HOaPQlvsWWpEx7Z5ufI/Aj/SZur5VBkRu5NwP+dTyhs5Eq0zb/jqpMQxPyC38SivrbsDJNblXBE5mvWyiv1hr4+ki6haEFVTbxNgM+vFC9uEJUprHxBqNwnMQtI6IyrdOJzHbBByJp60PzvUp9ZxrJ6lCVaUPa84GiTJNxyz1qInMXVabdsKdMax/8gCFb+qwOLYo5qxRqNgF+c8q0LJH5nKBMu01Tpn1AU6ZZT2S2CX6IIGZ3aAGv2masgVBnk61cpCxUrxOUaR9RlWnPReIT32LLuqtMaxl8H3OtNocWeIxVzSyYB5+qTNsjPh9IyrTHpIXwVJm2jSV0Pm0hodMS+FHI0A0eXg+wbwB8gjJtLJRpE/IWW5TjtdH+QapMu7tGCozwhM52W/XybYNPiKQtDS0dEeONVosjgk9Wpm0sU54PlJppUlF/m14zDUzovGojodMC+BKyLg3Nr4u9efCbU6aNx0Rlmtxi+xhV9GSBUcI9vNWwLe6tB9IEyJofWhTTRmQlq4MnMivWTLsNK9Oe0BI6SpnG0ZppN1pa2FoFX7hWEmQND82PPW4Ae9Pg7zWmTPtKKTKfwPE6VZm2KBM6z+Y7ndCxB34UhJIx3pGhRb7w9cxIRsFoqINvsb1GTGReTj7brDItq5mGN3/YZWcY/AR6rwL1zQ0tmrp6Q4k0k+BPxuNlivKgUWWaSOAvPqUq08DmDw/WOT+T4Ed+EEjEqlDfwNCiKMhuwooDsgD+Fq2498Ym7fnARqMvUP/9+0VazbQ+KNOOXTUuio2ZsShKcI8TC4/aKVT3rJzHRkaUDiieDohzbtbV6KcQlr5RlWmE5g9jWQQfrZmWvYCtoEx7H6sV+KrVQKfZe4obZ8zEiDo8Y5QtVB8xevMH9paQyJTKtI9Jb3gTmG+gicz1jvBpxI4drhNjMz2iasM0rEyrmsjElWlPRNxyG04ArT0WyjS4+cPL9rk3HDg5q2zUmml79G6eePOHRaIy7WBVJDLvP+h+ItNZt0wsVCGTC9XNhHvo49nzga0SEplCmUbp5imUaWwdVKbt7joX6UyBz67eugzZZ5OJ/PxfIZ++dTkrqQArLNfEupYt7qyRao+ww/9IuJ/XmUhkHrrr7cxCDCXAZ08vIfbw0h8F+Ads5xJmUtGT2Pard/X27N1t5rh3NmOTreuAbV2fKKCxz48bH/iqWwo667AdjBYRE6WghC1in1+lZuHcpXDmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmzJkzZ86cOXPmrI65qt/OziX30/9x5uw8cc/D2HPkOztv3HvRYDCIHfnOzll8n3I/GISOfGfnyuGHgvuB78B35sB35syFOs6cucWtM2dnhXweu3TmWb227ow1n3Xcn02fdr6ua3K6JPKdZMGZe8Y5OzMMhJF/nmLYxN37UeycuAPfHwyCcwW+NxgMuPP6DvzzCL7L0zjwHfjOHPgOfGcOfAe+Mwe+A9+ZA9+B78yB78B35sB34Dtz4DvwOzkDx6z+IYjfNHu8/JPiyOdS8HmOEUZe/I0Kp0GeSeoJC/DxE25oQBWp4PWh1/2FegjKEfhpoVSt4xV9oegYs3+MUo+v+UzZyEtxowvCKF/JvYzab4XC46MnTDuHWlwhVLA67Gdf5V4cB6nFocdpt3b269wLTx6BV7q3TxwvPRxxREx9ITupOPbUQUt8dGJxgkEUVvX48nPiV3O3azTo8U9egyAum7QZh5884gaB14DHn5kMNSDqAXLPkIex/gSxoydj8+VmyswiX4wSPKQ4vzA4dojID0KOjYrzYODPyKR4/vFII8o7KXWMUxMq99OVW5Sn40o3X0czgMuBZ78anXoWMB4Rd+2J3d3IV3LnbBAFoZd3DTgLtCec/7NirqBzED9agysxt7N7e4vOkFf2J16ce92jwMO4TR+XQe4h/BB4MCY8HNu+zAU8+SMCn7PFJ5U3U5zFegxy139iKTzFIN3RMTPwHPC9nL9qTiSAShqIOcuH2Y9PkcFFQKe91fPBj6FzEJ4nzr+KMcTViTRD+oUiyjw6+ikhar6i5HYMwzD2/Siagqs9pLja0bEjhDO3ZRRrdzQdBz89nmI28pPHRjak7HgBh+ZMnVQkD3D8ICfv6OSQga8syn74pMW86OIo8NMrMz3tZCrCAvCZcfBnr4E65cTVzk4aO0F+eHRm8kqfNq8G+OkPBkcDirMRRbOoksCfmdxIneERZcjxTkyYIsTPonL1L+pm1R0yHZCvbmQ+e2h1e0ahZlDHwJ+eYOqZc48X686RKw/uHxsRmw1+fK/w28kHfDgIPQI/nUs//2ebBv8IipOT5ikXGZQI7mMx+/CAAPDTGzGXq/QCZH8H/OER+NPJTWO3Y5wqKgLKjgLOMkKimJ/IE8nwTH9IdeeIx9fsIcR/ZXeVzzX3zhH4asaCE4eT45NPAs058iyAlWyfWq6pYCSeXb7NfkZON7bWOwKfZ7WWopgXrgHFR8yDP6VMBJYnJk2xn0bLvDidyTl8xnrwpzdi3oCmz3O9P5yCr0DNPV7meCP8VUS66UzOCT+VJ5L/lQ2/EDR1tQcxP5kuUfMe6OsPzYCfLTNlKJJzPJFzyV9nnuDe94ozovJ+zH9LpfL4RI+f/WreVDYMfnoNoqmvODVpTE1a0TUgvsACwFdc+bkDEquRCPKHCvzszk7j7pzjTW8ztMiVymXExW9hsjkrGuGsby06QvaIikufGgp8eREirzAFx+SYy8iXYypeCnB1lALwSW9uFfh8+qusNItvHnwV12U3etk1CPITuabBn+GqIHOchVflDuzoSmQ3UliUHZ8GViGY+Ai1sZaas/wRKu7jkqvN1VMqLkM1A19eg7LlqzpHvzDNLE8rLg0gxVow5ibBFzMRazIBDYDPubzmcfmkyWsd5H3GNPjyeOmNWPomoISrE1dCvkyPvHJO4wF4Fhn3mpUiz+62XNCyp7unudrZTBSTf+TxPWBETPrWohepImL19QsnMImGhjqhunWZVfB5/WtgGPzsl3Rrzewylj+6Ffi+PiySVyDSvzCVsOmv1dFzhudz73MgL1VO/pHHjxB6xIQUR6yBXKrpXypyg+Bj7DQAvvB0+gyJugY87zKaBH9aWxPIwGrIn16JQGhIODAu/YXLqt56UE48IT/nVlL3GPR08cpCMAV+eoYh8q4mHXtUELDymiVNK4Gf/i80csPgy2vgw9cgaDrUybgKEa6U4ywOWsWVSE/RZ4AnE/7QQ3Kk8GKAh6fnpdiFlPibogyZAD91mxBx08Ci6J88bhd8HmJfMZ3Hz3IB8DUIedOhDi+NQ3PJD1gp+OmdFHFI98IHQOY3HuCXl7NclVxEyyAVh94SfI/52BmmB5Euv2DiozpS1Qrgh+jIDXt8Gf3CzPKyS2MGfPUEwhyPctKMlz1NY3RwEmqvPPULrQBPpINzfiUmvDMo/rwEPx0TOP3FLr/+NpIqHj8ER24a/OydK00s2SD40htG8DtU9fmyl4Mcpgxw+fJOq1M1Dnqu5HinksA8IjyCxIT5eQu1bH1sFXz84W4UfOm+am8WMwm+3ucW5J6L5xYMdI5+nusyTnE9PGJiLF3yo1mGiXA8OWE8Z+HB626jqwY+NnLD4IMJLGvgS29IuhPLXLCa25jwACl/AoojRrV2rjDyKapzzM0rcGJDsSLA2wI/4niIZgp8A+7LNPjS41K4kk+tuBR8/ICaayfPNKzv8Gm3TvE5KvApwKYhTZwHflT7WVYB/JC1AX5swuGbA7+KNyxzwtncBpR4Wv/So67Dj+jRpTrHIvAjTuQhyAvyW1jcwsslk+nMategWfArpJJLvHA2tx6nLRmiEkllfa/oVciWF85wBn5AElTnn2KWzrSbx4djNJMev/4bC/Pg+xX63xbPd7a45ZS1cnmk69WPg6vgxYvuuCP5RO2rVfJuq0Hwg1bAD8y0WTYF/skNpDAVYcEjkza3SKQb15yxqpF00bXKwOdGwOeDei6/CvheG+DXfm4bBz+skiMvvl8o6gIMTN9MpFMBfK8kCenT0mC8KGwKivS3zYHP7YNvrv6ZOfCrPYIKJ5zmVI6+UiyGrJ/TCWmxF5SE9Im7haN88LlUxVbu5FcB/IhThBumwK92DRoDX+pI4irgFwZz5Nes4liFY6jd64tXDpby36tWAj+dlfyCH9NNY5W8fm/Ajw2V+DQFPitwRZXdaCXw4xLwxeOW1834VQmWCpKQVbTEvFAJnJEfZRs0LYDvM8oLZ1Pg+2ZCfHPgV3SohV9Uc0sFv/ByBC2tbQvHVSUfUHLh1QZ4PyvkxnnD4BM+bcrjGxAlGQe/YuxV+Kio8E6m3LP4RsAPK4HvFYPvmQKfTQvcqEo/lKq6Fbce2gd/0DXw44qLjqKo9cyBf7rerWHwZ4pcDaKZSqWY2N+BXwP8ypFzaAf8oD74XlXwT4dzxsGXdQWO6jb6snQqFPT3CXyva+BXy3gUzKFx8IPa2cwUfF4ZfK958GUy81il3ijIqutp2G8W/NAk+EaymUbBjyuDH9jx+GcffFU3+3iZ6khfudyBf5bBP+uhzrG4Ju2UMEO/X16kukfgn6VQJzj7i9uo+cXtMfZVt5cZ+v2SeqV9At8tbl06UwP/tNfRUZVwowWlHPg9SGe2/AIrsA3+cfpVlfCgbG9/H8B3L7CoE1xb3VS0/anqF22APxv4lNUO7l460z/XkgWT4LcnUuOFO2XtgD9d8YZlVbObBJ+ai5Hu8ByL1Kjgly00quZkTq5RK8qSw3bBl9lM2X6CtQE+bU99kXC1c7Lkylek0I0a9/gGNqLwBjai2AN/WgLaqz3dVcCnb7E8xxtRjIJfe+uhqIpmeuuhTfBLtgB0DfxwUFIzLuZnZOuhZwV8A5vN40r76Us3m1sFv7jcXNfAjwf92mxO7jfL47LN5kbBN1VehJxTKS0vYhn8onJzjYJP3iEuK4765hxsc+DXKS/i119tAeDXrz0j0zP0glKBECWzLoBvSBNIHAbVTat+Uvkbbs5EQSleXlDKLPi8vRKCIesK+Dw2oBAhg09z06pBX19KCEYVSggGpSUEzYY6horGUnfJFvVsaMnjh22Az0lFoXnWMJY10vXIMPhVyjeXVb5tAHxuoEx4YLpM+HkAn1gGarp7+GyXCY9MvENHwC+p2E1bGxK2wGetg0oaQ1gHP24D/OzJTpmz4sYQ/Ow3hjAMPnXKeP6bQ0obmpK2NS2BH7QCPuFhK+bY8w22Amoa/NLWPtTPNwB++Z2W8+nc5m+0qpHeoOQCdiqrE5Aq5RCHQVhfCSwCo83fDLgdoPkb3tFJ3/zNpFbnKNhB232ykBe0+8RbTUa6dp9GwKc4m6KXCiGpNhoZfNTlSCw8DrT75GjX1pJ1BzfY7hPkStNAsAmPP9PgGUEkKG7wDDYXLu0Natbjo115Crpj0Gr/0x88sJfONrFCDZ6hVqOJ74kLW6T6zFSDZ9SjctWVndsEX70a0bc254U3sepMDXSy51H5rW0I/ORAcQiVi5UOv7gvUcwaAx97UvKpLETf3Qa7BvKZW1htlNRaMCoZkOp1wCHuSyaiGfBVqkzHSTKuosbr2d0tyrOWn6FXyr1J8NMFK4f6vwfFOSbCW44KSw2IVX70GrQcfAPXgNZFTgO+8qh6riT3HjO07R8GX5FfygnP9Lv5lymb9bQ8K+clmYRQ07TRIPi+nEwN+rw8x1QUhXMzIvSjJ2XZpMXKb5bHISIQzUCreg0Ks9v5LSrLwSdxVfrgawp89fSTnORznUxYVOKe1KwHvGDa0z/Kl49xaUUPU+BzcUaDwCsrFquwCsqyCTnVf/KyIpXAz/yFp5u09MbUBuDZyWiuQVDme6YpN346m0cHf8pVWMrVQBvwNQa+2o6Rlhw4Bcrs7lS/pI9cdgYhzztC+kdVs5uXXTtTi9ssMJMFRPLmXQ5KnFbRbnMVhR9f/oiveWayqmqUQfGkTXMB+pVneg3E7R6XX4MS36PayMx+IP0mz83m6cCfchWc5urErmfNYZoCn6k7L6uoLUsRcFWQgHtBNmFM+8waRHHOEZgnrqA2oDWYzsyeUekpefz4gKaDCsqqLEyj8EE4+3WJT04RuCqvE5SXlmicnDSJve9l70/0KZfp7Z5/ODkhpdG0zPH5/NgJp3j6vAL4R1ch8E5QIQck61zolwGNgS+4DWaL6x39SxjoKtAUoDb9By/OinUDC2hj6cz0jOJokHtOM4MScYZm/SmfhOpPce7isOJ7NLXYzJm0MPM2ma+Aco0z1yA+djjmhapguiaq4NOHxnQkwSC/7J0efIQrfQ6iSfDFnGWOPS0qHIepxUGgKg0HnjY7eAw1PwilTcuWpQ8T7RkazeMf+RRxTtlJpRaoQcW6LEj2JIwCdTYFtXhqNIeZnTQ172p8R9OOJdlFWHLyGgR+oP4Uc73v8bM7JxtKpELUCh7/BFeRugQxhauGwZfBazxTWHW2xKoHvQ86jtrxI4QMOcOK4AesaDWXYOXnnpO4tlx/N6veErPf84ykM4FJm5l29O1S+gHlTHPPV3vC6qExM5CYF5YK5HW4QgbUkGThFChefHzWIvnQBLPZArXwOGup59GVJp5JcxBLZYhTLHwVrColByfIirJK+cisMxWqqenI1+pVLrqeTZpm2oUPAxUOp6/BAD5f+dAIohOFpXn+0j/AXhLmcRXE4IDKL3HJSwS6+JJ7XhrmJHPlqUUJIUWXhaiePEI4XdZgz32PXpYiJ8lyOgWdjCgZTDKk2COOSd476emEap1MHwYyaenAwuJp557HadfAkyccepTzzbSIAoE4G0nBF9N/5ASukvNLp5E8IPzUocH9P3o7Eh4SGvGsAAAAAElFTkSuQmCC";
+const BRACKET_URL = "https://bdi-bracket.vercel.app"; // change after you deploy the bracket app
 
 const STATUS_META = {
   overdue: { label: "Overdue", color: "#e06149", Icon: AlertCircle },
@@ -1220,7 +1230,8 @@ function FollowUpDesk() {
   const [hold, setHold] = useState(true);
   const [introRun, setIntroRun] = useState(0);
   const [fastIntro, setFastIntro] = useState(false);
-  const prevSectionRef = useRef("home");
+  const [zoom, setZoom] = useState(null);
+  const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
   const splashRef = useRef(null);
   const heroLogoRef = useRef(null);
@@ -1267,14 +1278,22 @@ function FollowUpDesk() {
   const [authReady, setAuthReady] = useState(!cloudOn);
   const [user, setUser] = useState(null);
   const appVisible = (!cloudOn || (authReady && !!user));
-  const sectionRef = useRef(section);
-  useEffect(() => { sectionRef.current = section; }, [section]);
   const playIntro = (fast) => {
     introStartedRef.current = false;
     setFastIntro(!!fast);
     setIntro(true); setHold(true);
     setIntroRun((n) => n + 1);
     window.scrollTo(0, 0);
+  };
+  const openTab = (id, e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setZoom({ x: r.left, y: r.top, w: r.width, h: r.height, on: false });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setZoom((z) => (z ? { ...z, on: true } : z));
+    }));
+    setTimeout(() => { setSection(id); window.scrollTo(0, 0); }, 180);
+    clearTimeout(zoomTimerRef.current);
+    zoomTimerRef.current = setTimeout(() => setZoom(null), 650);
   };
   useEffect(() => {
     if (!appVisible || introStartedRef.current) return;
@@ -1303,18 +1322,9 @@ function FollowUpDesk() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [appVisible, introRun, fastIntro]);
   useEffect(() => {
-    const prev = prevSectionRef.current;
-    prevSectionRef.current = section;
-    if (section === "home" && prev !== "home") playIntro(true);
-  }, [section]);
-  useEffect(() => {
     const onShow = (e) => { if (e.persisted) playIntro(false); };
-    const onVis = () => {
-      if (document.visibilityState === "visible" && sectionRef.current === "home") playIntro(true);
-    };
     window.addEventListener("pageshow", onShow);
-    document.addEventListener("visibilitychange", onVis);
-    return () => { window.removeEventListener("pageshow", onShow); document.removeEventListener("visibilitychange", onVis); };
+    return () => window.removeEventListener("pageshow", onShow);
   }, []);
   const [authMode, setAuthMode] = useState("signin");
   const [authEmail, setAuthEmail] = useState("");
@@ -2368,6 +2378,12 @@ function FollowUpDesk() {
           </div>
         </div>
       )}
+      {zoom && (
+        <div
+          className={"fd-zoom" + (zoom.on ? " on" : "")}
+          style={{ left: zoom.x, top: zoom.y, width: zoom.w, height: zoom.h }}
+        ></div>
+      )}
       <div className="fd-wrap" data-hold={hold ? "1" : "0"}>
         <header className={"fd-head" + (section === "home" ? " hero" : "")}>
           <div>
@@ -2430,6 +2446,9 @@ function FollowUpDesk() {
               <Grid size={15} /> {t.name}
             </button>
           ))}
+          <button className="fd-nav-btn" onClick={() => window.open(BRACKET_URL, "_blank")}>
+            <Trophy size={15} /> Bracket
+          </button>
           {uspsHasAccess && (
             <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
               <Inbox size={15} /> USPS
@@ -2461,28 +2480,28 @@ function FollowUpDesk() {
 
         {section === "home" && (
           <div className="fd-launch-grid">
-            <button className="fd-launch" onClick={() => setSection("calendar")}>
+            <button className="fd-launch" onClick={(e) => openTab("calendar", e)}>
               {(counts.attention + deadlineCounts.attention) > 0 && <span className="fd-launch-count">{counts.attention + deadlineCounts.attention}</span>}
               <span className="fd-launch-ico"><Calendar size={20} /></span>
               <span className="fd-launch-name">Calendar</span>
               <span className="fd-launch-desc">Every follow-up, deadline, and birthday on one month view.</span>
               <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
             </button>
-            <button className="fd-launch" onClick={() => setSection("followups")}>
+            <button className="fd-launch" onClick={(e) => openTab("followups", e)}>
               {counts.attention > 0 && <span className="fd-launch-count">{counts.attention}</span>}
               <span className="fd-launch-ico"><Mail size={20} /></span>
               <span className="fd-launch-name">Follow-ups</span>
               <span className="fd-launch-desc">Who still owes you documents — write the nudge and send it in one click.</span>
               <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
             </button>
-            <button className="fd-launch" onClick={() => setSection("pending")}>
+            <button className="fd-launch" onClick={(e) => openTab("pending", e)}>
               {pendingCounts.total > 0 && <span className="fd-launch-count">{pendingCounts.total}</span>}
               <span className="fd-launch-ico"><FileText size={20} /></span>
               <span className="fd-launch-name">Pending signatures</span>
               <span className="fd-launch-desc">Documents you’ve sent out that are still waiting on a signature.</span>
               <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
             </button>
-            <button className="fd-launch" onClick={() => setSection("deadlines")}>
+            <button className="fd-launch" onClick={(e) => openTab("deadlines", e)}>
               {deadlineCounts.attention > 0 && <span className="fd-launch-count">{deadlineCounts.attention}</span>}
               <span className="fd-launch-ico"><Flag size={20} /></span>
               <span className="fd-launch-name">Deadlines</span>
@@ -2490,7 +2509,7 @@ function FollowUpDesk() {
               <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
             </button>
             {tabVisible("officelist") && (
-              <button className="fd-launch" onClick={() => setSection("officelist")}>
+              <button className="fd-launch" onClick={(e) => openTab("officelist", e)}>
                 <span className="fd-launch-ico"><Users size={20} /></span>
                 <span className="fd-launch-name">Office list</span>
                 <span className="fd-launch-desc">Extensions, cell numbers, and emails for everyone at BDI.</span>
@@ -2498,7 +2517,7 @@ function FollowUpDesk() {
               </button>
             )}
             {tabVisible("birthdays") && (
-              <button className="fd-launch" onClick={() => setSection("birthdays")}>
+              <button className="fd-launch" onClick={(e) => openTab("birthdays", e)}>
                 <span className="fd-launch-ico"><Cake size={20} /></span>
                 <span className="fd-launch-name">Birthdays</span>
                 <span className="fd-launch-desc">The whole company in calendar order — never miss one.</span>
@@ -2506,7 +2525,7 @@ function FollowUpDesk() {
               </button>
             )}
             {tabVisible("apps") && (
-              <button className="fd-launch" onClick={() => setSection("apps")}>
+              <button className="fd-launch" onClick={(e) => openTab("apps", e)}>
                 <span className="fd-launch-ico"><Grid size={20} /></span>
                 <span className="fd-launch-name">Company apps</span>
                 <span className="fd-launch-desc">Jump straight into the tools BDI runs on.</span>
@@ -2514,15 +2533,21 @@ function FollowUpDesk() {
               </button>
             )}
             {sharedConfig.customTabs.filter((t) => tabVisible(t.id)).map((t) => (
-              <button key={t.id} className="fd-launch" onClick={() => setSection(t.id)}>
+              <button key={t.id} className="fd-launch" onClick={(e) => openTab(t.id, e)}>
                 <span className="fd-launch-ico"><ExternalLink size={20} /></span>
                 <span className="fd-launch-name">{t.name}</span>
                 <span className="fd-launch-desc">Shortcuts set up by your admin.</span>
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             ))}
+            <button className="fd-launch" onClick={() => window.open(BRACKET_URL, "_blank")}>
+              <span className="fd-launch-ico"><Trophy size={20} /></span>
+              <span className="fd-launch-name">Bracket Challenge</span>
+              <span className="fd-launch-desc">World Cup 2026 pick’em — make your picks, climb the office leaderboard.</span>
+              <span className="fd-launch-go">Play <ChevronRight size={13} /></span>
+            </button>
             {uspsHasAccess && (
-              <button className="fd-launch" onClick={() => setSection("usps")}>
+              <button className="fd-launch" onClick={(e) => openTab("usps", e)}>
                 <span className="fd-launch-ico"><Inbox size={20} /></span>
                 <span className="fd-launch-name">USPS</span>
                 <span className="fd-launch-desc">The shared job list, kept in sync for everyone with access.</span>
@@ -2530,7 +2555,7 @@ function FollowUpDesk() {
               </button>
             )}
             {isAdmin && (
-              <button className="fd-launch" onClick={() => setSection("admin")}>
+              <button className="fd-launch" onClick={(e) => openTab("admin", e)}>
                 <span className="fd-launch-ico"><Shield size={20} /></span>
                 <span className="fd-launch-name">Admin</span>
                 <span className="fd-launch-desc">Control tabs, access, and what everyone sees.</span>
