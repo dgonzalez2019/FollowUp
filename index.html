@@ -391,35 +391,35 @@ html,body{margin:0;padding:0;}
 /* ===== Night-sky motion: neutral haze drift ===== */
 .fd-root::before{content:""; position:fixed; inset:-90px; z-index:0; pointer-events:none;
   background:
-    radial-gradient(900px 420px at 18% 24%, rgba(236,238,240,.035), transparent 70%),
-    radial-gradient(1100px 520px at 86% 64%, rgba(236,238,240,.026), transparent 70%);
+    radial-gradient(900px 420px at 18% 24%, rgba(236,238,240,.05), transparent 70%),
+    radial-gradient(1100px 520px at 86% 64%, rgba(236,238,240,.038), transparent 70%);
   animation:fdMist 48s ease-in-out infinite alternate;}
 @keyframes fdMist{from{transform:translate3d(-44px,0,0);} to{transform:translate3d(64px,-22px,0);}}
 
 /* ===== Floating diamond panels ===== */
 .fd-float{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
-.fd-float i{position:absolute; top:100%; display:block; border:1px solid rgba(47,155,224,.18); border-radius:3px; transform:skewX(-22deg); animation:fdFloatUp linear infinite;}
-.fd-float i.lime{border-color:rgba(183,212,74,.16);}
-.fd-float i.gray{border-color:rgba(191,194,199,.12);}
-.fd-float i.fill{background:rgba(47,155,224,.06); border-color:rgba(47,155,224,.1);}
-.fd-float i.lime.fill{background:rgba(183,212,74,.05); border-color:rgba(183,212,74,.09);}
-.fd-float i.star{width:2px; height:2px; border:none; border-radius:50%; background:#d7dde2; transform:none;
+.fd-float i{position:absolute; top:100%; display:block; border:1px solid rgba(47,155,224,.26); border-radius:3px; transform:skewX(-22deg); animation:fdFloatUp linear infinite;}
+.fd-float i.lime{border-color:rgba(183,212,74,.24);}
+.fd-float i.gray{border-color:rgba(191,194,199,.18);}
+.fd-float i.fill{background:rgba(47,155,224,.09); border-color:rgba(47,155,224,.14);}
+.fd-float i.lime.fill{background:rgba(183,212,74,.08); border-color:rgba(183,212,74,.12);}
+.fd-float i.star{width:2.5px; height:2.5px; border:none; border-radius:50%; background:#d7dde2; transform:none;
   animation-name:fdTwinkle; animation-timing-function:ease-in-out; animation-iteration-count:infinite;}
-.fd-float i.star.dim{width:1.5px; height:1.5px; background:#a9b1b9;}
+.fd-float i.star.dim{width:2px; height:2px; background:#a9b1b9;}
 .fd-lift{animation:fdWinch 16s ease-in-out infinite;}
-@keyframes fdWinch{0%,100%{transform:translateY(0);} 50%{transform:translateY(10px);}}
+@keyframes fdWinch{0%,100%{transform:translateY(0);} 50%{transform:translateY(16px);}}
 @keyframes fdFloatUp{0%{transform:translateY(0) skewX(-22deg); opacity:0;} 8%{opacity:1;} 90%{opacity:1;} 100%{transform:translateY(-118vh) skewX(-22deg); opacity:0;}}
 
 /* ===== Skyline & crane artwork ===== */
-.fd-scape{position:fixed; left:0; right:0; bottom:0; z-index:0; pointer-events:none; opacity:.75;}
+.fd-scape{position:fixed; left:0; right:0; bottom:0; z-index:0; pointer-events:none; opacity:.95;}
 .fd-scape svg{display:block; width:100%; height:auto; max-height:36vh;}
 .fd-win{animation:fdTwinkle 5s ease-in-out infinite;}
 .fd-hook{transform-box:fill-box; transform-origin:50% 0; animation:fdSway 8s ease-in-out infinite alternate;}
 .fd-hook.slow{animation-duration:12s;}
-.fd-beacon{animation:fdBeacon 2.6s ease-in-out infinite;}
+.fd-beacon{animation:fdBeacon 2.6s ease-in-out infinite; filter:drop-shadow(0 0 5px rgba(224,97,73,.95));}
 .fd-beacon.alt{animation-delay:1.3s;}
-@keyframes fdTwinkle{0%,100%{opacity:.22;} 50%{opacity:.95;}}
-@keyframes fdSway{from{transform:rotate(-2.6deg);} to{transform:rotate(2.6deg);}}
+@keyframes fdTwinkle{0%,100%{opacity:.28;} 50%{opacity:1;}}
+@keyframes fdSway{from{transform:rotate(-3.6deg);} to{transform:rotate(3.6deg);}}
 @keyframes fdBeacon{0%,100%{opacity:.2;} 50%{opacity:1;}}
 
 /* ===== Landing hero ===== */
@@ -496,6 +496,10 @@ html,body{margin:0;padding:0;}
   animation:fdRise .8s ease 1.85s backwards;}
 .fd-intro.fly .fd-intro-line, .fd-intro.fly .fd-intro-tag{opacity:0; transition:opacity .45s ease;}
 @keyframes fdIntroIn{from{opacity:0; transform:scale(1.16);} 55%{opacity:1;} to{opacity:1; transform:scale(1);}}
+.fd-intro.fast .fd-intro-logo{animation-duration:.9s;}
+.fd-intro.fast .fd-intro-shine{animation-delay:.55s; animation-duration:.9s;}
+.fd-intro.fast .fd-intro-line{animation-delay:.45s; animation-duration:.8s;}
+.fd-intro.fast .fd-intro-tag{animation-delay:.85s; animation-duration:.6s;}
 @keyframes fdBuild{from{opacity:0; transform:translateY(20px) skewX(-3deg) scale(.96);} to{opacity:1; transform:none;}}
 .fd-wrap[data-hold="1"]{pointer-events:none;}
 .fd-wrap[data-hold="1"] .fd-head, .fd-wrap[data-hold="1"] .fd-nav, .fd-wrap[data-hold="1"] .fd-subnav,
@@ -537,7 +541,7 @@ html,body{margin:0;padding:0;}
   .fd-launch{padding:16px 14px 13px;}
   .fd-launch-desc{display:none;}
   .fd-launch-ico{width:40px; height:40px;}
-  .fd-scape{opacity:.5;}
+  .fd-scape{opacity:.7;}
 }
 </style>
 </head>
@@ -1162,7 +1166,7 @@ function CityScape() {
             <polygon points="631,162 655,162 644.5,188 620.5,188" fill="#2f9be0" />
             <polygon points="655,162 679,162 668.5,188 644.5,188" fill="#b7d44a" />
           </g>
-          <rect x="646" y="70" width="18" height="12" fill="#454e59" />
+          <rect x="646" y="70" width="18" height="18" fill="#454e59" />
         </g>
         <circle className="fd-beacon" cx="740" cy="34" r="3.6" fill="#e06149" />
 
@@ -1187,7 +1191,7 @@ function CityScape() {
         <circle className="fd-beacon" cx="1315" cy="181" r="2.6" fill="#e06149" />
 
         {wins.map((w, i) => (
-          <rect key={"w"+i} className="fd-win" x={w[0]} y={w[1]} width={7} height={9} fill={w[2]} opacity="0.5" style={{ animationDelay: w[3] + "s" }} />
+          <rect key={"w"+i} className="fd-win" x={w[0]} y={w[1]} width={7} height={9} fill={w[2]} opacity="0.65" style={{ animationDelay: w[3] + "s" }} />
         ))}
 
         <line x1="0" y1="316" x2="1440" y2="316" stroke="#1b2026" strokeWidth="1.5" />
@@ -1212,6 +1216,8 @@ function FollowUpDesk() {
   const [intro, setIntro] = useState(true);
   const [hold, setHold] = useState(true);
   const [introRun, setIntroRun] = useState(0);
+  const [fastIntro, setFastIntro] = useState(false);
+  const prevSectionRef = useRef("home");
   const introStartedRef = useRef(false);
   const splashRef = useRef(null);
   const heroLogoRef = useRef(null);
@@ -1258,11 +1264,22 @@ function FollowUpDesk() {
   const [authReady, setAuthReady] = useState(!cloudOn);
   const [user, setUser] = useState(null);
   const appVisible = (!cloudOn || (authReady && !!user));
+  const sectionRef = useRef(section);
+  useEffect(() => { sectionRef.current = section; }, [section]);
+  const playIntro = (fast) => {
+    introStartedRef.current = false;
+    setFastIntro(!!fast);
+    setIntro(true); setHold(true);
+    setIntroRun((n) => n + 1);
+    window.scrollTo(0, 0);
+  };
   useEffect(() => {
     if (!appVisible || introStartedRef.current) return;
     introStartedRef.current = true;
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) { setIntro(false); setHold(false); return; }
+    const flyAt = fastIntro ? 1500 : 2600;
+    const endAt = fastIntro ? 2500 : 3750;
     const t1 = setTimeout(() => {
       setHold(false);
       const sp = splashRef.current;
@@ -1280,21 +1297,23 @@ function FollowUpDesk() {
           sp.style.opacity = "0";
         }
       }
-    }, 2600);
-    const t2 = setTimeout(() => setIntro(false), 3750);
+    }, flyAt);
+    const t2 = setTimeout(() => setIntro(false), endAt);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [appVisible, introRun]);
+  }, [appVisible, introRun, fastIntro]);
   useEffect(() => {
-    const onShow = (e) => {
-      if (e.persisted) {
-        introStartedRef.current = false;
-        setIntro(true); setHold(true);
-        setIntroRun((n) => n + 1);
-        window.scrollTo(0, 0);
-      }
+    const prev = prevSectionRef.current;
+    prevSectionRef.current = section;
+    if (section === "home" && prev !== "home") playIntro(true);
+  }, [section]);
+  useEffect(() => {
+    const onShow = (e) => { if (e.persisted) playIntro(false); };
+    const onVis = () => {
+      if (document.visibilityState === "visible" && sectionRef.current === "home") playIntro(true);
     };
     window.addEventListener("pageshow", onShow);
-    return () => window.removeEventListener("pageshow", onShow);
+    document.addEventListener("visibilitychange", onVis);
+    return () => { window.removeEventListener("pageshow", onShow); document.removeEventListener("visibilitychange", onVis); };
   }, []);
   const [authMode, setAuthMode] = useState("signin");
   const [authEmail, setAuthEmail] = useState("");
@@ -2336,7 +2355,7 @@ function FollowUpDesk() {
     <div className="fd-root">
       <CityScape />
       {intro && (
-        <div className={"fd-intro" + (hold ? "" : " fly")}>
+        <div className={"fd-intro" + (hold ? "" : " fly") + (fastIntro ? " fast" : "")}>
           <div className="fd-intro-bg"></div>
           <div className="fd-intro-stage">
             <div ref={splashRef} className="fd-intro-logo">
