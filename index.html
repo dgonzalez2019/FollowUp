@@ -2332,6 +2332,76 @@ function FollowUpDesk() {
     { id: "all", label: "All", n: enriched.length },
   ];
 
+  const liveAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
+  const [espnLive, setEspnLive] = useState({});
+  const brDataRef = useRef(brData);
+  useEffect(() => { brDataRef.current = brData; }, [brData]);
+  useEffect(() => {
+    if (section !== "bracket" || !appVisible) return;
+    let stop = false;
+    const dstr = (d) => "" + d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+    const tick = async () => {
+      try {
+        const now = new Date();
+        const yd = new Date(now.getTime() - 86400000);
+        const evs = [];
+        for (const x of [dstr(yd), dstr(now)]) {
+          const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=" + x);
+          if (!r.ok) continue;
+          const j = await r.json();
+          (j.events || []).forEach((e) => evs.push(e));
+        }
+        if (stop) return;
+        const cur = brDataRef.current;
+        const pairOf = {};
+        Object.values(cur.matches || {}).forEach((m) => { pairOf[[m.home, m.away].sort().join("|")] = m.id; });
+        const next = {};
+        evs.forEach((ev) => {
+          try {
+            const comp = ev.competitions && ev.competitions[0];
+            const cs = (comp && comp.competitors) || [];
+            const h = cs.find((x) => x.homeAway === "home");
+            const aw = cs.find((x) => x.homeAway === "away");
+            if (!h || !aw) return;
+            const hc = WC_ALIAS.map[WC_ALIAS.norm(h.team && (h.team.displayName || h.team.name))];
+            const ac = WC_ALIAS.map[WC_ALIAS.norm(aw.team && (aw.team.displayName || aw.team.name))];
+            if (!hc || !ac) return;
+            const id = pairOf[[hc, ac].sort().join("|")];
+            if (!id) return;
+            const state = ev.status && ev.status.type && ev.status.type.state;
+            if (state !== "in" && state !== "post") return;
+            const our = cur.matches[id];
+            const hs = Number(hc === our.home ? h.score : aw.score);
+            const as2 = Number(hc === our.home ? aw.score : h.score);
+            next[id] = { hs: isNaN(hs) ? null : hs, as: isNaN(as2) ? null : as2, status: state === "post" ? "final" : "live" };
+          } catch (e) {}
+        });
+        setEspnLive(next);
+        if (liveAdmin) {
+          const patch = {};
+          Object.keys(next).forEach((id) => {
+            const m = cur.matches[id];
+            const o = next[id];
+            if (!m || m.status === "final") return;
+            if (m.hs !== o.hs || m.as !== o.as || m.status !== o.status) patch[id] = { ...m, ...o };
+          });
+          if (Object.keys(patch).length) saveBracketShared({ ...cur, matches: { ...cur.matches, ...patch } });
+        }
+      } catch (e) { console.error("live score fetch failed", e); }
+    };
+    tick();
+    const iv = setInterval(tick, 45000);
+    return () => { stop = true; clearInterval(iv); };
+  }, [section, appVisible, liveAdmin]);
+  const brLive = useMemo(() => {
+    const out = { ...(brData.matches || {}) };
+    Object.keys(espnLive).forEach((id) => {
+      const m = out[id];
+      if (m && m.status !== "final") out[id] = { ...m, ...espnLive[id] };
+    });
+    return out;
+  }, [brData, espnLive]);
+
   if (cloudOn && !authReady) {
     return <div className="fd-root"><div className="fd-auth"><div className="fd-empty">Connecting…</div></div></div>;
   }
@@ -2658,74 +2728,7 @@ function FollowUpDesk() {
   const isUspsManager = isAdmin || ((sharedConfig.usps && sharedConfig.usps.managers) || []).indexOf(myEmailLc) >= 0;
   const uspsHasAccess = isUspsManager || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(myEmailLc) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
-  const [espnLive, setEspnLive] = useState({});
-  const brDataRef = useRef(brData);
-  useEffect(() => { brDataRef.current = brData; }, [brData]);
-  useEffect(() => {
-    if (section !== "bracket" || !appVisible) return;
-    let stop = false;
-    const dstr = (d) => "" + d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
-    const tick = async () => {
-      try {
-        const now = new Date();
-        const yd = new Date(now.getTime() - 86400000);
-        const evs = [];
-        for (const x of [dstr(yd), dstr(now)]) {
-          const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=" + x);
-          if (!r.ok) continue;
-          const j = await r.json();
-          (j.events || []).forEach((e) => evs.push(e));
-        }
-        if (stop) return;
-        const cur = brDataRef.current;
-        const pairOf = {};
-        Object.values(cur.matches || {}).forEach((m) => { pairOf[[m.home, m.away].sort().join("|")] = m.id; });
-        const next = {};
-        evs.forEach((ev) => {
-          try {
-            const comp = ev.competitions && ev.competitions[0];
-            const cs = (comp && comp.competitors) || [];
-            const h = cs.find((x) => x.homeAway === "home");
-            const aw = cs.find((x) => x.homeAway === "away");
-            if (!h || !aw) return;
-            const hc = WC_ALIAS.map[WC_ALIAS.norm(h.team && (h.team.displayName || h.team.name))];
-            const ac = WC_ALIAS.map[WC_ALIAS.norm(aw.team && (aw.team.displayName || aw.team.name))];
-            if (!hc || !ac) return;
-            const id = pairOf[[hc, ac].sort().join("|")];
-            if (!id) return;
-            const state = ev.status && ev.status.type && ev.status.type.state;
-            if (state !== "in" && state !== "post") return;
-            const our = cur.matches[id];
-            const hs = Number(hc === our.home ? h.score : aw.score);
-            const as2 = Number(hc === our.home ? aw.score : h.score);
-            next[id] = { hs: isNaN(hs) ? null : hs, as: isNaN(as2) ? null : as2, status: state === "post" ? "final" : "live" };
-          } catch (e) {}
-        });
-        setEspnLive(next);
-        if (isAdmin) {
-          const patch = {};
-          Object.keys(next).forEach((id) => {
-            const m = cur.matches[id];
-            const o = next[id];
-            if (!m || m.status === "final") return;
-            if (m.hs !== o.hs || m.as !== o.as || m.status !== o.status) patch[id] = { ...m, ...o };
-          });
-          if (Object.keys(patch).length) saveBracketShared({ ...cur, matches: { ...cur.matches, ...patch } });
-        }
-      } catch (e) { console.error("live score fetch failed", e); }
-    };
-    tick();
-    const iv = setInterval(tick, 45000);
-    return () => { stop = true; clearInterval(iv); };
-  }, [section, appVisible, isAdmin]);
-  const brLive = useMemo(() => {
-    const out = { ...(brData.matches || {}) };
-    Object.keys(espnLive).forEach((id) => {
-      const m = out[id];
-      if (m && m.status !== "final") out[id] = { ...m, ...espnLive[id] };
-    });
-    return out;
-  }, [brData, espnLive]);
+
   const tabVisible = (key) => {
     if (myOverride[key] !== undefined) return myOverride[key] !== false;
     return sharedConfig.tabs[key] !== false;
