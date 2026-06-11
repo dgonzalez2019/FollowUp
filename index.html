@@ -9,7 +9,14 @@
   }
 </script>
 <meta name="theme-color" content="#040507" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="BDI University" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>BDI University</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -46,7 +53,7 @@ html,body{margin:0;padding:0;}
   min-height:100vh; width:100%;
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
 }
-.fd-wrap{max-width:1180px; margin:0 auto; padding:28px 40px 72px;}
+.fd-wrap{max-width:1180px; margin:0 auto; padding:calc(28px + env(safe-area-inset-top, 0px)) 40px 72px;}
 
 
 /* ===== Page header ===== */
@@ -83,7 +90,7 @@ html,body{margin:0;padding:0;}
 .fd-tab-n{font-family:'IBM Plex Mono',monospace; font-size:11px; opacity:.65;}
 
 /* ===== Primary nav ===== */
-.fd-nav{position:sticky; top:0; z-index:40; display:flex; gap:2px; margin:0 -40px 22px; padding:6px 40px 0;
+.fd-nav{position:sticky; top:env(safe-area-inset-top, 0px); z-index:40; display:flex; gap:2px; margin:0 -40px 22px; padding:6px 40px 0;
   border-bottom:1px solid var(--line); overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
   background-color:rgba(6,7,9,.88); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
   background-image:linear-gradient(90deg, var(--accent) 0%, var(--accent) 38%, var(--lime) 62%, transparent 92%);
@@ -360,12 +367,12 @@ html,body{margin:0;padding:0;}
 
 /* ===== Responsive ===== */
 @media(max-width:900px){
-  .fd-wrap{padding:22px 22px 56px;}
+  .fd-wrap{padding:calc(22px + env(safe-area-inset-top, 0px)) 22px 56px;}
   .fd-nav{margin:0 -22px 22px; padding:6px 22px 0;}
   .fd-title{font-size:29px;}
 }
 @media(max-width:560px){
-  .fd-wrap{padding:16px 14px 48px;}
+  .fd-wrap{padding:calc(16px + env(safe-area-inset-top, 0px)) 14px 48px;}
   .fd-nav{margin:0 -14px 18px; padding:4px 14px 0;}
   .fd-hero-logo{height:44px;}
   .fd-stats{grid-template-columns:1fr; gap:10px;}
@@ -3564,6 +3571,13 @@ function FollowUpDesk() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<FollowUpDesk />);
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
 </script>
 </body>
 </html>
