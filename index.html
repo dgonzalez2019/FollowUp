@@ -511,6 +511,13 @@ html,body{margin:0;padding:0;}
 .fd-wrap[data-hold="1"] .fd-list .fd-card, .fd-wrap[data-hold="1"] .fd-cal-grid, .fd-wrap[data-hold="1"] .fd-cal-day-list{animation:none; opacity:0;}
 .fd-foot{animation:fdRise .45s ease both; animation-delay:.5s;}
 
+/* ===== Drag-to-reorder rows ===== */
+.fd-drag-row{position:absolute; left:0; right:0; height:46px; display:flex; align-items:center; gap:9px; border-bottom:1px solid var(--line); will-change:transform;}
+.fd-drag-row.dragging{z-index:5; background:var(--surface-3); border:1px solid var(--accent-ring); border-bottom:1px solid var(--accent-ring); border-radius:10px; box-shadow:0 12px 28px rgba(0,0,0,.55); left:-8px; right:-8px; padding:0 8px;}
+.fd-drag-grip{touch-action:none; cursor:grab; color:var(--faint); padding:9px 7px; display:inline-flex; border-radius:8px; flex-shrink:0;}
+.fd-drag-grip:hover{color:var(--accent); background:var(--accent-soft);}
+.fd-drag-row.dragging .fd-drag-grip{cursor:grabbing; color:var(--accent);}
+
 /* ===== Tile-grow tab transition ===== */
 .fd-zoom{position:fixed; z-index:75; pointer-events:none; border-radius:16px;
   background:linear-gradient(180deg, rgba(47,155,224,.12), rgba(13,16,20,.94) 60%), var(--surface);
@@ -1095,7 +1102,7 @@ function FilePreviewModal({ file, onClose }) {
 
 
 const WC_GROUPS = { A:["MEX","RSA","KOR","CZE"], B:["CAN","BIH","QAT","SUI"], C:["BRA","MAR","HAI","SCO"], D:["USA","PAR","AUS","TUR"], E:["GER","CUW","CIV","ECU"], F:["NED","JPN","SWE","TUN"], G:["BEL","EGY","IRN","NZL"], H:["ESP","CPV","KSA","URU"], I:["FRA","SEN","IRQ","NOR"], J:["ARG","ALG","AUT","JOR"], K:["POR","COD","UZB","COL"], L:["ENG","CRO","GHA","PAN"] };
-const WC_TEAMS = { MEX:["Mexico","\u{1F1F2}\u{1F1FD}"], RSA:["South Africa","\u{1F1FF}\u{1F1E6}"], KOR:["South Korea","\u{1F1F0}\u{1F1F7}"], CZE:["Czechia","\u{1F1E8}\u{1F1FF}"], CAN:["Canada","\u{1F1E8}\u{1F1E6}"], BIH:["Bosnia & Herzegovina","\u{1F1E7}\u{1F1E6}"], QAT:["Qatar","\u{1F1F6}\u{1F1E6}"], SUI:["Switzerland","\u{1F1E8}\u{1F1ED}"], BRA:["Brazil","\u{1F1E7}\u{1F1F7}"], MAR:["Morocco","\u{1F1F2}\u{1F1E6}"], HAI:["Haiti","\u{1F1ED}\u{1F1F9}"], SCO:["Scotland","\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}"], USA:["United States","\u{1F1FA}\u{1F1F8}"], PAR:["Paraguay","\u{1F1F5}\u{1F1FE}"], AUS:["Australia","\u{1F1E6}\u{1F1FA}"], TUR:["T\u00FCrkiye","\u{1F1F9}\u{1F1F7}"], GER:["Germany","\u{1F1E9}\u{1F1EA}"], CUW:["Cura\u00E7ao","\u{1F1E8}\u{1F1FC}"], CIV:["Ivory Coast","\u{1F1E8}\u{1F1EE}"], ECU:["Ecuador","\u{1F1EA}\u{1F1E8}"], NED:["Netherlands","\u{1F1F3}\u{1F1F1}"], JPN:["Japan","\u{1F1EF}\u{1F1F5}"], SWE:["Sweden","\u{1F1F8}\u{1F1EA}"], TUN:["Tunisia","\u{1F1F9}\u{1F1F3}"], BEL:["Belgium","\u{1F1E7}\u{1F1EA}"], EGY:["Egypt","\u{1F1EA}\u{1F1EC}"], IRN:["Iran","\u{1F1EE}\u{1F1F7}"], NZL:["New Zealand","\u{1F1F3}\u{1F1FF}"], ESP:["Spain","\u{1F1EA}\u{1F1F8}"], CPV:["Cape Verde","\u{1F1E8}\u{1F1FB}"], KSA:["Saudi Arabia","\u{1F1F8}\u{1F1E6}"], URU:["Uruguay","\u{1F1FA}\u{1F1FE}"], FRA:["France","\u{1F1EB}\u{1F1F7}"], SEN:["Senegal","\u{1F1F8}\u{1F1F3}"], IRQ:["Iraq","\u{1F1EE}\u{1F1F6}"], NOR:["Norway","\u{1F1F3}\u{1F1F4}"], ARG:["Argentina","\u{1F1E6}\u{1F1F7}"], ALG:["Algeria","\u{1F1E9}\u{1F1FF}"], AUT:["Austria","\u{1F1E6}\u{1F1F9}"], JOR:["Jordan","\u{1F1EF}\u{1F1F4}"], POR:["Portugal","\u{1F1F5}\u{1F1F9}"], COD:["DR Congo","\u{1F1E8}\u{1F1E9}"], UZB:["Uzbekistan","\u{1F1FA}\u{1F1FF}"], COL:["Colombia","\u{1F1E8}\u{1F1F4}"], ENG:["England","\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"], CRO:["Croatia","\u{1F1ED}\u{1F1F7}"], GHA:["Ghana","\u{1F1EC}\u{1F1ED}"], PAN:["Panama","\u{1F1F5}\u{1F1E6}"] };
+const WC_TEAMS = { MEX:["Mexico","\u{1F1F2}\u{1F1FD}"], RSA:["South Africa","\u{1F1FF}\u{1F1E6}"], KOR:["South Korea","\u{1F1F0}\u{1F1F7}"], CZE:["Czechia","\u{1F1E8}\u{1F1FF}"], CAN:["Canada","\u{1F1E8}\u{1F1E6}"], BIH:["Bosnia & Herzegovina","\u{1F1E7}\u{1F1E6}"], QAT:["Qatar","\u{1F1F6}\u{1F1E6}"], SUI:["Switzerland","\u{1F1E8}\u{1F1ED}"], BRA:["Brazil","\u{1F1E7}\u{1F1F7}"], MAR:["Morocco","\u{1F1F2}\u{1F1E6}"], HAI:["Haiti","\u{1F1ED}\u{1F1F9}"], SCO:["Scotland","\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}"], USA:["United States","\u{1F1FA}\u{1F1F8}"], PAR:["Paraguay","\u{1F1F5}\u{1F1FE}"], AUS:["Australia","\u{1F1E6}\u{1F1FA}"], TUR:["Türkiye","\u{1F1F9}\u{1F1F7}"], GER:["Germany","\u{1F1E9}\u{1F1EA}"], CUW:["Curaçao","\u{1F1E8}\u{1F1FC}"], CIV:["Ivory Coast","\u{1F1E8}\u{1F1EE}"], ECU:["Ecuador","\u{1F1EA}\u{1F1E8}"], NED:["Netherlands","\u{1F1F3}\u{1F1F1}"], JPN:["Japan","\u{1F1EF}\u{1F1F5}"], SWE:["Sweden","\u{1F1F8}\u{1F1EA}"], TUN:["Tunisia","\u{1F1F9}\u{1F1F3}"], BEL:["Belgium","\u{1F1E7}\u{1F1EA}"], EGY:["Egypt","\u{1F1EA}\u{1F1EC}"], IRN:["Iran","\u{1F1EE}\u{1F1F7}"], NZL:["New Zealand","\u{1F1F3}\u{1F1FF}"], ESP:["Spain","\u{1F1EA}\u{1F1F8}"], CPV:["Cape Verde","\u{1F1E8}\u{1F1FB}"], KSA:["Saudi Arabia","\u{1F1F8}\u{1F1E6}"], URU:["Uruguay","\u{1F1FA}\u{1F1FE}"], FRA:["France","\u{1F1EB}\u{1F1F7}"], SEN:["Senegal","\u{1F1F8}\u{1F1F3}"], IRQ:["Iraq","\u{1F1EE}\u{1F1F6}"], NOR:["Norway","\u{1F1F3}\u{1F1F4}"], ARG:["Argentina","\u{1F1E6}\u{1F1F7}"], ALG:["Algeria","\u{1F1E9}\u{1F1FF}"], AUT:["Austria","\u{1F1E6}\u{1F1F9}"], JOR:["Jordan","\u{1F1EF}\u{1F1F4}"], POR:["Portugal","\u{1F1F5}\u{1F1F9}"], COD:["DR Congo","\u{1F1E8}\u{1F1E9}"], UZB:["Uzbekistan","\u{1F1FA}\u{1F1FF}"], COL:["Colombia","\u{1F1E8}\u{1F1F4}"], ENG:["England","\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"], CRO:["Croatia","\u{1F1ED}\u{1F1F7}"], GHA:["Ghana","\u{1F1EC}\u{1F1ED}"], PAN:["Panama","\u{1F1F5}\u{1F1E6}"] };
 const wcLabel = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][1] + " " + WC_TEAMS[c][0] : c);
 const BR_SCORING = { pos: 10, adv: 5, third: 5, R16: 15, QF: 25, SF: 40, F: 60, champ: 100 };
 const BR_STAGES = [["R32", "Round of 32"], ["R16", "Round of 16"], ["QF", "Quarterfinals"], ["SF", "Semifinals"], ["F", "Final"]];
@@ -1237,6 +1244,72 @@ function brSeedMatches() {
     });
   });
   return out;
+}
+
+function BrGroupOrder({ order, locked, onChange }) {
+  const ROW = 46;
+  const dragRef = useRef(null);
+  const [, force] = useState(0);
+  const slotOf = (i) => {
+    const d = dragRef.current;
+    if (!d || i === d.idx) return i;
+    if (d.idx < d.cur && i > d.idx && i <= d.cur) return i - 1;
+    if (d.idx > d.cur && i >= d.cur && i < d.idx) return i + 1;
+    return i;
+  };
+  const down = (e, idx) => {
+    if (locked) return;
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    dragRef.current = { idx, y0: e.clientY, dy: 0, cur: idx };
+    force((n) => n + 1);
+  };
+  const moveP = (e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    d.dy = e.clientY - d.y0;
+    d.cur = Math.max(0, Math.min(order.length - 1, d.idx + Math.round(d.dy / ROW)));
+    force((n) => n + 1);
+  };
+  const up = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (d && d.cur !== d.idx) {
+      const next = order.slice();
+      const moved = next.splice(d.idx, 1)[0];
+      next.splice(d.cur, 0, moved);
+      onChange(next);
+    }
+    force((n) => n + 1);
+  };
+  const d = dragRef.current;
+  const badge = (slot) => slot < 2
+    ? { color: "var(--accent)", borderColor: "rgba(47,155,224,.4)" }
+    : slot === 2
+      ? { color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.08)" }
+      : { color: "var(--faint)", background: "transparent", borderColor: "var(--line)" };
+  return (
+    <div style={{ position: "relative", height: ROW * order.length }}>
+      {order.map((c, i) => {
+        const dragging = d && d.idx === i;
+        const y = dragging ? d.idx * ROW + d.dy : slotOf(i) * ROW;
+        const slot = dragging ? d.cur : slotOf(i);
+        return (
+          <div key={c} className={"fd-drag-row" + (dragging ? " dragging" : "")}
+            style={{ transform: "translateY(" + y + "px)", transition: dragging ? "none" : "transform .18s ease" }}>
+            <span className="fd-ext" style={badge(slot)}>{slot + 1}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcLabel(c)}</span>
+            {!locked && (
+              <span className="fd-drag-grip" title="Drag to reorder"
+                onPointerDown={(e) => down(e, i)} onPointerMove={moveP} onPointerUp={up} onPointerCancel={up}>
+                <Svg size={16}><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></Svg>
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function CityScape() {
@@ -2593,8 +2666,8 @@ function FollowUpDesk() {
             <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
-                bracket: "Order each group 1\u20134, pick your best thirds, then advance teams through your own bracket to the trophy. Scores update live.",
-                home: "Everything the office runs on, one tap away. Pick where you\u2019re headed \u2014 the badges show what needs your attention.",
+                bracket: "Order each group 1–4, pick your best thirds, then advance teams through your own bracket to the trophy. Scores update live.",
+                home: "Everything the office runs on, one tap away. Pick where you’re headed — the badges show what needs your attention.",
                 pending: "Documents you've sent out that are still awaiting a signature.",
                 deadlines: "Track time-sensitive due dates and get a heads-up as they approach.",
                 calendar: "Every upcoming follow-up and deadline on one calendar.",
@@ -3654,37 +3727,23 @@ function FollowUpDesk() {
           {bracketView === "picks" && (
           <>
             <div className="fd-panel">
-              <div className="fd-panel-head">Order every group <span className="fd-count">{BR_SCORING.pos} pts exact spot \u00B7 {BR_SCORING.adv} pts advanced, wrong order</span></div>
-              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Use the arrows to set who finishes 1st\u20134th. Spots 1\u20132 advance automatically; your 3rd-place teams feed the best-thirds picker below.</p>
+              <div className="fd-panel-head">Order every group <span className="fd-count">{BR_SCORING.pos} pts exact spot · {BR_SCORING.adv} pts advanced, wrong order</span></div>
+              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Grab the handle and drag teams into place — set who finishes 1st–4th. Spots 1–2 advance automatically; your 3rd-place teams feed the best-thirds picker below.</p>
             </div>
             <div className="fd-grid">
-              {Object.keys(WC_GROUPS).map((grp) => {
-                const order = brRankOf(myBr, grp);
-                const move = (i, dir) => {
-                  if (brData.groupLocked) return;
-                  const j = i + dir;
-                  if (j < 0 || j > 3) return;
-                  const next = order.slice();
-                  const tmp = next[i]; next[i] = next[j]; next[j] = tmp;
-                  saveMyBr({ rank: { ...(myBr.rank || {}), [grp]: next } });
-                };
-                return (
-                  <div className="fd-panel" key={grp} style={{ marginBottom: 0 }}>
-                    <div className="fd-panel-head">Group {grp}</div>
-                    {order.map((c, i) => (
-                      <div key={c} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 0", borderBottom: i < 3 ? "1px solid var(--line)" : "none" }}>
-                        <span className="fd-ext" style={i < 2 ? { color: "var(--accent)", borderColor: "rgba(47,155,224,.4)" } : i === 2 ? { color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.08)" } : { color: "var(--faint)", background: "transparent", borderColor: "var(--line)" }}>{i + 1}</span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcLabel(c)}</span>
-                        <button className="fd-icon-btn sm" disabled={brData.groupLocked || i === 0} style={i === 0 ? { opacity: .3 } : undefined} onClick={() => move(i, -1)} title="Move up">\u25B2</button>
-                        <button className="fd-icon-btn sm" disabled={brData.groupLocked || i === 3} style={i === 3 ? { opacity: .3 } : undefined} onClick={() => move(i, 1)} title="Move down">\u25BC</button>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
+              {Object.keys(WC_GROUPS).map((grp) => (
+                <div className="fd-panel" key={grp} style={{ marginBottom: 0 }}>
+                  <div className="fd-panel-head">Group {grp}</div>
+                  <BrGroupOrder
+                    order={brRankOf(myBr, grp)}
+                    locked={!!brData.groupLocked}
+                    onChange={(next) => saveMyBr({ rank: { ...(myBr.rank || {}), [grp]: next } })}
+                  />
+                </div>
+              ))}
             </div>
             <div className="fd-panel" style={{ marginTop: 20 }}>
-              <div className="fd-panel-head">Best thirds \u2014 pick 8 of your 12 <span className="fd-count">{((myBr.thirds || []).length)}/8 \u00B7 {BR_SCORING.third} pts each</span></div>
+              <div className="fd-panel-head">Best thirds — pick 8 of your 12 <span className="fd-count">{((myBr.thirds || []).length)}/8 · {BR_SCORING.third} pts each</span></div>
               <p className="fd-hint" style={{ fontSize: 12.5, marginTop: 0 }}>These are the teams you placed 3rd in each group. Choose the 8 you think squeak into the Round of 32.</p>
               <div className="fd-admin-toggles">
                 {Object.keys(WC_GROUPS).map((grp) => {
@@ -3717,13 +3776,13 @@ function FollowUpDesk() {
             {((myBr.thirds || []).length !== 8) ? (
               <div className="fd-empty">
                 <Trophy size={28} />
-                <span>Finish your group ordering first \u2014 pick your 8 best thirds on the Group picks tab and your personal Round of 32 builds itself here.</span>
+                <span>Finish your group ordering first — pick your 8 best thirds on the Group picks tab and your personal Round of 32 builds itself here.</span>
               </div>
             ) : (
             <>
               <div className="fd-panel">
-                <div className="fd-panel-head">Your bracket <span className="fd-count">R16 {BR_SCORING.R16} \u00B7 QF {BR_SCORING.QF} \u00B7 SF {BR_SCORING.SF} \u00B7 Final {BR_SCORING.F} \u00B7 Champion +{BR_SCORING.champ}</span></div>
-                <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Built from your group ordering. Tap a team to advance them \u2014 winners flow into the next round. Points are awarded for every team you correctly carry into each round, even if the real matchups differ.</p>
+                <div className="fd-panel-head">Your bracket <span className="fd-count">R16 {BR_SCORING.R16} · QF {BR_SCORING.QF} · SF {BR_SCORING.SF} · Final {BR_SCORING.F} · Champion +{BR_SCORING.champ}</span></div>
+                <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Built from your group ordering. Tap a team to advance them — winners flow into the next round. Points are awarded for every team you correctly carry into each round, even if the real matchups differ.</p>
               </div>
               {(() => {
                 const slots = brMyBracket(myBr);
@@ -3773,7 +3832,7 @@ function FollowUpDesk() {
                 onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== myBrName) saveMyBr({ name: v }); }} />
             </div>
             {Object.keys(brPicksAll).length === 0 ? (
-              <div className="fd-empty"><Users size={28} /><span>No players yet \u2014 make a pick and you\u2019re on the board.</span></div>
+              <div className="fd-empty"><Users size={28} /><span>No players yet — make a pick and you’re on the board.</span></div>
             ) : (
               <div className="fd-list">
                 {Object.keys(brPicksAll)
@@ -3785,7 +3844,7 @@ function FollowUpDesk() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>}</div>
                         <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
-                          groups {r.s.g} \u00B7 thirds {r.s.t} \u00B7 bracket {r.s.b}
+                          groups {r.s.g} · thirds {r.s.t} · bracket {r.s.b}
                         </div>
                       </div>
                       <span className="fd-ext" style={{ color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.1)" }}>{r.s.total}</span>
@@ -3809,7 +3868,7 @@ function FollowUpDesk() {
                   <input type="checkbox" checked={!!brData.bracketLocked} onChange={() => saveBracketShared({ ...brData, bracketLocked: !brData.bracketLocked })} /> Lock bracket &amp; champion
                 </label>
               </div>
-              <p className="fd-hint" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Picks also auto-lock per match at kickoff (set kickoff times below) or once a match isn\u2019t \u201Cscheduled\u201D.</p>
+              <p className="fd-hint" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Picks also auto-lock per match at kickoff (set kickoff times below) or once a match isn’t “scheduled”.</p>
             </div>
 
             <div className="fd-panel">
@@ -3824,14 +3883,14 @@ function FollowUpDesk() {
                 <div>
                   <label className="fd-label">Home</label>
                   <select className="fd-select" value={brKO.home} onChange={(e) => setBrKO({ ...brKO, home: e.target.value })}>
-                    <option value="">\u2014</option>
+                    <option value="">—</option>
                     {Object.keys(WC_TEAMS).map((c) => <option key={c} value={c}>{WC_TEAMS[c][1]} {WC_TEAMS[c][0]}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="fd-label">Away</label>
                   <select className="fd-select" value={brKO.away} onChange={(e) => setBrKO({ ...brKO, away: e.target.value })}>
-                    <option value="">\u2014</option>
+                    <option value="">—</option>
                     {Object.keys(WC_TEAMS).map((c) => <option key={c} value={c}>{WC_TEAMS[c][1]} {WC_TEAMS[c][0]}</option>)}
                   </select>
                 </div>
@@ -3849,14 +3908,14 @@ function FollowUpDesk() {
               const label = stg === "group" ? "Group stage" : (BR_STAGES.find(([k]) => k === stg) || [])[1];
               return (
                 <div className="fd-panel" key={stg}>
-                  <div className="fd-panel-head">{label} \u2014 scores</div>
+                  <div className="fd-panel-head">{label} — scores</div>
                   {ms.map((m) => (
                     <div key={m.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--line)", fontSize: 13 }}>
                       <span className="fd-hint" style={{ width: 48, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{m.id}</span>
                       <span style={{ flex: 1, minWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcLabel(m.home)} vs {wcLabel(m.away)}</span>
-                      <input className="fd-input" style={{ width: 58, textAlign: "center" }} type="number" min="0" value={m.hs == null ? "" : m.hs} placeholder="\u2013"
+                      <input className="fd-input" style={{ width: 58, textAlign: "center" }} type="number" min="0" value={m.hs == null ? "" : m.hs} placeholder="–"
                         onChange={(e) => brUpdateMatch(m.id, { hs: e.target.value === "" ? null : +e.target.value })} />
-                      <input className="fd-input" style={{ width: 58, textAlign: "center" }} type="number" min="0" value={m.as == null ? "" : m.as} placeholder="\u2013"
+                      <input className="fd-input" style={{ width: 58, textAlign: "center" }} type="number" min="0" value={m.as == null ? "" : m.as} placeholder="–"
                         onChange={(e) => brUpdateMatch(m.id, { as: e.target.value === "" ? null : +e.target.value })} />
                       <select className="fd-select" value={m.status} onChange={(e) => brUpdateMatch(m.id, { status: e.target.value })}>
                         <option value="scheduled">scheduled</option>
