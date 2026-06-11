@@ -902,7 +902,6 @@ const prettySize = (n) => {
 
 const STORE_KEY = "followup-desk-v1";
 const LOGO_SRC = "data:image/png;base64,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";
-const BRACKET_URL = "https://bdi-bracket.vercel.app"; // change after you deploy the bracket app
 
 const STATUS_META = {
   overdue: { label: "Overdue", color: "#e06149", Icon: AlertCircle },
@@ -1095,6 +1094,41 @@ function FilePreviewModal({ file, onClose }) {
 }
 
 
+const WC_GROUPS = { A:["MEX","RSA","KOR","CZE"], B:["CAN","BIH","QAT","SUI"], C:["BRA","MAR","HAI","SCO"], D:["USA","PAR","AUS","TUR"], E:["GER","CUW","CIV","ECU"], F:["NED","JPN","SWE","TUN"], G:["BEL","EGY","IRN","NZL"], H:["ESP","CPV","KSA","URU"], I:["FRA","SEN","IRQ","NOR"], J:["ARG","ALG","AUT","JOR"], K:["POR","COD","UZB","COL"], L:["ENG","CRO","GHA","PAN"] };
+const WC_TEAMS = { MEX:["Mexico","\u{1F1F2}\u{1F1FD}"], RSA:["South Africa","\u{1F1FF}\u{1F1E6}"], KOR:["South Korea","\u{1F1F0}\u{1F1F7}"], CZE:["Czechia","\u{1F1E8}\u{1F1FF}"], CAN:["Canada","\u{1F1E8}\u{1F1E6}"], BIH:["Bosnia & Herzegovina","\u{1F1E7}\u{1F1E6}"], QAT:["Qatar","\u{1F1F6}\u{1F1E6}"], SUI:["Switzerland","\u{1F1E8}\u{1F1ED}"], BRA:["Brazil","\u{1F1E7}\u{1F1F7}"], MAR:["Morocco","\u{1F1F2}\u{1F1E6}"], HAI:["Haiti","\u{1F1ED}\u{1F1F9}"], SCO:["Scotland","\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}"], USA:["United States","\u{1F1FA}\u{1F1F8}"], PAR:["Paraguay","\u{1F1F5}\u{1F1FE}"], AUS:["Australia","\u{1F1E6}\u{1F1FA}"], TUR:["T\u00FCrkiye","\u{1F1F9}\u{1F1F7}"], GER:["Germany","\u{1F1E9}\u{1F1EA}"], CUW:["Cura\u00E7ao","\u{1F1E8}\u{1F1FC}"], CIV:["Ivory Coast","\u{1F1E8}\u{1F1EE}"], ECU:["Ecuador","\u{1F1EA}\u{1F1E8}"], NED:["Netherlands","\u{1F1F3}\u{1F1F1}"], JPN:["Japan","\u{1F1EF}\u{1F1F5}"], SWE:["Sweden","\u{1F1F8}\u{1F1EA}"], TUN:["Tunisia","\u{1F1F9}\u{1F1F3}"], BEL:["Belgium","\u{1F1E7}\u{1F1EA}"], EGY:["Egypt","\u{1F1EA}\u{1F1EC}"], IRN:["Iran","\u{1F1EE}\u{1F1F7}"], NZL:["New Zealand","\u{1F1F3}\u{1F1FF}"], ESP:["Spain","\u{1F1EA}\u{1F1F8}"], CPV:["Cape Verde","\u{1F1E8}\u{1F1FB}"], KSA:["Saudi Arabia","\u{1F1F8}\u{1F1E6}"], URU:["Uruguay","\u{1F1FA}\u{1F1FE}"], FRA:["France","\u{1F1EB}\u{1F1F7}"], SEN:["Senegal","\u{1F1F8}\u{1F1F3}"], IRQ:["Iraq","\u{1F1EE}\u{1F1F6}"], NOR:["Norway","\u{1F1F3}\u{1F1F4}"], ARG:["Argentina","\u{1F1E6}\u{1F1F7}"], ALG:["Algeria","\u{1F1E9}\u{1F1FF}"], AUT:["Austria","\u{1F1E6}\u{1F1F9}"], JOR:["Jordan","\u{1F1EF}\u{1F1F4}"], POR:["Portugal","\u{1F1F5}\u{1F1F9}"], COD:["DR Congo","\u{1F1E8}\u{1F1E9}"], UZB:["Uzbekistan","\u{1F1FA}\u{1F1FF}"], COL:["Colombia","\u{1F1E8}\u{1F1F4}"], ENG:["England","\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"], CRO:["Croatia","\u{1F1ED}\u{1F1F7}"], GHA:["Ghana","\u{1F1EC}\u{1F1ED}"], PAN:["Panama","\u{1F1F5}\u{1F1E6}"] };
+const wcLabel = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][1] + " " + WC_TEAMS[c][0] : c);
+const BR_SCORING = { group: 10, R32: 20, R16: 40, QF: 60, SF: 80, F: 100, champ: 80 };
+const BR_STAGES = [["R32", "Round of 32"], ["R16", "Round of 16"], ["QF", "Quarterfinals"], ["SF", "Semifinals"], ["F", "Final"]];
+const brOutcome = (m) => (m.status === "final" && m.hs != null && m.as != null ? (m.hs > m.as ? "H" : m.hs < m.as ? "A" : "D") : null);
+const brWinner = (m) => { const o = brOutcome(m); return o === "H" ? m.home : o === "A" ? m.away : null; };
+const brLocked = (m, globalLock) => !!globalLock || m.status !== "scheduled" || (m.kickoff && new Date(m.kickoff).getTime() <= Date.now());
+function brScore(p, matchesObj) {
+  let g = 0, b = 0, bonus = 0, finalWinner = null;
+  Object.values(matchesObj || {}).forEach((m) => {
+    if (m.stage === "group") {
+      const o = brOutcome(m);
+      if (o && p.group && p.group[m.id] === o) g += BR_SCORING.group;
+    } else {
+      const w = brWinner(m);
+      if (m.stage === "F" && w) finalWinner = w;
+      if (w && p.bracket && p.bracket[m.id] === w) b += BR_SCORING[m.stage] || 0;
+    }
+  });
+  if (p.champion && finalWinner && p.champion === finalWinner) bonus = BR_SCORING.champ;
+  return { g, b, bonus, total: g + b + bonus };
+}
+function brSeedMatches() {
+  const RR = [[0, 1], [2, 3], [0, 2], [3, 1], [3, 0], [1, 2]];
+  const out = {};
+  Object.keys(WC_GROUPS).forEach((grp) => {
+    RR.forEach((pair, i) => {
+      const id = "G" + grp + (i + 1);
+      out[id] = { id, stage: "group", group: grp, home: WC_GROUPS[grp][pair[0]], away: WC_GROUPS[grp][pair[1]], status: "scheduled", hs: null, as: null, kickoff: "" };
+    });
+  });
+  return out;
+}
+
 function CityScape() {
   const farB = [[0,190,80,130],[70,215,70,105],[150,170,90,150],[300,205,80,115],[420,180,75,140],[760,170,85,150],[860,200,60,120],[1270,185,90,135],[1370,210,70,110]];
   const nearB = [[40,235,110,85],[250,245,130,75],[820,240,140,80],[1300,250,140,70]];
@@ -1231,6 +1265,10 @@ function FollowUpDesk() {
   const [introRun, setIntroRun] = useState(0);
   const [fastIntro, setFastIntro] = useState(false);
   const [zoom, setZoom] = useState(null);
+  const [bracketView, setBracketView] = useState("picks");
+  const [brData, setBrData] = useState({ matches: {}, groupLocked: false, bracketLocked: false });
+  const [brPicksAll, setBrPicksAll] = useState({});
+  const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
   const splashRef = useRef(null);
@@ -1326,6 +1364,59 @@ function FollowUpDesk() {
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
   }, []);
+  useEffect(() => {
+    if (!cloudOn || !user) return;
+    const unsub = fbDb.collection("shared").doc("bracket").onSnapshot((snap) => {
+      if (snap.exists) {
+        try {
+          const d = JSON.parse(snap.data().data || "{}");
+          setBrData({ matches: {}, groupLocked: false, bracketLocked: false, ...d });
+        } catch (e) { console.error("bracket parse failed", e); }
+      }
+    }, (e) => console.error("bracket sync failed", e));
+    return unsub;
+  }, [cloudOn, user]);
+  useEffect(() => {
+    if (!cloudOn || !user) return;
+    const unsub = fbDb.collection("bracketPicks").onSnapshot((qs) => {
+      const o = {};
+      qs.forEach((d) => { try { o[d.id] = JSON.parse(d.data().data || "{}"); } catch (e) {} });
+      setBrPicksAll(o);
+    }, (e) => console.error("bracket picks sync failed", e));
+    return unsub;
+  }, [cloudOn, user]);
+  const myBr = (user && brPicksAll[user.uid]) || {};
+  const myBrName = myBr.name || ((user && user.email) || "").split("@")[0] || "Player";
+  const saveBracketShared = (next) => {
+    setBrData(next);
+    if (cloudOn && user) {
+      fbDb.collection("shared").doc("bracket").set({ data: JSON.stringify(next), updatedAt: Date.now() })
+        .catch((e) => { console.error("bracket save failed", e); setToast("Bracket save failed"); });
+    }
+  };
+  const saveMyBr = (patch) => {
+    if (!cloudOn || !user) return;
+    const next = { name: myBrName, ...myBr, ...patch };
+    setBrPicksAll((o) => ({ ...o, [user.uid]: next }));
+    fbDb.collection("bracketPicks").doc(user.uid).set({ data: JSON.stringify(next), email: (user.email || "").toLowerCase(), updatedAt: Date.now() })
+      .catch((e) => { console.error("pick save failed", e); setToast("Pick save failed"); });
+  };
+  const brUpdateMatch = (id, patch) => {
+    const m = { ...(brData.matches[id] || {}), ...patch };
+    saveBracketShared({ ...brData, matches: { ...brData.matches, [id]: m } });
+  };
+  const brDeleteMatch = (id) => {
+    const matches = { ...brData.matches };
+    delete matches[id];
+    saveBracketShared({ ...brData, matches });
+  };
+  const brAddKO = () => {
+    if (!brKO.home || !brKO.away || brKO.home === brKO.away) { setToast("Pick two different teams"); return; }
+    const n = Object.values(brData.matches).filter((m) => m.stage === brKO.stage).length + 1;
+    const id = brKO.stage + "-" + (n < 10 ? "0" + n : n);
+    saveBracketShared({ ...brData, matches: { ...brData.matches, [id]: { id, stage: brKO.stage, home: brKO.home, away: brKO.away, kickoff: brKO.kick || "", status: "scheduled", hs: null, as: null } } });
+    setBrKO({ stage: brKO.stage, home: "", away: "", kick: "" });
+  };
   const [authMode, setAuthMode] = useState("signin");
   const [authEmail, setAuthEmail] = useState("");
   const [authPass, setAuthPass] = useState("");
@@ -2388,10 +2479,11 @@ function FollowUpDesk() {
         <header className={"fd-head" + (section === "home" ? " hero" : "")}>
           <div>
             {section === "home" && <img ref={heroLogoRef} src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" style={{ opacity: intro ? 0 : undefined }} />}
-            {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>}
-            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
+            {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ bracket: "WORLD CUP 2026", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>}
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
+                bracket: "Pick every group match, build your knockout bracket, and battle the office for the top spot. Scores update live.",
                 home: "Everything the office runs on, one tap away. Pick where you\u2019re headed \u2014 the badges show what needs your attention.",
                 pending: "Documents you've sent out that are still awaiting a signature.",
                 deadlines: "Track time-sensitive due dates and get a heads-up as they approach.",
@@ -2446,9 +2538,11 @@ function FollowUpDesk() {
               <Grid size={15} /> {t.name}
             </button>
           ))}
-          <button className="fd-nav-btn" onClick={() => window.open(BRACKET_URL, "_blank")}>
-            <Trophy size={15} /> Bracket
-          </button>
+          {tabVisible("bracket") && (
+            <button className={"fd-nav-btn" + (section === "bracket" ? " active" : "")} onClick={() => setSection("bracket")}>
+              <Trophy size={15} /> Bracket
+            </button>
+          )}
           {uspsHasAccess && (
             <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
               <Inbox size={15} /> USPS
@@ -2540,12 +2634,14 @@ function FollowUpDesk() {
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             ))}
-            <button className="fd-launch" onClick={() => window.open(BRACKET_URL, "_blank")}>
+            {tabVisible("bracket") && (
+            <button className="fd-launch" onClick={(e) => openTab("bracket", e)}>
               <span className="fd-launch-ico"><Trophy size={20} /></span>
               <span className="fd-launch-name">Bracket Challenge</span>
               <span className="fd-launch-desc">World Cup 2026 pick’em — make your picks, climb the office leaderboard.</span>
               <span className="fd-launch-go">Play <ChevronRight size={13} /></span>
             </button>
+            )}
             {uspsHasAccess && (
               <button className="fd-launch" onClick={(e) => openTab("usps", e)}>
                 <span className="fd-launch-ico"><Inbox size={20} /></span>
@@ -3291,7 +3387,7 @@ function FollowUpDesk() {
         <>
           <div className="fd-panel">
             <div className="fd-group-head">Tab visibility <span className="fd-count">everyone</span></div>
-            {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"]].map(([k, label]) => (
+            {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"], ["bracket", "Bracket Challenge"]].map(([k, label]) => (
               <label className="fd-admin-row" key={k}>
                 <span>{label}</span>
                 <input type="checkbox" checked={tabVisible(k)} onChange={() => toggleTab(k)} />
@@ -3434,6 +3530,238 @@ function FollowUpDesk() {
             </div>
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Your added apps are saved to your account and stay private to you. The built-in apps open in a new tab — want changes to those? Just tell me.</p>
+        </>
+        )}
+
+        {section === "bracket" && (
+        <>
+          <div className="fd-subnav">
+            {[["picks", "Group picks"], ["knockout", "Knockout"], ["board", "Leaderboard"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
+              <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
+            ))}
+          </div>
+
+          {bracketView === "picks" && (
+          <>
+            {Object.keys(brData.matches).filter((id) => brData.matches[id].stage === "group").length === 0 ? (
+              <div className="fd-empty">
+                <Trophy size={28} />
+                <span>Fixtures aren\u2019t published yet.{isAdmin ? " Head to Manage to seed the 72 group matches." : " Check back soon."}</span>
+              </div>
+            ) : (
+            <div className="fd-grid">
+              {Object.keys(WC_GROUPS).map((grp) => {
+                const ms = Object.values(brData.matches).filter((m) => m.stage === "group" && m.group === grp).sort((a, b) => a.id.localeCompare(b.id));
+                if (ms.length === 0) return null;
+                return (
+                  <div className="fd-panel" key={grp} style={{ marginBottom: 0 }}>
+                    <div className="fd-panel-head">Group {grp}</div>
+                    {ms.map((m) => {
+                      const my = (myBr.group || {})[m.id];
+                      const res = brOutcome(m);
+                      const locked = brLocked(m, brData.groupLocked);
+                      const optStyle = (o) => {
+                        if (res && my === o) return my === res ? { borderColor: "var(--ok)", color: "var(--ok)", background: "rgba(76,175,125,.12)" } : { borderColor: "var(--danger)", color: "var(--danger)", background: "rgba(224,97,73,.1)" };
+                        return undefined;
+                      };
+                      return (
+                        <div key={m.id} style={{ marginBottom: 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 13.5 }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcLabel(m.home)} <span className="fd-hint">vs</span> {wcLabel(m.away)}</span>
+                            {m.status !== "scheduled" && (
+                              <span className="fd-meta" style={{ marginTop: 0, color: m.status === "live" ? "var(--danger)" : undefined }}>
+                                {(m.hs == null ? 0 : m.hs)}\u2013{(m.as == null ? 0 : m.as)}{m.status === "live" ? " LIVE" : ""}
+                              </span>
+                            )}
+                          </div>
+                          <div className="fd-seg" style={{ marginTop: 6 }}>
+                            {[["H", "Home"], ["D", "Draw"], ["A", "Away"]].map(([o, lbl]) => (
+                              <button key={o} disabled={locked}
+                                className={"fd-seg-btn" + (my === o ? " active" : "")}
+                                style={optStyle(o)}
+                                onClick={() => !locked && saveMyBr({ group: { ...(myBr.group || {}), [m.id]: o } })}>{lbl}</button>
+                            ))}
+                            {locked && m.status === "scheduled" && <span className="fd-hint" style={{ alignSelf: "center", fontSize: 11, padding: "0 6px" }}>locked</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            )}
+          </>
+          )}
+
+          {bracketView === "knockout" && (
+          <>
+            <div className="fd-panel">
+              <div className="fd-panel-head">Champion bonus <span className="fd-count">+{BR_SCORING.champ} pts</span></div>
+              <label className="fd-label">Call the trophy winner before the knockouts lock</label>
+              <select className="fd-select" value={myBr.champion || ""} disabled={!!brData.bracketLocked}
+                onChange={(e) => saveMyBr({ champion: e.target.value })}>
+                <option value="">\u2014 pick your champion \u2014</option>
+                {Object.keys(WC_TEAMS).map((c) => <option key={c} value={c}>{WC_TEAMS[c][1]} {WC_TEAMS[c][0]}</option>)}
+              </select>
+            </div>
+            {BR_STAGES.every(([k]) => Object.values(brData.matches).filter((m) => m.stage === k).length === 0) && (
+              <div className="fd-empty">
+                <Flag size={28} />
+                <span>Knockout ties appear once the Round of 32 is set after the group stage (June 27). Your champion pick is open now \u2014 R32 {BR_SCORING.R32}, R16 {BR_SCORING.R16}, QF {BR_SCORING.QF}, SF {BR_SCORING.SF}, Final {BR_SCORING.F} pts.</span>
+              </div>
+            )}
+            {BR_STAGES.map(([k, label]) => {
+              const ms = Object.values(brData.matches).filter((m) => m.stage === k).sort((a, b) => a.id.localeCompare(b.id));
+              if (ms.length === 0) return null;
+              return (
+                <div className="fd-panel" key={k}>
+                  <div className="fd-panel-head">{label} <span className="fd-count">{BR_SCORING[k]} pts each</span></div>
+                  <div className="fd-grid">
+                    {ms.map((m) => {
+                      const my = (myBr.bracket || {})[m.id];
+                      const w = brWinner(m);
+                      const locked = brLocked(m, brData.bracketLocked);
+                      const tStyle = (team) => {
+                        if (w && my === team) return my === w ? { borderColor: "var(--ok)", color: "var(--ok)", background: "rgba(76,175,125,.12)" } : { borderColor: "var(--danger)", color: "var(--danger)", background: "rgba(224,97,73,.1)" };
+                        return undefined;
+                      };
+                      return (
+                        <div key={m.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                            <span className="fd-hint" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{m.id}</span>
+                            {m.status !== "scheduled" && (
+                              <span className="fd-meta" style={{ marginTop: 0, color: m.status === "live" ? "var(--danger)" : undefined }}>
+                                {(m.hs == null ? 0 : m.hs)}\u2013{(m.as == null ? 0 : m.as)}{m.status === "live" ? " LIVE" : ""}
+                              </span>
+                            )}
+                          </div>
+                          <div className="fd-seg" style={{ width: "100%" }}>
+                            {[m.home, m.away].map((team) => (
+                              <button key={team} disabled={locked}
+                                className={"fd-seg-btn" + (my === team ? " active" : "")}
+                                style={{ flex: 1, ...(tStyle(team) || {}) }}
+                                onClick={() => !locked && saveMyBr({ bracket: { ...(myBr.bracket || {}), [m.id]: team } })}>{wcLabel(team)}</button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+          )}
+
+          {bracketView === "board" && (
+          <>
+            <div className="fd-panel">
+              <label className="fd-label">Your leaderboard name</label>
+              <input className="fd-input short" style={{ maxWidth: 220 }} key={myBrName} defaultValue={myBrName}
+                onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== myBrName) saveMyBr({ name: v }); }} />
+            </div>
+            {Object.keys(brPicksAll).length === 0 ? (
+              <div className="fd-empty"><Users size={28} /><span>No players yet \u2014 make a pick and you\u2019re on the board.</span></div>
+            ) : (
+              <div className="fd-list">
+                {Object.keys(brPicksAll)
+                  .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", s: brScore(brPicksAll[uid], brData.matches) }))
+                  .sort((a, b) => b.s.total - a.s.total || a.name.localeCompare(b.name))
+                  .map((r, i) => (
+                    <div key={r.uid} className="fd-dir-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined}>
+                      <span className="fd-ext">{i + 1}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>}</div>
+                        <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
+                          group {r.s.g} \u00B7 bracket {r.s.b} \u00B7 bonus {r.s.bonus}
+                        </div>
+                      </div>
+                      <span className="fd-ext" style={{ color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.1)" }}>{r.s.total}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </>
+          )}
+
+          {bracketView === "manage" && isAdmin && (
+          <>
+            <div className="fd-panel">
+              <div className="fd-panel-head">Setup &amp; locks</div>
+              <div className="fd-admin-toggles">
+                <button className="fd-btn ghost sm" onClick={() => { saveBracketShared({ ...brData, matches: { ...brSeedMatches(), ...brData.matches } }); setToast("72 group fixtures seeded"); }}>Seed 72 group fixtures</button>
+                <label className="fd-admin-chip">
+                  <input type="checkbox" checked={!!brData.groupLocked} onChange={() => saveBracketShared({ ...brData, groupLocked: !brData.groupLocked })} /> Lock all group picks
+                </label>
+                <label className="fd-admin-chip">
+                  <input type="checkbox" checked={!!brData.bracketLocked} onChange={() => saveBracketShared({ ...brData, bracketLocked: !brData.bracketLocked })} /> Lock bracket &amp; champion
+                </label>
+              </div>
+              <p className="fd-hint" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>Picks also auto-lock per match at kickoff (set kickoff times below) or once a match isn\u2019t \u201Cscheduled\u201D.</p>
+            </div>
+
+            <div className="fd-panel">
+              <div className="fd-panel-head">Add knockout tie</div>
+              <div className="fd-form-rows">
+                <div>
+                  <label className="fd-label">Round</label>
+                  <select className="fd-select" value={brKO.stage} onChange={(e) => setBrKO({ ...brKO, stage: e.target.value })}>
+                    {BR_STAGES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="fd-label">Home</label>
+                  <select className="fd-select" value={brKO.home} onChange={(e) => setBrKO({ ...brKO, home: e.target.value })}>
+                    <option value="">\u2014</option>
+                    {Object.keys(WC_TEAMS).map((c) => <option key={c} value={c}>{WC_TEAMS[c][1]} {WC_TEAMS[c][0]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="fd-label">Away</label>
+                  <select className="fd-select" value={brKO.away} onChange={(e) => setBrKO({ ...brKO, away: e.target.value })}>
+                    <option value="">\u2014</option>
+                    {Object.keys(WC_TEAMS).map((c) => <option key={c} value={c}>{WC_TEAMS[c][1]} {WC_TEAMS[c][0]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="fd-label">Kickoff <span className="fd-hint">optional</span></label>
+                  <input className="fd-input" type="datetime-local" value={brKO.kick} onChange={(e) => setBrKO({ ...brKO, kick: e.target.value })} />
+                </div>
+              </div>
+              <div className="fd-form-foot"><button className="fd-btn primary sm" onClick={brAddKO}>Add tie</button></div>
+            </div>
+
+            {["group"].concat(BR_STAGES.map(([k]) => k)).map((stg) => {
+              const ms = Object.values(brData.matches).filter((m) => m.stage === stg).sort((a, b) => a.id.localeCompare(b.id));
+              if (ms.length === 0) return null;
+              const label = stg === "group" ? "Group stage" : (BR_STAGES.find(([k]) => k === stg) || [])[1];
+              return (
+                <div className="fd-panel" key={stg}>
+                  <div className="fd-panel-head">{label} \u2014 scores</div>
+                  {ms.map((m) => (
+                    <div key={m.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--line)", fontSize: 13 }}>
+                      <span className="fd-hint" style={{ width: 48, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{m.id}</span>
+                      <span style={{ flex: 1, minWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcLabel(m.home)} vs {wcLabel(m.away)}</span>
+                      <input className="fd-input" style={{ width: 58, textAlign: "center" }} type="number" min="0" value={m.hs == null ? "" : m.hs} placeholder="\u2013"
+                        onChange={(e) => brUpdateMatch(m.id, { hs: e.target.value === "" ? null : +e.target.value })} />
+                      <input className="fd-input" style={{ width: 58, textAlign: "center" }} type="number" min="0" value={m.as == null ? "" : m.as} placeholder="\u2013"
+                        onChange={(e) => brUpdateMatch(m.id, { as: e.target.value === "" ? null : +e.target.value })} />
+                      <select className="fd-select" value={m.status} onChange={(e) => brUpdateMatch(m.id, { status: e.target.value })}>
+                        <option value="scheduled">scheduled</option>
+                        <option value="live">LIVE</option>
+                        <option value="final">final</option>
+                      </select>
+                      <input className="fd-input" style={{ width: 190 }} type="datetime-local" value={(m.kickoff || "").slice(0, 16)}
+                        onChange={(e) => brUpdateMatch(m.id, { kickoff: e.target.value || "" })} />
+                      {stg !== "group" && <button className="fd-link-danger" onClick={() => brDeleteMatch(m.id)}>delete</button>}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </>
+          )}
         </>
         )}
 
