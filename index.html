@@ -432,9 +432,13 @@ html,body{margin:0;padding:0;}
 .fd-head.hero::before{content:""; position:absolute; top:-60px; left:50%; transform:translateX(-50%); width:560px; height:280px; border-radius:50%;
   background:radial-gradient(closest-side, rgba(47,155,224,.14), transparent 72%); pointer-events:none; animation:fdGlow 12s ease-in-out infinite alternate;}
 .fd-head.hero .fd-kicker{justify-content:center;}
-.fd-head.hero .fd-title{font-size:46px; letter-spacing:-.028em;
+.fd-head.hero .fd-title{font-size:46px; letter-spacing:-.028em; display:flex; align-items:center; justify-content:center; gap:18px;
   background:linear-gradient(96deg, #ffffff 10%, #bcdcf2 55%, #9fc7e4 90%);
   -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:#dcebf6;}
+.fd-head.hero .fd-title::before, .fd-head.hero .fd-title::after{content:""; width:30px; height:15px; flex-shrink:0;
+  background:linear-gradient(var(--accent),var(--accent)) left/13px 100% no-repeat,
+             linear-gradient(var(--lime),var(--lime)) right/13px 100% no-repeat;
+  transform:skewX(-22deg);}
 .fd-head.hero .fd-sub{max-width:62ch; margin:0 auto;}
 .fd-head.hero .fd-head-actions{position:absolute; top:0; right:0;}
 
@@ -533,7 +537,8 @@ html,body{margin:0;padding:0;}
   .fd-head.hero .fd-title{font-size:36px;}
 }
 @media(max-width:560px){
-  .fd-head.hero .fd-title{font-size:30px;}
+  .fd-head.hero .fd-title{font-size:30px; gap:10px;}
+  .fd-head.hero .fd-title::before, .fd-head.hero .fd-title::after{width:20px; height:10px;}
   .fd-launch-grid{grid-template-columns:1fr 1fr; gap:10px;}
   .fd-launch{padding:16px 14px 13px;}
   .fd-launch-desc{display:none;}
@@ -1160,6 +1165,7 @@ function FollowUpDesk() {
   const [section, setSection] = useState("home");
   const [intro, setIntro] = useState(true);
   const [hold, setHold] = useState(true);
+  const [introRun, setIntroRun] = useState(0);
   const introStartedRef = useRef(false);
   const splashRef = useRef(null);
   const heroLogoRef = useRef(null);
@@ -1231,7 +1237,19 @@ function FollowUpDesk() {
     }, 2600);
     const t2 = setTimeout(() => setIntro(false), 3750);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [appVisible]);
+  }, [appVisible, introRun]);
+  useEffect(() => {
+    const onShow = (e) => {
+      if (e.persisted) {
+        introStartedRef.current = false;
+        setIntro(true); setHold(true);
+        setIntroRun((n) => n + 1);
+        window.scrollTo(0, 0);
+      }
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
   const [authMode, setAuthMode] = useState("signin");
   const [authEmail, setAuthEmail] = useState("");
   const [authPass, setAuthPass] = useState("");
@@ -2288,7 +2306,7 @@ function FollowUpDesk() {
         <header className={"fd-head" + (section === "home" ? " hero" : "")}>
           <div>
             {section === "home" && <img ref={heroLogoRef} src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" style={{ opacity: intro ? 0 : undefined }} />}
-            <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ home: "BDI CONSTRUCTION \u2014 INTERNAL HUB", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>
+            {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>}
             <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
