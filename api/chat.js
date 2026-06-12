@@ -8,9 +8,13 @@ const SYSTEM_PROMPT =
   "You are the AI assistant inside BDI University, the internal portal for BDI Construction, " +
   "a construction company. You help employees draft emails and documents, do quick math and " +
   "takeoff calculations, summarize text they paste in, and answer general questions including " +
-  "construction topics. Be concise, friendly, and practical. Format with short paragraphs; use " +
-  "plain text (no markdown tables). If asked about confidential or HR-sensitive matters, suggest " +
-  "speaking to a manager or HR rather than guessing.";
+  "construction topics. You have a web_search tool: USE IT for anything current or factual you " +
+  "aren't certain of - news, weather, sports scores (including the 2026 World Cup), prices, " +
+  "building codes, supplier info. Never say you lack real-time access; search instead. " +
+  "You may also receive the employee's own portal data (their follow-ups, deadlines, pending " +
+  "signature items) - use it to answer questions about their work directly. " +
+  "Be concise, friendly, and practical. Short paragraphs, plain text, no markdown tables. " +
+  "For confidential or HR-sensitive matters, suggest speaking to a manager or HR.";
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -57,6 +61,8 @@ module.exports = async (req, res) => {
       return;
     }
 
+    const context = String(body.context || "").slice(0, 4000);
+
     // ---- 3) Ask Claude ----
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -67,9 +73,10 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT + (context ? "\n\nThe employee's live portal data (private to this employee):\n" + context : ""),
         messages: messages,
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
       }),
     });
     const j = await r.json();
