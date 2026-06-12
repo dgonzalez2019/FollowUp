@@ -292,6 +292,24 @@ html,body{margin:0;padding:0;}
 .fd-admin-chip{display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line-strong); border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer; transition:border-color .15s, background .15s;}
 .fd-admin-chip:hover{border-color:var(--accent);}
 button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
+.fd-br-tie.hit{border-color:rgba(183,212,74,.55);}
+.fd-br-tie.miss{border-color:rgba(224,97,73,.5);}
+.fd-br-mark{margin-left:auto; font-weight:800; font-size:12px;}
+.fd-br-mark.ok{color:var(--lime);}
+.fd-br-slot.on .fd-br-mark.ok{color:#15330a;}
+.fd-br-mark.bad{color:var(--danger);}
+.fd-br-slot.on .fd-br-mark.bad{color:#43130a;}
+.fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
+.fd-res-day{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); padding:4px 2px 6px; border-bottom:1px solid var(--line); margin-bottom:4px;}
+.fd-res-row{display:flex; align-items:center; gap:8px; padding:7px 2px; border-bottom:1px solid var(--line); font-size:13px;}
+.fd-res-row:last-child{border-bottom:none;}
+.fd-res-team{flex:1; min-width:0; display:flex; justify-content:flex-end; text-align:right;}
+.fd-res-team.away{justify-content:flex-start; text-align:left;}
+.fd-res-score{flex:0 0 auto; min-width:60px; text-align:center; font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:13px;}
+.fd-res-score.live{color:var(--danger);}
+.fd-res-score.pre{color:var(--faint); font-weight:500; font-size:11px;}
+.fd-res-pens{font-size:10px; color:var(--muted); font-weight:500;}
+.fd-res-st{flex:0 0 26px; text-align:right; font-size:10.5px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
 .fd-live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--danger); animation:fdBeacon 1.6s ease-in-out infinite; margin-right:2px; box-shadow:0 0 8px rgba(224,97,73,.8);}
 .fd-team{display:inline-flex; align-items:center; gap:7px; min-width:0;}
 .fd-flag{width:20px; height:15px; object-fit:cover; border-radius:2.5px; flex-shrink:0; box-shadow:0 0 0 1px rgba(255,255,255,.1);}
@@ -1296,7 +1314,72 @@ function brMyBracket(myBr) {
   });
   return slots;
 }
-function brScore(p, matchesObj) {
+// ---- real-tournament reconstruction straight from the live feed (no seeding needed) ----
+function brFeedStandings(finals, grp) {
+  const teams = WC_GROUPS[grp] || [];
+  const done = finals.filter((m) => teams.indexOf(m.hc) >= 0 && teams.indexOf(m.ac) >= 0);
+  const t = {};
+  teams.forEach((c) => (t[c] = { c, p: 0, gd: 0, gf: 0 }));
+  done.forEach((m) => {
+    t[m.hc].gf += m.hs; t[m.ac].gf += m.as;
+    t[m.hc].gd += m.hs - m.as; t[m.ac].gd += m.as - m.hs;
+    if (m.hs > m.as) t[m.hc].p += 3; else if (m.hs < m.as) t[m.ac].p += 3; else { t[m.hc].p += 1; t[m.ac].p += 1; }
+  });
+  const order = Object.values(t).sort((x, y) => y.p - x.p || y.gd - x.gd || y.gf - x.gf || x.c.localeCompare(y.c));
+  return { order, complete: done.length >= 6, used: done };
+}
+function brRealInfo(allGames) {
+  const finals = (allGames || []).filter((m) => m.status === "final" && m.hs != null && m.as != null);
+  const ranks = {}, stats = {}, consumed = {};
+  let complete = true;
+  Object.keys(WC_GROUPS).forEach((grp) => {
+    const st = brFeedStandings(finals, grp);
+    ranks[grp] = st.order.map((x) => x.c);
+    stats[grp] = st.order;
+    if (!st.complete) complete = false;
+    st.used.forEach((m) => { consumed[m.id] = 1; });
+  });
+  if (!complete) return null;
+  const thirds = Object.keys(WC_GROUPS).map((grp) => ({ grp, s: stats[grp][2] }))
+    .sort((a, b) => b.s.p - a.s.p || b.s.gd - a.s.gd || b.s.gf - a.s.gf || a.grp.localeCompare(b.grp));
+  const top8 = thirds.slice(0, 8);
+  const annexRow = BR_ANNEX[top8.map((x) => x.grp).sort().join("")];
+  const thirdBySlot = {};
+  if (annexRow) BR_ANNEX_SLOTS.forEach((slotId, i) => {
+    const hit = top8.find((x) => x.grp === annexRow[i]);
+    if (hit) thirdBySlot[slotId] = hit.s.c;
+  });
+  const ko = finals.filter((m) => !consumed[m.id]);
+  const winnerOf = (m) => (m.hs > m.as ? m.hc : m.as > m.hs ? m.ac : (m.hp != null && m.ap != null ? (m.hp > m.ap ? m.hc : m.ap > m.hp ? m.ac : null) : null));
+  const resolve = (s) => {
+    if (!s.home || !s.away) return;
+    const g = ko.find((m) => (m.hc === s.home && m.ac === s.away) || (m.hc === s.away && m.ac === s.home));
+    if (g) { s.winner = winnerOf(g); s.hs = g.hc === s.home ? g.hs : g.as; s.as = g.hc === s.home ? g.as : g.hs; }
+  };
+  const slots = {};
+  BR_TPL.forEach(([id, h, a2]) => {
+    const side = (sd) => (sd[0] === "3" ? thirdBySlot[id] || null : (ranks[sd[1]] || [])[sd[0] === "1" ? 0 : 1] || null);
+    const s = { id, stage: "R32", home: side(h), away: side(a2), winner: null, hs: null, as: null };
+    resolve(s);
+    slots[id] = s;
+  });
+  BR_ROUNDS.forEach(([stg, ids]) => {
+    ids.forEach((id) => {
+      const fd = BR_TREE[id];
+      const s = { id, stage: stg, home: slots[fd[0]] ? slots[fd[0]].winner : null, away: slots[fd[1]] ? slots[fd[1]].winner : null, winner: null, hs: null, as: null };
+      resolve(s);
+      slots[id] = s;
+    });
+  });
+  const into = { R16: {}, QF: {}, SF: {}, F: {} };
+  Object.values(slots).forEach((s) => {
+    if (s.stage === "R32" || !into[s.stage]) return;
+    if (s.home) into[s.stage][s.home] = 1;
+    if (s.away) into[s.stage][s.away] = 1;
+  });
+  return { slots, into, champion: slots["M104"] ? slots["M104"].winner : null, thirds: thirdBySlot };
+}
+function brScore(p, matchesObj, realX) {
   let g = 0, t = 0, b = 0;
   let anyR32 = Object.values(matchesObj || {}).some((m) => m.stage === "R32");
   Object.keys(WC_GROUPS).forEach((grp) => {
@@ -1308,9 +1391,11 @@ function brScore(p, matchesObj) {
       else if (i < 2 && st.order.indexOf(c) >= 0 && st.order.indexOf(c) < 2) g += BR_SCORING.adv;
     });
   });
-  if (anyR32) {
-    const rt = brRealThirds(matchesObj);
-    (p.thirds || []).forEach((c) => { if (rt[c]) t += BR_SCORING.third; });
+  const realThirdSet = {};
+  if (realX) Object.keys(realX.thirds || {}).forEach((k) => { realThirdSet[realX.thirds[k]] = 1; });
+  if (anyR32 || realX) {
+    const rt = anyR32 ? brRealThirds(matchesObj) : {};
+    (p.thirds || []).forEach((c) => { if (rt[c] || realThirdSet[c]) t += BR_SCORING.third; });
   }
   const slots = brMyBracket(p);
   const mineInto = { R16: {}, QF: {}, SF: {}, F: {} };
@@ -1323,11 +1408,12 @@ function brScore(p, matchesObj) {
   });
   ["R16", "QF", "SF", "F"].forEach((stg) => {
     const real = brRealRound(matchesObj, stg);
-    Object.keys(mineInto[stg]).forEach((c) => { if (real[c]) b += BR_SCORING[stg]; });
+    const extra = (realX && realX.into[stg]) || {};
+    Object.keys(mineInto[stg]).forEach((c) => { if (real[c] || extra[c]) b += BR_SCORING[stg]; });
   });
   let champBonus = 0;
   const fm = Object.values(matchesObj || {}).find((m) => m.stage === "F");
-  const realChamp = fm ? brWinner(fm) : null;
+  const realChamp = (fm ? brWinner(fm) : null) || (realX ? realX.champion : null);
   const myChamp = slots["M104"] && slots["M104"].pick;
   if (realChamp && myChamp && realChamp === myChamp) champBonus = BR_SCORING.champ;
   return { g, t, b: b + champBonus, total: g + t + b + champBonus };
@@ -2352,64 +2438,86 @@ function FollowUpDesk() {
 
   const liveAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const [espnLive, setEspnLive] = useState({});
+  const [espnAll, setEspnAll] = useState({});
   const brDataRef = useRef(brData);
   useEffect(() => { brDataRef.current = brData; }, [brData]);
   useEffect(() => {
     if (section !== "bracket" || !appVisible) return;
     let stop = false;
     const dstr = (d) => "" + d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
-    const tick = async () => {
+    const parseEv = (ev) => {
       try {
-        const now = new Date();
-        const yd = new Date(now.getTime() - 86400000);
-        const evs = [];
-        for (const x of [dstr(yd), dstr(now)]) {
-          const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=" + x);
-          if (!r.ok) continue;
-          const j = await r.json();
-          (j.events || []).forEach((e) => evs.push(e));
-        }
-        if (stop) return;
-        const cur = brDataRef.current;
-        const pairOf = {};
-        Object.values(cur.matches || {}).forEach((m) => { pairOf[[m.home, m.away].sort().join("|")] = m.id; });
-        const next = {};
-        evs.forEach((ev) => {
-          try {
-            const comp = ev.competitions && ev.competitions[0];
-            const cs = (comp && comp.competitors) || [];
-            const h = cs.find((x) => x.homeAway === "home");
-            const aw = cs.find((x) => x.homeAway === "away");
-            if (!h || !aw) return;
-            const hc = WC_ALIAS.map[WC_ALIAS.norm(h.team && (h.team.displayName || h.team.name))];
-            const ac = WC_ALIAS.map[WC_ALIAS.norm(aw.team && (aw.team.displayName || aw.team.name))];
-            if (!hc || !ac) return;
-            const id = pairOf[[hc, ac].sort().join("|")];
-            if (!id) return;
-            const state = ev.status && ev.status.type && ev.status.type.state;
-            if (state !== "in" && state !== "post") return;
-            const our = cur.matches[id];
-            const hs = Number(hc === our.home ? h.score : aw.score);
-            const as2 = Number(hc === our.home ? aw.score : h.score);
-            next[id] = { hs: isNaN(hs) ? null : hs, as: isNaN(as2) ? null : as2, status: state === "post" ? "final" : "live" };
-          } catch (e) {}
-        });
-        setEspnLive(next);
-        if (liveAdmin) {
-          const patch = {};
-          Object.keys(next).forEach((id) => {
-            const m = cur.matches[id];
-            const o = next[id];
-            if (!m || m.status === "final") return;
-            if (m.hs !== o.hs || m.as !== o.as || m.status !== o.status) patch[id] = { ...m, ...o };
-          });
-          if (Object.keys(patch).length) saveBracketShared({ ...cur, matches: { ...cur.matches, ...patch } });
-        }
-      } catch (e) { console.error("live score fetch failed", e); }
+        const comp = ev.competitions && ev.competitions[0];
+        const cs = (comp && comp.competitors) || [];
+        const h = cs.find((x) => x.homeAway === "home");
+        const aw = cs.find((x) => x.homeAway === "away");
+        if (!h || !aw) return null;
+        const hc = WC_ALIAS.map[WC_ALIAS.norm(h.team && (h.team.displayName || h.team.name))];
+        const ac = WC_ALIAS.map[WC_ALIAS.norm(aw.team && (aw.team.displayName || aw.team.name))];
+        if (!hc || !ac) return null;
+        const state = ev.status && ev.status.type && ev.status.type.state;
+        const hs = Number(h.score), as2 = Number(aw.score);
+        return {
+          id: String(ev.id), date: ev.date || "", hc, ac,
+          hs: isNaN(hs) ? null : hs, as: isNaN(as2) ? null : as2,
+          hp: h.shootoutScore != null ? Number(h.shootoutScore) : null,
+          ap: aw.shootoutScore != null ? Number(aw.shootoutScore) : null,
+          status: state === "post" ? "final" : state === "in" ? "live" : "pre",
+          clock: (ev.status && ev.status.type && ev.status.type.shortDetail) || "",
+        };
+      } catch (e) { return null; }
     };
-    tick();
-    const iv = setInterval(tick, 45000);
-    return () => { stop = true; clearInterval(iv); };
+    const apply = (evs, wholesale) => {
+      if (stop) return;
+      const batch = {};
+      evs.forEach((ev) => { const g = parseEv(ev); if (g) batch[g.id] = g; });
+      setEspnAll((prev) => (wholesale ? batch : { ...prev, ...batch }));
+      const cur = brDataRef.current;
+      const pairOf = {};
+      Object.values(cur.matches || {}).forEach((m) => { pairOf[[m.home, m.away].sort().join("|")] = m.id; });
+      const next = {};
+      Object.values(batch).forEach((g) => {
+        if (g.status === "pre") return;
+        const id = pairOf[[g.hc, g.ac].sort().join("|")];
+        if (!id) return;
+        const our = cur.matches[id];
+        next[id] = { hs: g.hc === our.home ? g.hs : g.as, as: g.hc === our.home ? g.as : g.hs, status: g.status };
+      });
+      setEspnLive((prev) => ({ ...prev, ...next }));
+      if (liveAdmin) {
+        const patch = {};
+        Object.keys(next).forEach((id) => {
+          const m = cur.matches[id];
+          const o = next[id];
+          if (!m || m.status === "final") return;
+          if (m.hs !== o.hs || m.as !== o.as || m.status !== o.status) patch[id] = { ...m, ...o };
+        });
+        if (Object.keys(patch).length) saveBracketShared({ ...cur, matches: { ...cur.matches, ...patch } });
+      }
+    };
+    const grab = async (datesParam, wholesale) => {
+      try {
+        const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=" + datesParam);
+        if (!r.ok) return false;
+        const j = await r.json();
+        apply(j.events || [], wholesale);
+        return true;
+      } catch (e) { return false; }
+    };
+    const tickLive = async () => {
+      const now = new Date();
+      const yd = new Date(now.getTime() - 86400000);
+      await grab(dstr(yd), false);
+      await grab(dstr(now), false);
+    };
+    const tickAll = async () => {
+      const ok = await grab("20260611-20260719", true);
+      if (!ok) tickLive();
+    };
+    tickAll(); tickLive();
+    const iv1 = setInterval(tickLive, 45000);
+    const iv2 = setInterval(tickAll, 180000);
+    return () => { stop = true; clearInterval(iv1); clearInterval(iv2); };
   }, [section, appVisible, liveAdmin]);
   const brLive = useMemo(() => {
     const out = { ...(brData.matches || {}) };
@@ -2419,6 +2527,8 @@ function FollowUpDesk() {
     });
     return out;
   }, [brData, espnLive]);
+  const espnGames = useMemo(() => Object.values(espnAll).sort((a, b) => (a.date || "").localeCompare(b.date || "")), [espnAll]);
+  const brReal = useMemo(() => { try { return brRealInfo(espnGames); } catch (e) { return null; } }, [espnGames]);
 
   if (cloudOn && !authReady) {
     return <div className="fd-root"><div className="fd-auth"><div className="fd-empty">Connecting…</div></div></div>;
@@ -3891,7 +4001,7 @@ function FollowUpDesk() {
         {section === "bracket" && (
         <>
           <div className="fd-subnav">
-            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
+            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
             ))}
           </div>
@@ -3984,17 +4094,28 @@ function FollowUpDesk() {
                           <div className="fd-br-col" key={stg}>
                             <div className="fd-br-col-head">{label}</div>
                             <div className="fd-br-ties" style={{ height: COL_H }}>
-                              {list.map((m) => (
-                                <div className="fd-br-tie" key={m.id}>
-                                  {[m.home, m.away].map((team, ti) => (
-                                    <button key={ti} disabled={brData.bracketLocked || !team}
-                                      className={"fd-br-slot" + (team && m.pick === team ? " on" : "") + (!team ? " ghost" : "")}
-                                      onClick={() => pickKo(m, team)}>
-                                      {team ? wcLabel(team) : "Pick above"}
-                                    </button>
-                                  ))}
-                                </div>
-                              ))}
+                              {list.map((m) => {
+                                const rs = brReal && brReal.slots ? brReal.slots[m.id] : null;
+                                let verdict = null;
+                                if (m.pick && rs) {
+                                  if (rs.winner) verdict = rs.winner === m.pick ? "hit" : "miss";
+                                  else if (rs.home && rs.away && rs.home !== m.pick && rs.away !== m.pick) verdict = "miss";
+                                }
+                                return (
+                                  <div className={"fd-br-tie" + (verdict ? " " + verdict : "")} key={m.id}>
+                                    {[m.home, m.away].map((team, ti) => (
+                                      <button key={ti} disabled={brData.bracketLocked || !team}
+                                        className={"fd-br-slot" + (team && m.pick === team ? " on" : "") + (!team ? " ghost" : "")}
+                                        onClick={() => pickKo(m, team)}>
+                                        {team ? wcLabel(team) : "Pick above"}
+                                        {team && m.pick === team && verdict === "hit" && <span className="fd-br-mark ok">{"\u2713"}</span>}
+                                        {team && m.pick === team && verdict === "miss" && <span className="fd-br-mark bad">{"\u2715"}</span>}
+                                      </button>
+                                    ))}
+                                    {rs && rs.winner && rs.hs != null && <div className="fd-br-real">Real: {rs.home} {rs.hs}{"\u2013"}{rs.as} {rs.away}</div>}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -4046,7 +4167,7 @@ function FollowUpDesk() {
             ) : (
               <div className="fd-list">
                 {Object.keys(brPicksAll)
-                  .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", s: brScore(brPicksAll[uid], brLive) }))
+                  .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", s: brScore(brPicksAll[uid], brLive, brReal) }))
                   .sort((a, b) => b.s.total - a.s.total || a.name.localeCompare(b.name))
                   .map((r, i) => (
                     <div key={r.uid} className="fd-dir-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined}>
@@ -4063,6 +4184,39 @@ function FollowUpDesk() {
               </div>
             )}
           </>
+          )}
+
+          {bracketView === "results" && (
+            <div className="fd-panel" style={{ padding: "16px 14px" }}>
+              <div className="fd-panel-head">World Cup results <span className="fd-count">updates live</span></div>
+              {espnGames.length === 0 && <div className="fd-empty">Loading matches{"\u2026"} results appear here automatically.</div>}
+              {(() => {
+                const byDay = {};
+                espnGames.forEach((g) => {
+                  const d = g.date ? new Date(g.date) : null;
+                  const key = d ? d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : "TBD";
+                  (byDay[key] = byDay[key] || []).push(g);
+                });
+                return Object.keys(byDay).reverse().map((day) => (
+                  <div key={day} style={{ marginBottom: 14 }}>
+                    <div className="fd-res-day">{day}</div>
+                    {byDay[day].map((g) => (
+                      <div className="fd-res-row" key={g.id}>
+                        <span className="fd-res-team">{wcLabel(g.hc)}</span>
+                        <span className={"fd-res-score" + (g.status === "live" ? " live" : g.status === "pre" ? " pre" : "")}>
+                          {g.status === "pre"
+                            ? (g.date ? new Date(g.date).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "TBD")
+                            : (g.hs == null ? 0 : g.hs) + " \u2013 " + (g.as == null ? 0 : g.as)}
+                          {g.hp != null && g.ap != null && <span className="fd-res-pens"> p{g.hp}{"\u2013"}{g.ap}</span>}
+                        </span>
+                        <span className="fd-res-team away">{wcLabel(g.ac)}</span>
+                        <span className="fd-res-st">{g.status === "live" ? <span className="fd-live-dot"></span> : g.status === "final" ? "FT" : ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
           )}
 
           {bracketView === "manage" && isAdmin && (
