@@ -1781,7 +1781,7 @@ function FollowUpDesk() {
     setBrData(next);
     if (cloudOn && user) {
       fbDb.collection("shared").doc("bracket").set({ data: JSON.stringify(next), updatedAt: Date.now() })
-        .catch((e) => { console.error("bracket save failed", e); setToast("Bracket save failed" + (e && e.code ? " \u2014 " + e.code : "")); });
+        .catch((e) => { console.error("bracket save failed", e); setToast("Bracket save failed" + (e && e.code ? " — " + e.code : "")); });
     }
   };
   const saveMyBr = (patch) => {
@@ -1789,7 +1789,7 @@ function FollowUpDesk() {
     const next = { name: myBrName, ...myBr, ...patch };
     setBrPicksAll((o) => ({ ...o, [user.uid]: next }));
     fbDb.collection("bracketPicks").doc(user.uid).set({ data: JSON.stringify(next), email: (user.email || "").toLowerCase(), updatedAt: Date.now() })
-      .catch((e) => { console.error("pick save failed", e); setToast("Pick save failed" + (e && e.code ? " \u2014 " + e.code : "")); });
+      .catch((e) => { console.error("pick save failed", e); setToast("Pick save failed" + (e && e.code ? " — " + e.code : "")); });
   };
   const brUpdateMatch = (id, patch) => {
     const m = { ...(brData.matches[id] || {}), ...patch };
@@ -2465,6 +2465,24 @@ function FollowUpDesk() {
   const [aiBusy, setAiBusy] = useState(false);
   const aiEndRef = useRef(null);
   useEffect(() => { if (aiEndRef.current && section === "assistant") aiEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" }); }, [aiMsgs, aiBusy, section]);
+  const aiContext = () => {
+    try {
+      const lines = ["Today: " + new Date().toDateString()];
+      const fu = followups.filter((f) => f.status !== "done").slice(0, 25);
+      if (fu.length) {
+        lines.push("", "Open follow-ups (" + fu.length + "):");
+        fu.forEach((f) => {
+          const s = getStatus(f) || {};
+          lines.push("- " + (f.company || f.name || f.email || "?") + (f.name && f.company ? " / " + f.name : "") + (s.due ? " | next contact due " + s.due : "") + (s.key ? " | " + s.key : ""));
+        });
+      }
+      const dl = deadlines.slice(0, 15);
+      if (dl.length) { lines.push("", "Deadlines:"); dl.forEach((d) => lines.push("- " + d.title + " | due " + d.dueDate)); }
+      const pd = pending.slice(0, 15);
+      if (pd.length) { lines.push("", "Pending signature items:"); pd.forEach((p) => lines.push("- " + p.title + (p.sentTo ? " | sent to " + p.sentTo : "") + (p.dateSent ? " | " + p.dateSent : ""))); }
+      return lines.join("\n").slice(0, 4000);
+    } catch (e) { return ""; }
+  };
   const sendAi = async () => {
     const text = aiInput.trim();
     if (!text || aiBusy) return;
@@ -2472,12 +2490,12 @@ function FollowUpDesk() {
     setAiMsgs(msgs); setAiInput(""); setAiBusy(true);
     try {
       const idToken = fbAuth && fbAuth.currentUser ? await fbAuth.currentUser.getIdToken() : null;
-      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, messages: msgs.slice(-16) }) });
+      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, context: aiContext(), messages: msgs.slice(-16) }) });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || j.error) setAiMsgs([...msgs, { role: "assistant", content: "Sorry \u2014 " + (j.error || "the assistant is unavailable right now.") }]);
+      if (!r.ok || j.error) setAiMsgs([...msgs, { role: "assistant", content: "Sorry — " + (j.error || "the assistant is unavailable right now.") }]);
       else setAiMsgs([...msgs, { role: "assistant", content: j.text || "(no response)" }]);
     } catch (e) {
-      setAiMsgs([...msgs, { role: "assistant", content: "Sorry \u2014 I couldn't reach the assistant. Try again in a moment." }]);
+      setAiMsgs([...msgs, { role: "assistant", content: "Sorry — I couldn't reach the assistant. Try again in a moment." }]);
     }
     setAiBusy(false);
   };
@@ -3158,7 +3176,7 @@ function FollowUpDesk() {
               <button className="fd-launch" onClick={(e) => openTab("assistant", e)}>
                 <span className="fd-launch-ico"><Sparkle size={20} /></span>
                 <span className="fd-launch-name">AI Assistant</span>
-                <span className="fd-launch-desc">Draft emails, crunch numbers, get quick answers \u2014 powered by Claude.</span>
+                <span className="fd-launch-desc">Draft emails, crunch numbers, get quick answers — powered by Claude.</span>
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
@@ -4058,14 +4076,14 @@ function FollowUpDesk() {
             <div className="fd-head-row">
               <div>
                 <h2 className="fd-h2"><Sparkle size={18} /> AI Assistant</h2>
-                <p className="fd-sub">Powered by Claude. Drafting, math, summaries, construction questions \u2014 ask away.</p>
+                <p className="fd-sub">Powered by Claude with live web search. Drafting, math, your follow-ups, current scores and news — ask away.</p>
               </div>
             </div>
             <div className="fd-panel" style={{ display: "flex", flexDirection: "column", height: "min(64vh, 680px)" }}>
               <div className="fd-ai-scroll">
                 {aiMsgs.length === 0 && (
                   <div className="fd-empty" style={{ margin: "auto 0" }}>
-                    Ask me anything \u2014 draft an email, summarize something you paste in, check takeoff math, or get a quick answer.
+                    Ask me anything — draft an email, summarize something you paste in, check takeoff math, or get a quick answer.
                   </div>
                 )}
                 {aiMsgs.map((m, i) => (
@@ -4075,12 +4093,12 @@ function FollowUpDesk() {
                 <div ref={aiEndRef}></div>
               </div>
               <div className="fd-ai-bar">
-                <textarea className="fd-ai-input" rows={1} placeholder="Message the assistant\u2026" value={aiInput}
+                <textarea className="fd-ai-input" rows={1} placeholder="Message the assistant…" value={aiInput}
                   onChange={(e) => setAiInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAi(); } }} />
                 <button className="fd-btn primary" disabled={aiBusy || !aiInput.trim()} onClick={sendAi} style={{ padding: "11px 16px" }}><Send size={15} /></button>
               </div>
-              <p className="fd-hint" style={{ fontSize: 11, margin: "8px 2px 0" }}>Chats clear when you leave this page. Don't paste anything you wouldn't put in an email.</p>
+              <p className="fd-hint" style={{ fontSize: 11, margin: "8px 2px 0" }}>It can see your own follow-ups, deadlines, and pending items, and can search the web for current info. Chats clear when you leave this page.</p>
             </div>
           </div>
         )}
@@ -4144,7 +4162,7 @@ function FollowUpDesk() {
                   onClick={() => { setBracketView("knockout"); window.scrollTo(0, 0); }}>
                   Save Picks
                 </button>
-                <p className="fd-hint" style={{ fontSize: 12, marginTop: 8 }}>Your picks save automatically as you go \u2014 next: choose your knockout winners.</p>
+                <p className="fd-hint" style={{ fontSize: 12, marginTop: 8 }}>Your picks save automatically as you go — next: choose your knockout winners.</p>
               </div>
             )}
           </>
@@ -4195,11 +4213,11 @@ function FollowUpDesk() {
                                         className={"fd-br-slot" + (team && m.pick === team ? " on" : "") + (!team ? " ghost" : "")}
                                         onClick={() => pickKo(m, team)}>
                                         {team ? wcLabel(team) : "Pick above"}
-                                        {team && m.pick === team && verdict === "hit" && <span className="fd-br-mark ok">{"\u2713"}</span>}
-                                        {team && m.pick === team && verdict === "miss" && <span className="fd-br-mark bad">{"\u2715"}</span>}
+                                        {team && m.pick === team && verdict === "hit" && <span className="fd-br-mark ok">{"✓"}</span>}
+                                        {team && m.pick === team && verdict === "miss" && <span className="fd-br-mark bad">{"✕"}</span>}
                                       </button>
                                     ))}
-                                    {rs && rs.winner && rs.hs != null && <div className="fd-br-real">Real: {rs.home} {rs.hs}{"\u2013"}{rs.as} {rs.away}</div>}
+                                    {rs && rs.winner && rs.hs != null && <div className="fd-br-real">Real: {rs.home} {rs.hs}{"–"}{rs.as} {rs.away}</div>}
                                   </div>
                                 );
                               })}
@@ -4212,7 +4230,7 @@ function FollowUpDesk() {
                         <div className="fd-br-ties" style={{ height: COL_H }}>
                           <div className="fd-br-tie" style={{ borderColor: "rgba(183,212,74,.5)", boxShadow: "0 0 22px rgba(183,212,74,.12)" }}>
                             <div className="fd-br-slot" style={{ color: "var(--lime)", fontWeight: 700, cursor: "default" }}>
-                              {slots["M104"].pick ? wcLabel(slots["M104"].pick) : "\u2014 pick your final \u2014"}
+                              {slots["M104"].pick ? wcLabel(slots["M104"].pick) : "— pick your final —"}
                             </div>
                           </div>
                         </div>
@@ -4238,7 +4256,7 @@ function FollowUpDesk() {
                   {live.map((m) => (
                     <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "7px 0", borderBottom: "1px solid var(--line)", fontSize: 13.5 }}>
                       <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>{wcLabel(m.home)} <span className="fd-hint">vs</span> {wcLabel(m.away)}</span>
-                      <span className="fd-meta" style={{ marginTop: 0, color: "var(--danger)", fontWeight: 700 }}>{m.hs == null ? 0 : m.hs}\u2013{m.as == null ? 0 : m.as}</span>
+                      <span className="fd-meta" style={{ marginTop: 0, color: "var(--danger)", fontWeight: 700 }}>{m.hs == null ? 0 : m.hs}–{m.as == null ? 0 : m.as}</span>
                     </div>
                   ))}
                 </div>
@@ -4296,12 +4314,12 @@ function FollowUpDesk() {
                 return (
                   <>
                     <div className="fd-res-nav">
-                      <button className="fd-res-arrow" disabled={!canPrev} onClick={() => shift(-1)} aria-label="Previous day">{"\u2039"}</button>
+                      <button className="fd-res-arrow" disabled={!canPrev} onClick={() => shift(-1)} aria-label="Previous day">{"‹"}</button>
                       <div className="fd-res-title">
                         {day.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
                         <div className="fd-hint" style={{ fontSize: 11, marginTop: 2 }}>{todays.length === 0 ? "no matches" : todays.length + (todays.length === 1 ? " match" : " matches")}</div>
                       </div>
-                      <button className="fd-res-arrow" disabled={!canNext} onClick={() => shift(1)} aria-label="Next day">{"\u203a"}</button>
+                      <button className="fd-res-arrow" disabled={!canNext} onClick={() => shift(1)} aria-label="Next day">{"›"}</button>
                     </div>
                     {!isToday && (
                       <div style={{ textAlign: "center", marginBottom: 10 }}>
@@ -4318,8 +4336,8 @@ function FollowUpDesk() {
                         <span className={"fd-res-score" + (g.status === "live" ? " live" : g.status === "pre" ? " pre" : "")}>
                           {g.status === "pre"
                             ? (g.date ? new Date(g.date).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "TBD")
-                            : (g.hs == null ? 0 : g.hs) + " \u2013 " + (g.as == null ? 0 : g.as)}
-                          {g.hp != null && g.ap != null && <span className="fd-res-pens"> p{g.hp}{"\u2013"}{g.ap}</span>}
+                            : (g.hs == null ? 0 : g.hs) + " – " + (g.as == null ? 0 : g.as)}
+                          {g.hp != null && g.ap != null && <span className="fd-res-pens"> p{g.hp}{"–"}{g.ap}</span>}
                         </span>
                         <span className="fd-res-team away">{wcLabel(g.ac)}</span>
                         <span className="fd-res-st">{g.status === "live" ? <span className="fd-live-dot"></span> : g.status === "final" ? "FT" : ""}</span>
