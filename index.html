@@ -300,6 +300,17 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-br-mark.bad{color:var(--danger);}
 .fd-br-slot.on .fd-br-mark.bad{color:#43130a;}
 .fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
+.fd-ai-scroll{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px 2px 12px; -webkit-overflow-scrolling:touch;}
+.fd-ai-msg{max-width:85%; align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-radius:12px 12px 12px 4px; padding:10px 13px; font-size:13.5px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
+.fd-ai-msg.me{align-self:flex-end; background:var(--accent); color:#06121c; border-color:transparent; border-radius:12px 12px 4px 12px; font-weight:500;}
+.fd-ai-bar{display:flex; gap:8px; align-items:flex-end; border-top:1px solid var(--line); padding-top:10px;}
+.fd-ai-input{flex:1; resize:none; background:var(--surface-2); border:1px solid var(--line-strong); border-radius:10px; color:var(--ink); padding:11px 12px; font-size:13.5px; font-family:inherit; min-height:42px; max-height:130px;}
+.fd-ai-input:focus{outline:none; border-color:var(--accent);}
+.fd-ai-dots{display:inline-flex; gap:4px; padding:2px 0;}
+.fd-ai-dots span{width:6px; height:6px; border-radius:50%; background:var(--muted); animation:fdAiB 1.2s ease-in-out infinite;}
+.fd-ai-dots span:nth-child(2){animation-delay:.15s;}
+.fd-ai-dots span:nth-child(3){animation-delay:.3s;}
+@keyframes fdAiB{0%,60%,100%{opacity:.25; transform:translateY(0);}30%{opacity:1; transform:translateY(-3px);}}
 .fd-res-nav{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
 .fd-res-arrow{width:40px; height:40px; border-radius:10px; border:1px solid var(--line-strong); background:var(--surface-2); color:var(--ink); font-size:22px; cursor:pointer; font-family:inherit; line-height:1; flex-shrink:0;}
 .fd-res-arrow:hover:not(:disabled){border-color:var(--accent); color:var(--accent);}
@@ -688,6 +699,7 @@ const SettingsIcon = (p) => <Svg {...p}><line x1="4" y1="21" x2="4" y2="14"/><li
 const X = (p) => <Svg {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Svg>;
 const RotateCcw = (p) => <Svg {...p}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></Svg>;
 const Inbox = (p) => <Svg {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></Svg>;
+const Sparkle = (p) => <Svg {...p}><path d="M12 3l1.9 5.7a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-2a2 2 0 0 0 1.3-1.3z"/></Svg>;
 const Send = (p) => <Svg {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></Svg>;
 const LogOut = (p) => <Svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Svg>;
 const FileText = (p) => <Svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></Svg>;
@@ -2448,6 +2460,27 @@ function FollowUpDesk() {
   const [espnLive, setEspnLive] = useState({});
   const [espnAll, setEspnAll] = useState({});
   const [resDay, setResDay] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
+  const [aiMsgs, setAiMsgs] = useState([]);
+  const [aiInput, setAiInput] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const aiEndRef = useRef(null);
+  useEffect(() => { if (aiEndRef.current && section === "assistant") aiEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" }); }, [aiMsgs, aiBusy, section]);
+  const sendAi = async () => {
+    const text = aiInput.trim();
+    if (!text || aiBusy) return;
+    const msgs = [...aiMsgs, { role: "user", content: text }];
+    setAiMsgs(msgs); setAiInput(""); setAiBusy(true);
+    try {
+      const idToken = fbAuth && fbAuth.currentUser ? await fbAuth.currentUser.getIdToken() : null;
+      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, messages: msgs.slice(-16) }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) setAiMsgs([...msgs, { role: "assistant", content: "Sorry \u2014 " + (j.error || "the assistant is unavailable right now.") }]);
+      else setAiMsgs([...msgs, { role: "assistant", content: j.text || "(no response)" }]);
+    } catch (e) {
+      setAiMsgs([...msgs, { role: "assistant", content: "Sorry \u2014 I couldn't reach the assistant. Try again in a moment." }]);
+    }
+    setAiBusy(false);
+  };
   const brDataRef = useRef(brData);
   useEffect(() => { brDataRef.current = brData; }, [brData]);
   useEffect(() => {
@@ -3017,6 +3050,11 @@ function FollowUpDesk() {
               <Trophy size={15} /> Bracket
             </button>
           )}
+          {tabVisible("assistant") && (
+            <button className={"fd-nav-btn" + (section === "assistant" ? " active" : "")} onClick={() => setSection("assistant")}>
+              <Sparkle size={15} /> Assistant
+            </button>
+          )}
           {uspsHasAccess && (
             <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
               <Inbox size={15} /> USPS
@@ -3115,6 +3153,14 @@ function FollowUpDesk() {
               <span className="fd-launch-desc">World Cup 2026 pick’em — make your picks, climb the office leaderboard.</span>
               <span className="fd-launch-go">Play <ChevronRight size={13} /></span>
             </button>
+            )}
+            {tabVisible("assistant") && (
+              <button className="fd-launch" onClick={(e) => openTab("assistant", e)}>
+                <span className="fd-launch-ico"><Sparkle size={20} /></span>
+                <span className="fd-launch-name">AI Assistant</span>
+                <span className="fd-launch-desc">Draft emails, crunch numbers, get quick answers \u2014 powered by Claude.</span>
+                <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
+              </button>
             )}
             {uspsHasAccess && (
               <button className="fd-launch" onClick={(e) => openTab("usps", e)}>
@@ -3861,7 +3907,7 @@ function FollowUpDesk() {
         <>
           <div className="fd-panel">
             <div className="fd-group-head">Tab visibility <span className="fd-count">everyone</span></div>
-            {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"], ["bracket", "Bracket Challenge"]].map(([k, label]) => (
+            {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"], ["bracket", "Bracket Challenge"], ["assistant", "AI Assistant"]].map(([k, label]) => (
               <label className="fd-admin-row" key={k}>
                 <span>{label}</span>
                 <input type="checkbox" checked={tabVisible(k)} onChange={() => toggleTab(k)} />
@@ -4005,6 +4051,38 @@ function FollowUpDesk() {
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Your added apps are saved to your account and stay private to you. The built-in apps open in a new tab — want changes to those? Just tell me.</p>
         </>
+        )}
+
+        {section === "assistant" && tabVisible("assistant") && (
+          <div className="fd-section">
+            <div className="fd-head-row">
+              <div>
+                <h2 className="fd-h2"><Sparkle size={18} /> AI Assistant</h2>
+                <p className="fd-sub">Powered by Claude. Drafting, math, summaries, construction questions \u2014 ask away.</p>
+              </div>
+            </div>
+            <div className="fd-panel" style={{ display: "flex", flexDirection: "column", height: "min(64vh, 680px)" }}>
+              <div className="fd-ai-scroll">
+                {aiMsgs.length === 0 && (
+                  <div className="fd-empty" style={{ margin: "auto 0" }}>
+                    Ask me anything \u2014 draft an email, summarize something you paste in, check takeoff math, or get a quick answer.
+                  </div>
+                )}
+                {aiMsgs.map((m, i) => (
+                  <div key={i} className={"fd-ai-msg" + (m.role === "user" ? " me" : "")}>{m.content}</div>
+                ))}
+                {aiBusy && <div className="fd-ai-msg"><span className="fd-ai-dots"><span></span><span></span><span></span></span></div>}
+                <div ref={aiEndRef}></div>
+              </div>
+              <div className="fd-ai-bar">
+                <textarea className="fd-ai-input" rows={1} placeholder="Message the assistant\u2026" value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAi(); } }} />
+                <button className="fd-btn primary" disabled={aiBusy || !aiInput.trim()} onClick={sendAi} style={{ padding: "11px 16px" }}><Send size={15} /></button>
+              </div>
+              <p className="fd-hint" style={{ fontSize: 11, margin: "8px 2px 0" }}>Chats clear when you leave this page. Don't paste anything you wouldn't put in an email.</p>
+            </div>
+          </div>
         )}
 
         {section === "bracket" && (
