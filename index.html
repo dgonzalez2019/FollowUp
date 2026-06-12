@@ -300,6 +300,11 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-br-mark.bad{color:var(--danger);}
 .fd-br-slot.on .fd-br-mark.bad{color:#43130a;}
 .fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
+.fd-res-nav{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+.fd-res-arrow{width:40px; height:40px; border-radius:10px; border:1px solid var(--line-strong); background:var(--surface-2); color:var(--ink); font-size:22px; cursor:pointer; font-family:inherit; line-height:1; flex-shrink:0;}
+.fd-res-arrow:hover:not(:disabled){border-color:var(--accent); color:var(--accent);}
+.fd-res-arrow:disabled{opacity:.3; cursor:default;}
+.fd-res-title{flex:1; text-align:center; font-weight:700; font-size:14.5px;}
 .fd-res-day{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); padding:4px 2px 6px; border-bottom:1px solid var(--line); margin-bottom:4px;}
 .fd-res-row{display:flex; align-items:center; gap:8px; padding:7px 2px; border-bottom:1px solid var(--line); font-size:13px;}
 .fd-res-row:last-child{border-bottom:none;}
@@ -2439,6 +2444,7 @@ function FollowUpDesk() {
   const liveAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const [espnLive, setEspnLive] = useState({});
   const [espnAll, setEspnAll] = useState({});
+  const [resDay, setResDay] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const brDataRef = useRef(brData);
   useEffect(() => { brDataRef.current = brData; }, [brData]);
   useEffect(() => {
@@ -4188,19 +4194,44 @@ function FollowUpDesk() {
 
           {bracketView === "results" && (
             <div className="fd-panel" style={{ padding: "16px 14px" }}>
-              <div className="fd-panel-head">World Cup results <span className="fd-count">updates live</span></div>
-              {espnGames.length === 0 && <div className="fd-empty">Loading matches{"\u2026"} results appear here automatically.</div>}
               {(() => {
-                const byDay = {};
-                espnGames.forEach((g) => {
-                  const d = g.date ? new Date(g.date) : null;
-                  const key = d ? d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : "TBD";
-                  (byDay[key] = byDay[key] || []).push(g);
-                });
-                return Object.keys(byDay).reverse().map((day) => (
-                  <div key={day} style={{ marginBottom: 14 }}>
-                    <div className="fd-res-day">{day}</div>
-                    {byDay[day].map((g) => (
+                const MIN = new Date(2026, 5, 11), MAX = new Date(2026, 6, 19);
+                const day = resDay < MIN ? MIN : resDay > MAX ? MAX : resDay;
+                const shift = (n) => {
+                  const d = new Date(day.getTime() + n * 86400000);
+                  d.setHours(0, 0, 0, 0);
+                  if (d >= MIN && d <= MAX) setResDay(d);
+                };
+                const sameDay = (iso) => {
+                  if (!iso) return false;
+                  const d = new Date(iso);
+                  return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate();
+                };
+                const todays = espnGames.filter((g) => sameDay(g.date));
+                const canPrev = day.getTime() - 86400000 >= MIN.getTime();
+                const canNext = day.getTime() + 86400000 <= MAX.getTime();
+                const now = new Date();
+                const isToday = now.getFullYear() === day.getFullYear() && now.getMonth() === day.getMonth() && now.getDate() === day.getDate();
+                return (
+                  <>
+                    <div className="fd-res-nav">
+                      <button className="fd-res-arrow" disabled={!canPrev} onClick={() => shift(-1)} aria-label="Previous day">{"\u2039"}</button>
+                      <div className="fd-res-title">
+                        {day.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+                        <div className="fd-hint" style={{ fontSize: 11, marginTop: 2 }}>{todays.length === 0 ? "no matches" : todays.length + (todays.length === 1 ? " match" : " matches")}</div>
+                      </div>
+                      <button className="fd-res-arrow" disabled={!canNext} onClick={() => shift(1)} aria-label="Next day">{"\u203a"}</button>
+                    </div>
+                    {!isToday && (
+                      <div style={{ textAlign: "center", marginBottom: 10 }}>
+                        <button style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+                          onClick={() => { const d = new Date(); d.setHours(0, 0, 0, 0); setResDay(d < MIN ? MIN : d > MAX ? MAX : d); }}>
+                          Jump to today
+                        </button>
+                      </div>
+                    )}
+                    {todays.length === 0 && <div className="fd-empty">No World Cup matches on this day.</div>}
+                    {todays.map((g) => (
                       <div className="fd-res-row" key={g.id}>
                         <span className="fd-res-team">{wcLabel(g.hc)}</span>
                         <span className={"fd-res-score" + (g.status === "live" ? " live" : g.status === "pre" ? " pre" : "")}>
@@ -4213,8 +4244,8 @@ function FollowUpDesk() {
                         <span className="fd-res-st">{g.status === "live" ? <span className="fd-live-dot"></span> : g.status === "final" ? "FT" : ""}</span>
                       </div>
                     ))}
-                  </div>
-                ));
+                  </>
+                );
               })()}
             </div>
           )}
