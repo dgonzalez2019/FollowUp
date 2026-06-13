@@ -300,6 +300,22 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-br-mark.bad{color:var(--danger);}
 .fd-br-slot.on .fd-br-mark.bad{color:#43130a;}
 .fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
+.fd-lb-row{cursor:pointer; text-align:left; width:100%; font-family:inherit;}
+.fd-lb-row:hover{border-color:var(--accent) !important;}
+.fd-lb-modal{max-width:min(94vw, 920px); width:100%;}
+.fd-lb-sec{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); margin:16px 2px 8px;}
+.fd-lb-sec:first-child{margin-top:2px;}
+.fd-lb-groups{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px;}
+.fd-lb-grp{border:1px solid var(--line); border-radius:10px; padding:9px 10px; background:var(--surface-2);}
+.fd-lb-grp-h{font-weight:700; font-size:12px; color:var(--muted); margin-bottom:6px;}
+.fd-lb-team{display:flex; align-items:center; gap:6px; font-size:12.5px; padding:3px 0;}
+.fd-lb-pos{width:16px; height:16px; border-radius:4px; background:var(--surface-3); color:var(--muted); font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-family:'IBM Plex Mono',monospace;}
+.fd-lb-team.hit .fd-lb-pos{background:rgba(183,212,74,.2); color:var(--lime);}
+.fd-lb-team.miss .fd-lb-pos{background:rgba(224,97,73,.18); color:var(--danger);}
+.fd-lb-thirds{display:flex; flex-wrap:wrap; gap:6px;}
+.fd-lb-chip{display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line-strong); border-radius:20px; padding:5px 11px; font-size:12.5px; background:var(--surface-2);}
+.fd-lb-chip.hit{border-color:rgba(183,212,74,.55); background:rgba(183,212,74,.1);}
+.fd-lb-chip.miss{border-color:rgba(224,97,73,.4); opacity:.65;}
 .fd-ai-scroll{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px 2px 12px; -webkit-overflow-scrolling:touch;}
 .fd-ai-msg{max-width:85%; align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-radius:12px 12px 12px 4px; padding:10px 13px; font-size:13.5px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
 .fd-ai-msg.me{align-self:flex-end; background:var(--accent); color:#06121c; border-color:transparent; border-radius:12px 12px 4px 12px; font-weight:500;}
@@ -1397,7 +1413,7 @@ function brRealInfo(allGames) {
     if (s.home) into[s.stage][s.home] = 1;
     if (s.away) into[s.stage][s.away] = 1;
   });
-  return { slots, into, champion: slots["M104"] ? slots["M104"].winner : null, thirds: thirdBySlot };
+  return { slots, into, champion: slots["M104"] ? slots["M104"].winner : null, thirds: thirdBySlot, ranks: ranks };
 }
 function brScore(p, matchesObj, realX) {
   let g = 0, t = 0, b = 0;
@@ -2460,6 +2476,7 @@ function FollowUpDesk() {
   const [espnLive, setEspnLive] = useState({});
   const [espnAll, setEspnAll] = useState({});
   const [resDay, setResDay] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
+  const [lbView, setLbView] = useState(null);
   const [aiMsgs, setAiMsgs] = useState([]);
   const [aiInput, setAiInput] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -4275,19 +4292,109 @@ function FollowUpDesk() {
                   .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", s: brScore(brPicksAll[uid], brLive, brReal) }))
                   .sort((a, b) => b.s.total - a.s.total || a.name.localeCompare(b.name))
                   .map((r, i) => (
-                    <div key={r.uid} className="fd-dir-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined}>
+                    <button key={r.uid} className="fd-dir-row fd-lb-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined} onClick={() => setLbView(r.uid)}>
                       <span className="fd-ext">{i + 1}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>}</div>
+                        <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>} <ChevronRight size={13} style={{ opacity: .5, verticalAlign: "middle" }} /></div>
                         <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
                           groups {r.s.g} · thirds {r.s.t} · bracket {r.s.b}
                         </div>
                       </div>
                       <span className="fd-ext" style={{ color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.1)" }}>{r.s.total}</span>
-                    </div>
+                    </button>
                   ))}
               </div>
             )}
+            {lbView && brPicksAll[lbView] && (() => {
+              const p = brPicksAll[lbView];
+              const slots = brMyBracket(p);
+              const sc = brScore(p, brLive, brReal);
+              const grpName = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][0] : c);
+              return (
+                <div className="fd-modal-wrap" onClick={() => setLbView(null)}>
+                  <div className="fd-modal fd-lb-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="fd-modal-head">
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16 }}>{p.name || "Player"}{user && lbView === user.uid && <span className="fd-count">you</span>}</div>
+                        <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                          {sc.total} pts · groups {sc.g} · thirds {sc.t} · bracket {sc.b}
+                        </div>
+                      </div>
+                      <button className="fd-icon-btn" onClick={() => setLbView(null)} title="Close"><X size={18} /></button>
+                    </div>
+                    <div className="fd-modal-body" style={{ display: "block", textAlign: "left", overflow: "auto" }}>
+                      <div className="fd-lb-sec">Group predictions</div>
+                      <div className="fd-lb-groups">
+                        {Object.keys(WC_GROUPS).map((g) => (
+                          <div className="fd-lb-grp" key={g}>
+                            <div className="fd-lb-grp-h">Group {g}</div>
+                            {brRankOf(p, g).map((c, idx) => {
+                              const realRank = brReal && brReal.ranks ? (brReal.ranks[g] || []).indexOf(c) : -1;
+                              const ok = realRank === idx;
+                              return (
+                                <div className={"fd-lb-team" + (brReal && brReal.ranks && brReal.ranks[g] ? (ok ? " hit" : " miss") : "")} key={c}>
+                                  <span className="fd-lb-pos">{idx + 1}</span>{wcLabel(c)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="fd-lb-sec">Best-thirds picks <span className="fd-count">{(p.thirds || []).length}/8</span></div>
+                      <div className="fd-lb-thirds">
+                        {(p.thirds || []).length === 0 ? <span className="fd-hint">No thirds chosen yet.</span> :
+                          (p.thirds || []).map((c) => {
+                            const real = brReal && brReal.thirds ? Object.values(brReal.thirds).indexOf(c) >= 0 : null;
+                            return <span className={"fd-lb-chip" + (real === true ? " hit" : real === false ? " miss" : "")} key={c}>{wcLabel(c)}</span>;
+                          })}
+                      </div>
+                      <div className="fd-lb-sec">Knockout bracket</div>
+                      <div className="fd-bracket">
+                        {BR_STAGES.map(([stg, label]) => {
+                          const list = (BR_ORDER[stg] || []).map((id) => slots[id]).filter(Boolean);
+                          return (
+                            <div className="fd-br-col" key={stg}>
+                              <div className="fd-br-col-head">{label}</div>
+                              <div className="fd-br-ties" style={{ height: 16 * 88 }}>
+                                {list.map((m) => {
+                                  const rs = brReal && brReal.slots ? brReal.slots[m.id] : null;
+                                  let verdict = null;
+                                  if (m.pick && rs) {
+                                    if (rs.winner) verdict = rs.winner === m.pick ? "hit" : "miss";
+                                    else if (rs.home && rs.away && rs.home !== m.pick && rs.away !== m.pick) verdict = "miss";
+                                  }
+                                  return (
+                                    <div className={"fd-br-tie" + (verdict ? " " + verdict : "")} key={m.id}>
+                                      {[m.home, m.away].map((team, ti) => (
+                                        <div key={ti} className={"fd-br-slot" + (team && m.pick === team ? " on" : "") + (!team ? " ghost" : "")} style={{ cursor: "default" }}>
+                                          {team ? wcLabel(team) : "—"}
+                                          {team && m.pick === team && verdict === "hit" && <span className="fd-br-mark ok">{"✓"}</span>}
+                                          {team && m.pick === team && verdict === "miss" && <span className="fd-br-mark bad">{"✕"}</span>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="fd-br-col" key="champ">
+                          <div className="fd-br-col-head">Champion</div>
+                          <div className="fd-br-ties" style={{ height: 16 * 88 }}>
+                            <div className="fd-br-tie" style={{ borderColor: "rgba(183,212,74,.5)" }}>
+                              <div className="fd-br-slot" style={{ color: "var(--lime)", fontWeight: 700, cursor: "default" }}>
+                                {slots["M104"].pick ? wcLabel(slots["M104"].pick) : "—"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </>
           )}
 
