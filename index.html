@@ -302,7 +302,9 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
 .fd-lb-row{cursor:pointer; text-align:left; width:100%; font-family:inherit;}
 .fd-lb-row:hover{border-color:var(--accent) !important;}
-.fd-lb-modal{max-width:min(94vw, 920px); width:100%;}
+.fd-lb-modal{max-width:min(94vw, 920px); width:100%; max-height:88vh;}
+.fd-lb-modal .fd-modal-body{display:block; align-items:stretch; justify-content:flex-start; background:var(--surface); padding:14px 16px; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
+.fd-lb-modal .fd-bracket{overscroll-behavior-x:contain;}
 .fd-lb-sec{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); margin:16px 2px 8px;}
 .fd-lb-sec:first-child{margin-top:2px;}
 .fd-lb-groups{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px;}
@@ -2477,6 +2479,12 @@ function FollowUpDesk() {
   const [espnAll, setEspnAll] = useState({});
   const [resDay, setResDay] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const [lbView, setLbView] = useState(null);
+  useEffect(() => {
+    if (!lbView) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [lbView]);
   const [aiMsgs, setAiMsgs] = useState([]);
   const [aiInput, setAiInput] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -4311,8 +4319,8 @@ function FollowUpDesk() {
               const sc = brScore(p, brLive, brReal);
               const grpName = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][0] : c);
               return (
-                <div className="fd-modal-wrap" onClick={() => setLbView(null)}>
-                  <div className="fd-modal fd-lb-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="fd-modal" onClick={() => setLbView(null)}>
+                  <div className="fd-modal-box fd-lb-modal" onClick={(e) => e.stopPropagation()}>
                     <div className="fd-modal-head">
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 16 }}>{p.name || "Player"}{user && lbView === user.uid && <span className="fd-count">you</span>}</div>
@@ -4322,7 +4330,7 @@ function FollowUpDesk() {
                       </div>
                       <button className="fd-icon-btn" onClick={() => setLbView(null)} title="Close"><X size={18} /></button>
                     </div>
-                    <div className="fd-modal-body" style={{ display: "block", textAlign: "left", overflow: "auto" }}>
+                    <div className="fd-modal-body" style={{ textAlign: "left" }}>
                       <div className="fd-lb-sec">Group predictions</div>
                       <div className="fd-lb-groups">
                         {Object.keys(WC_GROUPS).map((g) => (
