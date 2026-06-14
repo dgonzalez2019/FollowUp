@@ -21,7 +21,7 @@ async function graphToken() {
     grant_type: "refresh_token",
     scope: "offline_access User.Read Mail.Send Calendars.ReadWrite",
   });
-  const r = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+  const r = await fetch("https://login.microsoftonline.com/" + (process.env.MS_TENANT_ID || "common") + "/oauth2/v2.0/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),

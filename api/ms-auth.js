@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
 
     // Step 1: send the admin to Microsoft to grant consent
     if (action === "login") {
-      const auth = new URL("https://login.microsoftonline.com/common/oauth2/v2.0/authorize");
+      const auth = new URL("https://login.microsoftonline.com/" + (process.env.MS_TENANT_ID || "common") + "/oauth2/v2.0/authorize");
       auth.searchParams.set("client_id", clientId);
       auth.searchParams.set("response_type", "code");
       auth.searchParams.set("redirect_uri", redirectUri);
@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
         grant_type: "authorization_code",
         scope: SCOPES,
       });
-      const r = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+      const r = await fetch("https://login.microsoftonline.com/" + (process.env.MS_TENANT_ID || "common") + "/oauth2/v2.0/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),
