@@ -300,6 +300,8 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-br-mark.bad{color:var(--danger);}
 .fd-br-slot.on .fd-br-mark.bad{color:#43130a;}
 .fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
+.fd-ms-on{font-size:13px; color:var(--ink); line-height:1.5; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:11px 13px;}
+.fd-ms-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok); margin-right:6px; box-shadow:0 0 8px rgba(76,175,125,.7);}
 .fd-lb-row{cursor:pointer; text-align:left; width:100%; font-family:inherit;}
 .fd-lb-row:hover{border-color:var(--accent) !important;}
 .fd-lb-modal{max-width:min(94vw, 920px); width:100%; max-height:88vh;}
@@ -1720,6 +1722,7 @@ function FollowUpDesk() {
   const [calSelected, setCalSelected] = useState(null);
   const [authReady, setAuthReady] = useState(!cloudOn);
   const [user, setUser] = useState(null);
+  const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const appVisible = (!cloudOn || (authReady && !!user));
   const playIntro = (fast) => {
     introStartedRef.current = false;
@@ -1973,6 +1976,13 @@ function FollowUpDesk() {
   };
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+  useEffect(() => {
+    if (typeof window !== "undefined" && /[?&]msconnected=1/.test(window.location.search)) {
+      setToast("Outlook connected — automation is live");
+      setTimeout(() => setToast(null), 3000);
+      try { window.history.replaceState({}, "", window.location.pathname); } catch (e) {}
+    }
+  }, []);
 
   const fillTokens = (str, f) =>
     str
@@ -2170,6 +2180,42 @@ function FollowUpDesk() {
     flash(hadReminder ? "Marked done — open the cancellation file to clear the Outlook reminder" : "Marked done");
   };
   const reactivate = (id) => setFollowups((arr) => arr.map((x) => (x.id === id ? { ...x, status: "active", lastContact: todayStr() } : x)));
+  const [msConnected, setMsConnected] = useState(false);
+  useEffect(() => {
+    if (!cloudOn) return;
+    const unsub = fbDb.collection("shared").doc("msAuth").onSnapshot((snap) => {
+      setMsConnected(!!(snap.exists && snap.data() && snap.data().refresh_token));
+    }, () => {});
+    return () => unsub && unsub();
+  }, []);
+  useEffect(() => {
+    if (!cloudOn || !isAdmin || !msConnected) return;
+    const items = followups
+      .filter((f) => f.status !== "done" && (f.autoEmail || f.autoEvent) && f.email)
+      .map((f) => {
+        const st = getStatus(f);
+        const nextDue = addDays(f.lastContact, Number(f.intervalDays) || 0);
+        return {
+          id: f.id, email: f.email, cc: f.cc || "", name: f.name || "", company: f.company || "",
+          subject: f.subject || "Following up", body: buildBody(f),
+          due: st.due || nextDue, eventDate: nextDue,
+          autoEmail: !!f.autoEmail, autoEvent: !!f.autoEvent,
+        };
+      });
+    const payload = JSON.stringify({ items });
+    const t = setTimeout(() => {
+      fbDb.collection("shared").doc("automation").get().then((snap) => {
+        let done = {};
+        try { const d = snap.exists && snap.data().data ? JSON.parse(snap.data().data) : null; if (d && d.done) done = d.done; } catch (e) {}
+        fbDb.collection("shared").doc("automation").set({ data: JSON.stringify({ items, done }) }).catch(() => {});
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [followups, isAdmin, msConnected]);
+  const toggleAuto = (f, field) => {
+    setFollowups((arr) => arr.map((x) => (x.id === f.id ? { ...x, [field]: !x[field] } : x)));
+    flash(!f[field] ? "Automation on — runs on the due date" : "Automation off");
+  };
   const remove = (id) => {
     const f = followups.find((x) => x.id === id);
     if (f && f.files) f.files.forEach((fl) => idbDelete(fl.fileId));
@@ -2936,7 +2982,6 @@ function FollowUpDesk() {
     if (url) addPersonalApp("", url);
   };
 
-  const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const myEmailLc = ((user && user.email) || "").toLowerCase();
   const isUspsManager = isAdmin || ((sharedConfig.usps && sharedConfig.usps.managers) || []).indexOf(myEmailLc) >= 0;
   const uspsHasAccess = isUspsManager || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(myEmailLc) >= 0;
@@ -3269,6 +3314,22 @@ function FollowUpDesk() {
             <label className="fd-label">Signature</label>
             <textarea className="fd-input area" rows={2} value={settings.signature}
               onChange={(e) => setSettings((s) => ({ ...s, signature: e.target.value }))} />
+            {isAdmin && (
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+                <label className="fd-label">Outlook automation</label>
+                {msConnected ? (
+                  <div className="fd-ms-on">
+                    <span className="fd-ms-dot"></span> Outlook connected. Items flagged <b>Auto-email</b> or <b>Auto-calendar</b> run automatically on their due dates.
+                    <a className="fd-btn ghost sm" href="/api/ms-auth?action=login" style={{ marginTop: 10, display: "inline-flex" }}>Reconnect</a>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="fd-hint" style={{ marginTop: 0 }}>Connect your Microsoft 365 account so the site can send follow-up emails and add calendar events for you — even when you're not online.</p>
+                    <a className="fd-btn primary sm" href="/api/ms-auth?action=login"><Mail size={14} /> Connect Outlook</a>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="fd-panel-foot">
               <button className="fd-link-danger" onClick={resetAll}><RotateCcw size={14} /> Clear all data</button>
             </div>
@@ -3414,6 +3475,12 @@ function FollowUpDesk() {
                         <button className="fd-btn ghost sm" onClick={() => copyText(f)}><Copy size={14} /> Copy text</button>
                         <button className="fd-btn ghost sm" onClick={() => remindOnly(f)}><CalendarClock size={14} /> Reminder only</button>
                         <button className="fd-btn ghost sm" onClick={() => markDone(f)}><Check size={14} /> Got documents</button>
+                        {isAdmin && msConnected && (
+                          <button className={"fd-btn sm " + (f.autoEmail ? "primary" : "ghost")} title="Auto-send the email on the due date" onClick={() => toggleAuto(f, "autoEmail")}><Mail size={14} /> {f.autoEmail ? "Auto-email ON" : "Auto-email"}</button>
+                        )}
+                        {isAdmin && msConnected && (
+                          <button className={"fd-btn sm " + (f.autoEvent ? "primary" : "ghost")} title="Add the next-contact date to your Outlook calendar" onClick={() => toggleAuto(f, "autoEvent")}><CalendarClock size={14} /> {f.autoEvent ? "Auto-calendar ON" : "Auto-calendar"}</button>
+                        )}
                       </>
                     ) : (
                       <button className="fd-btn ghost sm" onClick={() => reactivate(f.id)}><RotateCcw size={14} /> Reopen</button>
