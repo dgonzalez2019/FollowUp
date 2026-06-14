@@ -33,6 +33,14 @@ module.exports = async (req, res) => {
     const url = new URL(req.url, "https://" + req.headers.host);
     const action = url.searchParams.get("action");
     const code = url.searchParams.get("code");
+    const oauthErr = url.searchParams.get("error");
+    const oauthErrDesc = url.searchParams.get("error_description");
+
+    // Microsoft redirected back with an error instead of a code — show it plainly
+    if (oauthErr) {
+      res.status(400).send("Microsoft sign-in error: " + oauthErr + "\n\n" + (oauthErrDesc || "") + "\n\nTell your developer this exact message.");
+      return;
+    }
 
     // Step 1: send the admin to Microsoft to grant consent
     if (action === "login") {
