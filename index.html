@@ -3320,12 +3320,12 @@ function FollowUpDesk() {
                 {msConnected ? (
                   <div className="fd-ms-on">
                     <span className="fd-ms-dot"></span> Outlook connected. Items flagged <b>Auto-email</b> or <b>Auto-calendar</b> run automatically on their due dates.
-                    <a className="fd-btn ghost sm" href="/api/ms-auth?action=login" style={{ marginTop: 10, display: "inline-flex" }}>Reconnect</a>
+                    <button className="fd-btn ghost sm" style={{ marginTop: 10, display: "inline-flex" }} onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login"); }}>Reconnect</button>
                   </div>
                 ) : (
                   <div>
                     <p className="fd-hint" style={{ marginTop: 0 }}>Connect your Microsoft 365 account so the site can send follow-up emails and add calendar events for you — even when you're not online.</p>
-                    <a className="fd-btn primary sm" href="/api/ms-auth?action=login"><Mail size={14} /> Connect Outlook</a>
+                    <button className="fd-btn primary sm" onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login"); }}><Mail size={14} /> Connect Outlook</button>
                   </div>
                 )}
               </div>
