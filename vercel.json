@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/chat.js": { "maxDuration": 60 },
+    "api/cron-followups.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/cron-followups", "schedule": "0 13 * * *" }
+  ]
+}
