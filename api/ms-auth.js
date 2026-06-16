@@ -20,6 +20,30 @@ const { getDoc, setDoc } = require("./_firestore.js");
 // Graph scopes: send mail, manage calendar, read user, and offline_access for refresh tokens
 const SCOPES = "offline_access User.Read Mail.Send Calendars.ReadWrite";
 
+// Build the Microsoft sign-in (authorize) redirect. `state` carries the uid so we
+// know whose mailbox this is when Microsoft redirects back. `prompt` lets the
+// caller force a fresh consent ("consent") or skip it once already granted
+// ("select_account").
+function buildAuthRedirect({ clientId, redirectUri, state, prompt }) {
+  const auth = new URL("https://login.microsoftonline.com/" + (process.env.MS_TENANT_ID || "common") + "/oauth2/v2.0/authorize");
+  auth.searchParams.set("client_id", clientId);
+  auth.searchParams.set("response_type", "code");
+  auth.searchParams.set("redirect_uri", redirectUri);
+  auth.searchParams.set("response_mode", "query");
+  auth.searchParams.set("scope", SCOPES);
+  auth.searchParams.set("prompt", prompt || "consent");
+  if (state) auth.searchParams.set("state", state);
+  return auth.toString();
+}
+
+// `state` is the user's uid, optionally suffixed with "~r" to mark that we've
+// already bounced once through the admin-consent retry (so we never loop).
+function parseState(raw) {
+  const s = raw || "";
+  const retried = s.endsWith("~r");
+  return { uid: retried ? s.slice(0, -2) : s, retried };
+}
+
 module.exports = async (req, res) => {
   try {
     const clientId = process.env.MS_CLIENT_ID;
@@ -33,6 +57,7 @@ module.exports = async (req, res) => {
     const url = new URL(req.url, "https://" + req.headers.host);
     const action = url.searchParams.get("action");
     const code = url.searchParams.get("code");
+    const adminConsent = url.searchParams.get("admin_consent");
     const oauthErr = url.searchParams.get("error");
     const oauthErrDesc = url.searchParams.get("error_description");
 
@@ -45,16 +70,23 @@ module.exports = async (req, res) => {
     // Step 1: send the user to Microsoft to grant consent (carry their uid in state)
     if (action === "login") {
       const uid = url.searchParams.get("uid") || "";
-      const auth = new URL("https://login.microsoftonline.com/" + (process.env.MS_TENANT_ID || "common") + "/oauth2/v2.0/authorize");
-      auth.searchParams.set("client_id", clientId);
-      auth.searchParams.set("response_type", "code");
-      auth.searchParams.set("redirect_uri", redirectUri);
-      auth.searchParams.set("response_mode", "query");
-      auth.searchParams.set("scope", SCOPES);
-      auth.searchParams.set("prompt", "consent");
-      if (uid) auth.searchParams.set("state", uid);
-      res.writeHead(302, { Location: auth.toString() });
+      res.writeHead(302, { Location: buildAuthRedirect({ clientId, redirectUri, state: uid, prompt: "consent" }) });
       res.end();
+      return;
+    }
+
+    // Admin-consent callback: when the tenant requires admin approval, Microsoft
+    // grants org-wide consent and redirects back with `admin_consent=True` but
+    // NO authorization code. Re-launch sign-in now that consent exists so we can
+    // actually obtain a code. The "~r" suffix on state guards against looping.
+    if (adminConsent && !code) {
+      const { uid, retried } = parseState(url.searchParams.get("state"));
+      if (!retried) {
+        res.writeHead(302, { Location: buildAuthRedirect({ clientId, redirectUri, state: uid + "~r", prompt: "select_account" }) });
+        res.end();
+        return;
+      }
+      res.status(502).send("Admin consent was granted, but Microsoft didn't return a sign-in code. Please click \"Connect Outlook\" once more to finish connecting.");
       return;
     }
 
@@ -83,7 +115,7 @@ module.exports = async (req, res) => {
         headers: { Authorization: "Bearer " + tok.access_token },
       }).then((x) => x.json()).catch(() => ({}));
 
-      const uid = url.searchParams.get("state") || "";
+      const uid = parseState(url.searchParams.get("state")).uid;
       const record = {
         refresh_token: tok.refresh_token,
         email: me.mail || me.userPrincipalName || "",
