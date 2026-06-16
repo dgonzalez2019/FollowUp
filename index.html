@@ -657,11 +657,23 @@ button.fd-admin-chip:disabled{cursor:default;}
 
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script>
+  // Force the classic JSX runtime (React.createElement). Babel 8 changed
+  // preset-react's default to the "automatic" runtime, which emits bare
+  // `import ... from "react/jsx-runtime"` statements. Babel Standalone runs
+  // compiled output as a classic script, so those imports throw
+  // "Cannot use import statement outside a module" and the app never mounts
+  // (blank page). Registering a classic-runtime preset keeps us safe even if
+  // the Babel version above is ever bumped.
+  Babel.registerPreset("react-classic", {
+    presets: [[Babel.availablePresets["react"], { runtime: "classic" }]],
+  });
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
-<script type="text/babel" data-presets="react">
+<script type="text/babel" data-presets="react-classic">
 const { useState, useEffect, useMemo, useRef } = React;
 
 // =====================================================================
