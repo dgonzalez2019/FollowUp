@@ -2537,14 +2537,14 @@ function FollowUpDesk() {
   const reactivate = (id) => setFollowups((arr) => arr.map((x) => (x.id === id ? { ...x, status: "active", lastContact: todayStr() } : x)));
   const [msConnected, setMsConnected] = useState(false);
   useEffect(() => {
-    if (!cloudOn) return;
-    const unsub = fbDb.collection("shared").doc("msAuth").onSnapshot((snap) => {
+    if (!cloudOn || !user) return;
+    const unsub = fbDb.collection("outlookTokens").doc(user.uid).onSnapshot((snap) => {
       setMsConnected(!!(snap.exists && snap.data() && snap.data().refresh_token));
     }, () => {});
     return () => unsub && unsub();
-  }, []);
+  }, [user]);
   useEffect(() => {
-    if (!cloudOn || !isAdmin || !msConnected) return;
+    if (!cloudOn || !user || !msConnected) return;
     const items = followups
       .filter((f) => f.status !== "done" && (f.autoEmail || f.autoEvent) && f.email)
       .map((f) => {
@@ -2557,16 +2557,16 @@ function FollowUpDesk() {
           autoEmail: !!f.autoEmail, autoEvent: !!f.autoEvent,
         };
       });
-    const payload = JSON.stringify({ items });
     const t = setTimeout(() => {
-      fbDb.collection("shared").doc("automation").get().then((snap) => {
+      const ref = fbDb.collection("users").doc(user.uid).collection("auto").doc("queue");
+      ref.get().then((snap) => {
         let done = {};
         try { const d = snap.exists && snap.data().data ? JSON.parse(snap.data().data) : null; if (d && d.done) done = d.done; } catch (e) {}
-        fbDb.collection("shared").doc("automation").set({ data: JSON.stringify({ items, done }) }).catch(() => {});
+        ref.set({ data: JSON.stringify({ items, done }), email: (user.email || "").toLowerCase() }).catch(() => {});
       }).catch(() => {});
     }, 800);
     return () => clearTimeout(t);
-  }, [followups, isAdmin, msConnected]);
+  }, [followups, user, msConnected]);
   const toggleAuto = (f, field) => {
     setFollowups((arr) => arr.map((x) => (x.id === f.id ? { ...x, [field]: !x[field] } : x)));
     flash(!f[field] ? "Automation on — runs on the due date" : "Automation off");
@@ -3682,19 +3682,19 @@ function FollowUpDesk() {
             <label className="fd-label">Signature</label>
             <textarea className="fd-input area" rows={2} value={settings.signature}
               onChange={(e) => setSettings((s) => ({ ...s, signature: e.target.value }))} />
-            {isAdmin && (
+            {user && (
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
                 <label className="fd-label">Outlook automation</label>
                 {msConnected ? (
                   <div className="fd-ms-on">
                     <span className="fd-ms-dot"></span> Outlook connected. Items flagged <b>Auto-email</b> or <b>Auto-calendar</b> run automatically on their due dates.
-                    <button className="fd-btn ghost sm" style={{ marginTop: 10, display: "inline-flex" }} onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login"); }}>Reconnect</button>
+                    <button className="fd-btn ghost sm" style={{ marginTop: 10, display: "inline-flex" }} onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login&uid=" + (user ? user.uid : "")); }}>Reconnect</button>
                   </div>
                 ) : (
                   <div>
-                    <p className="fd-hint" style={{ marginTop: 0 }}>Connect your Microsoft 365 account so the site can send follow-up emails and add calendar events for you — even when you're not online.</p>
-                    <button className="fd-btn primary sm" onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login"); }}><Mail size={14} /> Connect Outlook</button>
-                    <p className="fd-hint" style={{ fontSize: 11, marginTop: 8 }}>Connects your own Outlook ({(user && user.email) || "admin"}). Automated follow-ups send from your account only. This is admin-only and not visible to other employees.</p>
+                    <p className="fd-hint" style={{ marginTop: 0 }}>Connect your own Microsoft 365 account so the site can send your follow-up emails and add your calendar events for you — even when you're not online. Each person connects their own Outlook; your automation always sends from your account.</p>
+                    <button className="fd-btn primary sm" onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login&uid=" + (user ? user.uid : "")); }}><Mail size={14} /> Connect Outlook</button>
+                    <p className="fd-hint" style={{ fontSize: 11, marginTop: 8 }}>Connects {(user && user.email) || "your account"}. Your flagged follow-ups send from your Outlook only — never anyone else\u2019s.</p>
                   </div>
                 )}
               </div>
@@ -3844,10 +3844,10 @@ function FollowUpDesk() {
                         <button className="fd-btn ghost sm" onClick={() => copyText(f)}><Copy size={14} /> Copy text</button>
                         <button className="fd-btn ghost sm" onClick={() => remindOnly(f)}><CalendarClock size={14} /> Reminder only</button>
                         <button className="fd-btn ghost sm" onClick={() => markDone(f)}><Check size={14} /> Got documents</button>
-                        {isAdmin && msConnected && (
+                        {msConnected && (
                           <button className={"fd-btn sm " + (f.autoEmail ? "primary" : "ghost")} title="Auto-send the email on the due date" onClick={() => toggleAuto(f, "autoEmail")}><Mail size={14} /> {f.autoEmail ? "Auto-email ON" : "Auto-email"}</button>
                         )}
-                        {isAdmin && msConnected && (
+                        {msConnected && (
                           <button className={"fd-btn sm " + (f.autoEvent ? "primary" : "ghost")} title="Add the next-contact date to your Outlook calendar" onClick={() => toggleAuto(f, "autoEvent")}><CalendarClock size={14} /> {f.autoEvent ? "Auto-calendar ON" : "Auto-calendar"}</button>
                         )}
                       </>
