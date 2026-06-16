@@ -322,6 +322,11 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-lb-chip{display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line-strong); border-radius:20px; padding:5px 11px; font-size:12.5px; background:var(--surface-2);}
 .fd-lb-chip.hit{border-color:rgba(183,212,74,.55); background:rgba(183,212,74,.1);}
 .fd-lb-chip.miss{border-color:rgba(224,97,73,.4); opacity:.65;}
+.fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
+.fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
+.fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
+.fd-plan-stage{margin-top:10px;}
+.fd-plan-canvas{width:100%; height:auto; border:1px solid var(--line-strong); border-radius:10px; background:#fff; touch-action:none; display:block;}
 .fd-ai-scroll{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px 2px 12px; -webkit-overflow-scrolling:touch;}
 .fd-ai-msg{max-width:85%; align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-radius:12px 12px 12px 4px; padding:10px 13px; font-size:13.5px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
 .fd-ai-msg.me{align-self:flex-end; background:var(--accent); color:#06121c; border-color:transparent; border-radius:12px 12px 4px 12px; font-weight:500;}
@@ -808,6 +813,7 @@ const ExternalLink = (p) => <Svg {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 
 const Shield = (p) => <Svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Svg>;
 const ChevronLeft = (p) => <Svg {...p}><polyline points="15 18 9 12 15 6"/></Svg>;
 const ChevronRight = (p) => <Svg {...p}><polyline points="9 18 15 12 9 6"/></Svg>;
+const Box = (p) => <Svg {...p}><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></Svg>;
 const Trophy = (p) => <Svg {...p}><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a3 3 0 0 0 3 4"/><path d="M17 6h3a3 3 0 0 1-3 4"/></Svg>;
 const Home = (p) => <Svg {...p}><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v11h14V10"/><path d="M9 21v-6h6v6"/></Svg>;
 
@@ -1730,6 +1736,280 @@ function CityScape() {
     </>
   );
 }
+
+// ===================== Plans -> 3D Visualizer (lazy-loaded) =====================
+// Heavy libraries (pdf.js, three.js) load ONLY when this tab is first opened, so
+// they can never affect the rest of the site's startup.
+function planLoadScript(urls) {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    const next = () => {
+      if (i >= urls.length) { reject(new Error("all sources failed")); return; }
+      const s = document.createElement("script");
+      s.src = urls[i++];
+      s.crossOrigin = "anonymous";
+      s.onload = () => resolve();
+      s.onerror = next;
+      document.head.appendChild(s);
+    };
+    next();
+  });
+}
+let planLibsPromise = null;
+function ensurePlanLibs() {
+  if (window.pdfjsLib && window.THREE) return Promise.resolve();
+  if (planLibsPromise) return planLibsPromise;
+  planLibsPromise = (async () => {
+    if (!window.pdfjsLib) {
+      await planLoadScript([
+        "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+      ]);
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
+    }
+    if (!window.THREE) {
+      await planLoadScript([
+        "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
+      ]);
+    }
+  })();
+  return planLibsPromise;
+}
+
+function PlansViewer() {
+  const { useState, useRef, useEffect } = React;
+  const [libsReady, setLibsReady] = useState(!!(window.pdfjsLib && window.THREE));
+  const [libErr, setLibErr] = useState(false);
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [numPages, setNumPages] = useState(0);
+  const [floor, setFloor] = useState(0);
+  const [planImg, setPlanImg] = useState(null);
+  const [planDims, setPlanDims] = useState({ w: 0, h: 0 });
+  const [wallsByFloor, setWallsByFloor] = useState({});
+  const [mode, setMode] = useState("edit");
+  const [wallHeight, setWallHeight] = useState(2.7);
+  const [busy, setBusy] = useState("");
+  const [draw, setDraw] = useState(null);
+
+  const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
+  const threeRef = useRef(null);
+
+  const walls = wallsByFloor[floor] || [];
+  const setWalls = (next) => setWallsByFloor((m) => ({ ...m, [floor]: typeof next === "function" ? next(m[floor] || []) : next }));
+
+  // load the libraries on first open
+  useEffect(() => {
+    let alive = true;
+    if (!libsReady) {
+      ensurePlanLibs().then(() => { if (alive) setLibsReady(true); }).catch(() => { if (alive) setLibErr(true); });
+    }
+    return () => { alive = false; };
+  }, []);
+
+  const onFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!window.pdfjsLib) { setLibErr(true); return; }
+    setBusy("Reading PDF…");
+    try {
+      const buf = await file.arrayBuffer();
+      const doc = await window.pdfjsLib.getDocument({ data: buf }).promise;
+      setPdfDoc(doc); setNumPages(doc.numPages); setWallsByFloor({}); setFloor(0);
+      await renderPage(doc, 0);
+    } catch (err) { setBusy(""); alert("Couldn't read that PDF. Try another file."); }
+  };
+
+  const renderPage = async (doc, idx) => {
+    setBusy("Rendering plan…");
+    try {
+      const page = await doc.getPage(idx + 1);
+      const viewport = page.getViewport({ scale: 2 });
+      const c = document.createElement("canvas");
+      c.width = viewport.width; c.height = viewport.height;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      setPlanImg(c); setPlanDims({ w: c.width, h: c.height }); setBusy("");
+    } catch (err) { setBusy(""); }
+  };
+
+  useEffect(() => { if (pdfDoc) renderPage(pdfDoc, floor); /* eslint-disable-next-line */ }, [floor]);
+
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv || !planImg) return;
+    const maxW = (wrapRef.current && wrapRef.current.clientWidth) || 900;
+    const scale = Math.min(1, maxW / planDims.w);
+    cv.width = planDims.w * scale; cv.height = planDims.h * scale; cv.dataset.scale = scale;
+    const ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(planImg, 0, 0, cv.width, cv.height);
+    ctx.save(); ctx.scale(scale, scale); ctx.lineCap = "round";
+    walls.forEach((w) => { ctx.strokeStyle = "rgba(47,155,224,.9)"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke(); });
+    if (draw) { ctx.strokeStyle = "rgba(183,212,74,.95)"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(draw.x1, draw.y1); ctx.lineTo(draw.x2, draw.y2); ctx.stroke(); }
+    ctx.restore();
+  }, [planImg, planDims, walls, draw]);
+
+  const toPlan = (e) => {
+    const cv = canvasRef.current; const rect = cv.getBoundingClientRect();
+    const scale = parseFloat(cv.dataset.scale || "1");
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x: cx / scale, y: cy / scale };
+  };
+  const hitWall = (p) => {
+    for (let i = walls.length - 1; i >= 0; i--) {
+      const w = walls[i]; const dx = w.x2 - w.x1, dy = w.y2 - w.y1; const len2 = dx * dx + dy * dy || 1;
+      let t = ((p.x - w.x1) * dx + (p.y - w.y1) * dy) / len2; t = Math.max(0, Math.min(1, t));
+      const px = w.x1 + t * dx, py = w.y1 + t * dy;
+      if (Math.hypot(p.x - px, p.y - py) < 10) return i;
+    }
+    return -1;
+  };
+  const onDown = (e) => { if (mode !== "edit" || !planImg) return; e.preventDefault(); const p = toPlan(e); setDraw({ x1: p.x, y1: p.y, x2: p.x, y2: p.y, sx: p.x, sy: p.y }); };
+  const onMove = (e) => { if (!draw) return; e.preventDefault(); const p = toPlan(e); setDraw((d) => ({ ...d, x2: p.x, y2: p.y })); };
+  const onUp = () => {
+    if (!draw) return;
+    const dist = Math.hypot(draw.x2 - draw.x1, draw.y2 - draw.y1);
+    if (dist < 8) { const i = hitWall({ x: draw.sx, y: draw.sy }); if (i >= 0) setWalls((arr) => arr.filter((_, k) => k !== i)); }
+    else { let { x1, y1, x2, y2 } = draw; if (Math.abs(x2 - x1) < dist * 0.2) x2 = x1; if (Math.abs(y2 - y1) < dist * 0.2) y2 = y1; setWalls((arr) => [...arr, { x1, y1, x2, y2 }]); }
+    setDraw(null);
+  };
+
+  const autoDetect = () => {
+    if (!planImg) return;
+    setBusy("Detecting walls…");
+    setTimeout(() => {
+      try {
+        const W = planDims.w, H = planDims.h;
+        const data = planImg.getContext("2d").getImageData(0, 0, W, H).data;
+        const dark = (x, y) => { const idx = (y * W + x) * 4; return (data[idx] + data[idx + 1] + data[idx + 2]) / 3 < 110; };
+        const found = []; const minLen = Math.max(40, Math.min(W, H) * 0.06); const step = 3;
+        for (let y = 0; y < H; y += step) { let run = 0, sx = 0; for (let x = 0; x < W; x++) { if (dark(x, y)) { if (run === 0) sx = x; run++; } else { if (run >= minLen) found.push({ x1: sx, y1: y, x2: x - 1, y2: y }); run = 0; } } if (run >= minLen) found.push({ x1: sx, y1: y, x2: W - 1, y2: y }); }
+        for (let x = 0; x < W; x += step) { let run = 0, sy = 0; for (let y = 0; y < H; y++) { if (dark(x, y)) { if (run === 0) sy = y; run++; } else { if (run >= minLen) found.push({ x1: x, y1: sy, x2: x, y2: y - 1 }); run = 0; } } if (run >= minLen) found.push({ x1: x, y1: sy, x2: x, y2: H - 1 }); }
+        const merged = []; found.sort((a, b) => (a.y1 - b.y1) || (a.x1 - b.x1));
+        found.forEach((w) => { const near = merged.find((m) => Math.abs(m.x1 - w.x1) < 12 && Math.abs(m.y1 - w.y1) < 12 && Math.abs(m.x2 - w.x2) < 12 && Math.abs(m.y2 - w.y2) < 12); if (!near) merged.push(w); });
+        setWalls(merged.slice(0, 600)); setBusy("");
+      } catch (err) { setBusy(""); alert("Auto-detect failed on this plan — try tracing by hand."); }
+    }, 30);
+  };
+
+  useEffect(() => {
+    if (mode !== "view3d") { if (threeRef.current) { threeRef.current.dispose(); threeRef.current = null; } return; }
+    if (!window.THREE || !wrapRef.current) return;
+    const THREE = window.THREE; const host = wrapRef.current;
+    const width = host.clientWidth, height = Math.max(360, Math.round(host.clientWidth * 0.62));
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0c0f);
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 5000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    host.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.7); dir.position.set(1, 2, 1); scene.add(dir);
+    const span = Math.max(planDims.w, planDims.h) || 1000; const unit = 40 / span;
+    const cx = (planDims.w * unit) / 2, cz = (planDims.h * unit) / 2;
+    const floorsToDraw = Object.keys(wallsByFloor).length ? Object.keys(wallsByFloor) : [String(floor)];
+    scene.add(new THREE.GridHelper(80, 40, 0x223040, 0x161a20));
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a4452 });
+    const slabMat = new THREE.MeshLambertMaterial({ color: 0x1b2027 });
+    floorsToDraw.forEach((fk) => {
+      const fIdx = parseInt(fk, 10); const baseY = fIdx * wallHeight; const fw = wallsByFloor[fk] || [];
+      fw.forEach((w) => {
+        const x1 = w.x1 * unit - cx, z1 = w.y1 * unit - cz, x2 = w.x2 * unit - cx, z2 = w.y2 * unit - cz;
+        const len = Math.hypot(x2 - x1, z2 - z1); if (len < 0.01) return;
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, wallHeight, 0.18), wallMat);
+        mesh.position.set((x1 + x2) / 2, baseY + wallHeight / 2, (z1 + z2) / 2);
+        mesh.rotation.y = -Math.atan2(z2 - z1, x2 - x1); scene.add(mesh);
+      });
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(planDims.w * unit, 0.05, planDims.h * unit), slabMat);
+      slab.position.set(0, baseY, 0); scene.add(slab);
+    });
+    let theta = 0.7, phi = 0.9, radius = 70; const target = new THREE.Vector3(0, wallHeight, 0);
+    const apply = () => { camera.position.set(target.x + radius * Math.sin(phi) * Math.cos(theta), target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi) * Math.sin(theta)); camera.lookAt(target); };
+    apply();
+    let dragging = false, lx = 0, ly = 0, pinch = 0; const dpt = (e) => e.touches ? e.touches[0] : e;
+    const down = (e) => { dragging = true; const p = dpt(e); lx = p.clientX; ly = p.clientY; if (e.touches && e.touches.length === 2) pinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); };
+    const move = (e) => {
+      if (e.touches && e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); if (pinch) { radius = Math.max(15, Math.min(300, radius * (pinch / d))); apply(); } pinch = d; return; }
+      if (!dragging) return; const p = dpt(e); const dx = p.clientX - lx, dy = p.clientY - ly; lx = p.clientX; ly = p.clientY; theta += dx * 0.01; phi = Math.max(0.15, Math.min(1.5, phi - dy * 0.01)); apply();
+    };
+    const up = () => { dragging = false; pinch = 0; };
+    const wheel = (e) => { e.preventDefault(); radius = Math.max(15, Math.min(300, radius + e.deltaY * 0.05)); apply(); };
+    const el = renderer.domElement;
+    el.addEventListener("mousedown", down); el.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+    el.addEventListener("touchstart", down, { passive: true }); el.addEventListener("touchmove", move, { passive: true }); el.addEventListener("touchend", up);
+    el.addEventListener("wheel", wheel, { passive: false });
+    let raf; const loop = () => { renderer.render(scene, camera); raf = requestAnimationFrame(loop); }; loop();
+    threeRef.current = { dispose() { cancelAnimationFrame(raf); el.removeEventListener("mousedown", down); el.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); el.removeEventListener("touchstart", down); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", up); el.removeEventListener("wheel", wheel); renderer.dispose(); if (el.parentNode) el.parentNode.removeChild(el); } };
+    return () => { if (threeRef.current) { threeRef.current.dispose(); threeRef.current = null; } };
+    /* eslint-disable-next-line */
+  }, [mode, wallHeight]);
+
+  const totalWalls = Object.values(wallsByFloor).reduce((n, a) => n + (a ? a.length : 0), 0);
+
+  return (
+    <div className="fd-section">
+      <div className="fd-head-row">
+        <div>
+          <h2 className="fd-h2"><Box size={18} /> Plan Visualizer</h2>
+          <p className="fd-sub">Upload a PDF plan, auto-detect or trace the walls, then view it in 3D. Multi-page PDFs stack as floors.</p>
+        </div>
+      </div>
+
+      {libErr && <div className="fd-panel"><div className="fd-empty">3D tools couldn't load. Check your connection and reload.</div></div>}
+      {!libErr && !libsReady && <div className="fd-panel"><div className="fd-empty">Loading 3D tools…</div></div>}
+
+      {libsReady && (
+        <div className="fd-panel">
+          <div className="fd-plan-bar">
+            <label className="fd-btn primary sm" style={{ cursor: "pointer" }}>
+              <input type="file" accept="application/pdf" onChange={onFile} style={{ display: "none" }} />
+              <Box size={14} /> Upload PDF
+            </label>
+            {planImg && mode === "edit" && <button className="fd-btn ghost sm" onClick={autoDetect}>Auto-detect walls</button>}
+            {planImg && mode === "edit" && walls.length > 0 && <button className="fd-btn ghost sm" onClick={() => setWalls([])}>Clear floor</button>}
+            {planImg && <button className="fd-btn primary sm" onClick={() => setMode(mode === "edit" ? "view3d" : "edit")}>{mode === "edit" ? "View in 3D" : "Back to editing"}</button>}
+            {numPages > 1 && (
+              <span className="fd-plan-floors">
+                <button className="fd-icon-btn" disabled={floor === 0} onClick={() => setFloor((f) => Math.max(0, f - 1))}>‹</button>
+                <span className="fd-hint" style={{ fontSize: 12 }}>Floor {floor + 1} / {numPages}</span>
+                <button className="fd-icon-btn" disabled={floor >= numPages - 1} onClick={() => setFloor((f) => Math.min(numPages - 1, f + 1))}>›</button>
+              </span>
+            )}
+          </div>
+
+          {planImg && (
+            <div className="fd-plan-controls">
+              <label className="fd-hint" style={{ fontSize: 12 }}>Wall height: {wallHeight.toFixed(1)} m</label>
+              <input type="range" min="2" max="5" step="0.1" value={wallHeight} onChange={(e) => setWallHeight(parseFloat(e.target.value))} style={{ flex: 1, maxWidth: 220 }} />
+              <span className="fd-hint" style={{ fontSize: 12 }}>{walls.length} walls this floor · {totalWalls} total</span>
+            </div>
+          )}
+
+          {busy && <div className="fd-empty">{busy}</div>}
+          {!planImg && !busy && <div className="fd-empty">Upload a PDF floor plan to begin. Clean plans with clear walls work best.</div>}
+
+          <div ref={wrapRef} className="fd-plan-stage">
+            {mode === "edit" && planImg && (
+              <>
+                <canvas ref={canvasRef} className="fd-plan-canvas"
+                  onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+                  onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp} />
+                <p className="fd-hint" style={{ fontSize: 11.5, marginTop: 8 }}>Drag to draw a wall · tap a wall to delete it · near-straight lines snap automatically.</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
@@ -3218,6 +3498,11 @@ function FollowUpDesk() {
               <Sparkle size={15} /> Assistant
             </button>
           )}
+          {tabVisible("plans") && (
+            <button className={"fd-nav-btn" + (section === "plans" ? " active" : "")} onClick={() => setSection("plans")}>
+              <Box size={15} /> Plans
+            </button>
+          )}
           {uspsHasAccess && (
             <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
               <Inbox size={15} /> USPS
@@ -3325,6 +3610,14 @@ function FollowUpDesk() {
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
+            {tabVisible("plans") && (
+              <button className="fd-launch" onClick={(e) => openTab("plans", e)}>
+                <span className="fd-launch-ico"><Box size={20} /></span>
+                <span className="fd-launch-name">Plan Visualizer</span>
+                <span className="fd-launch-desc">Upload a PDF plan and see it as a quick 3D model you can spin around.</span>
+                <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
+              </button>
+            )}
             {uspsHasAccess && (
               <button className="fd-launch" onClick={(e) => openTab("usps", e)}>
                 <span className="fd-launch-ico"><Inbox size={20} /></span>
@@ -3401,6 +3694,7 @@ function FollowUpDesk() {
                   <div>
                     <p className="fd-hint" style={{ marginTop: 0 }}>Connect your Microsoft 365 account so the site can send follow-up emails and add calendar events for you — even when you're not online.</p>
                     <button className="fd-btn primary sm" onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login"); }}><Mail size={14} /> Connect Outlook</button>
+                    <p className="fd-hint" style={{ fontSize: 11, marginTop: 8 }}>Connects your own Outlook ({(user && user.email) || "admin"}). Automated follow-ups send from your account only. This is admin-only and not visible to other employees.</p>
                   </div>
                 )}
               </div>
@@ -4092,7 +4386,7 @@ function FollowUpDesk() {
         <>
           <div className="fd-panel">
             <div className="fd-group-head">Tab visibility <span className="fd-count">everyone</span></div>
-            {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"], ["bracket", "Bracket Challenge"], ["assistant", "AI Assistant"]].map(([k, label]) => (
+            {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"], ["bracket", "Bracket Challenge"], ["assistant", "AI Assistant"], ["plans", "Plan Visualizer"]].map(([k, label]) => (
               <label className="fd-admin-row" key={k}>
                 <span>{label}</span>
                 <input type="checkbox" checked={tabVisible(k)} onChange={() => toggleTab(k)} />
@@ -4237,6 +4531,8 @@ function FollowUpDesk() {
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Your added apps are saved to your account and stay private to you. The built-in apps open in a new tab — want changes to those? Just tell me.</p>
         </>
         )}
+
+        {section === "plans" && tabVisible("plans") && <PlansViewer />}
 
         {section === "assistant" && tabVisible("assistant") && (
           <div className="fd-section">
