@@ -302,6 +302,8 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
 .fd-ms-on{font-size:13px; color:var(--ink); line-height:1.5; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:11px 13px;}
 .fd-ms-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok); margin-right:6px; box-shadow:0 0 8px rgba(76,175,125,.7);}
+.fd-champ-bar{height:6px; background:var(--surface-3); border-radius:4px; overflow:hidden;}
+.fd-champ-fill{height:100%; background:linear-gradient(90deg, var(--accent), var(--lime)); border-radius:4px;}
 .fd-lb-row{cursor:pointer; text-align:left; width:100%; font-family:inherit; color:var(--ink);}
 .fd-lb-row:hover{border-color:var(--accent) !important;}
 .fd-lb-modal{max-width:min(94vw, 920px); width:100%; max-height:88vh;}
@@ -4427,6 +4429,36 @@ function FollowUpDesk() {
                       </span>
                     </div>
                   ))}
+                </div>
+              );
+            })()}
+            {(() => {
+              const champs = {};
+              let total = 0;
+              Object.values(brPicksAll).forEach((p) => {
+                const c = p && p.ko && p.ko.M104;
+                if (c) { champs[c] = (champs[c] || 0) + 1; total++; }
+              });
+              if (total === 0) return null;
+              const ranked = Object.keys(champs).map((c) => ({ c, n: champs[c], pct: Math.round((champs[c] / total) * 100) })).sort((a, b) => b.n - a.n);
+              const top = ranked[0];
+              return (
+                <div className="fd-panel">
+                  <div className="fd-panel-head">Office favorite <span className="fd-count">{total} {total === 1 ? "pick" : "picks"} in</span></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 10px" }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>{wcLabel(top.c)}</span>
+                    <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontWeight: 700, color: "var(--lime)", fontSize: 18 }}>{top.pct}%</span>
+                  </div>
+                  {ranked.slice(0, 5).map((r) => (
+                    <div key={r.c} style={{ padding: "5px 0" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 4 }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>{wcLabel(r.c)}</span>
+                        <span className="fd-hint" style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}>{r.pct}% · {r.n}</span>
+                      </div>
+                      <div className="fd-champ-bar"><div className="fd-champ-fill" style={{ width: r.pct + "%" }}></div></div>
+                    </div>
+                  ))}
+                  <p className="fd-hint" style={{ fontSize: 11.5, margin: "6px 0 0" }}>Who the office picked to lift the trophy.</p>
                 </div>
               );
             })()}
