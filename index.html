@@ -655,9 +655,80 @@ button.fd-admin-chip:disabled{cursor:default;}
 <script src="https://www.gstatic.com/firebasejs/12.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore-compat.js"></script>
 
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>
+/* Resilient library loader: each library is tried across multiple CDNs in order.
+   If one CDN is down/slow, we fall back to the next, so a single CDN outage can
+   never white-screen the site. Babel only runs after React + ReactDOM exist. */
+(function () {
+  function loadFirst(urls, test, done) {
+    var i = 0;
+    (function next() {
+      if (test()) { done(true); return; }      // already present
+      if (i >= urls.length) { done(false); return; }
+      var s = document.createElement("script");
+      s.src = urls[i++];
+      s.crossOrigin = "anonymous";
+      s.onload = function () { test() ? done(true) : next(); };
+      s.onerror = next;
+      document.head.appendChild(s);
+    })();
+  }
+  function chain(steps, fail) {
+    var i = 0;
+    (function run() {
+      if (i >= steps.length) return;
+      var step = steps[i++];
+      loadFirst(step.urls, step.test, function (ok) {
+        if (!ok) { fail(step.name); return; }
+        run();
+      });
+    })();
+  }
+  function showError(name) {
+    document.documentElement.innerHTML =
+      '<div style="font-family:system-ui,sans-serif;background:#040507;color:#eceef0;' +
+      'min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;">' +
+      '<div><div style="font-size:18px;font-weight:700;margin-bottom:8px;">Couldn\'t finish loading</div>' +
+      '<div style="color:#9aa3ad;font-size:14px;max-width:380px;line-height:1.5;">A required component (' + name +
+      ') failed to load from every source. This is usually a brief network hiccup. ' +
+      'Please reload the page in a moment.</div>' +
+      '<button onclick="location.reload()" style="margin-top:16px;background:#2f9be0;color:#06121c;border:none;' +
+      'border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;">Reload</button></div></div>';
+  }
+  chain([
+    { name: "React",
+      test: function () { return !!window.React; },
+      urls: [
+        "https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js",
+        "https://unpkg.com/react@18/umd/react.production.min.js"
+      ] },
+    { name: "ReactDOM",
+      test: function () { return !!window.ReactDOM; },
+      urls: [
+        "https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js",
+        "https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+      ] },
+    { name: "Babel",
+      test: function () { return !!window.Babel; },
+      urls: [
+        "https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js",
+        "https://unpkg.com/@babel/standalone/babel.min.js"
+      ] }
+  ], showError);
+  // Once all three are in, compile the app's text/babel script (dynamic load skips auto-compile).
+  var startTries = 0;
+  (function start() {
+    if (window.React && window.ReactDOM && window.Babel) {
+      try { window.Babel.transformScriptTags(); } catch (e) {}
+      return;
+    }
+    if (startTries++ < 200) setTimeout(start, 50);
+  })();
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
@@ -2648,8 +2719,8 @@ function FollowUpDesk() {
       if (!ok) tickLive();
     };
     tickAll(); tickLive();
-    const iv1 = setInterval(tickLive, 45000);
-    const iv2 = setInterval(tickAll, 180000);
+    const iv1 = setInterval(tickLive, 15000);
+    const iv2 = setInterval(tickAll, 120000);
     return () => { stop = true; clearInterval(iv1); clearInterval(iv2); };
   }, [section, appVisible, liveAdmin]);
   const brLive = useMemo(() => {
