@@ -70,7 +70,12 @@ module.exports = async (req, res) => {
     // Step 1: send the user to Microsoft to grant consent (carry their uid in state)
     if (action === "login") {
       const uid = url.searchParams.get("uid") || "";
-      res.writeHead(302, { Location: buildAuthRedirect({ clientId, redirectUri, state: uid, prompt: "consent" }) });
+      // Use "select_account" rather than forcing "consent": Microsoft still shows
+      // the consent screen automatically the first time (and to an admin granting
+      // org-wide consent), but we don't force a re-consent on every sign-in. In
+      // tenants where users can't self-consent, forcing consent fails with
+      // AADSTS65004 for everyone the org admin hasn't covered.
+      res.writeHead(302, { Location: buildAuthRedirect({ clientId, redirectUri, state: uid, prompt: "select_account" }) });
       res.end();
       return;
     }
