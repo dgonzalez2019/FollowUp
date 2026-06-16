@@ -79,6 +79,9 @@ module.exports = async (req, res) => {
   }
   const log = { ran: new Date().toISOString(), users: 0, sent: 0, events: 0, skipped: 0, errors: [] };
   const today = new Date().toISOString().slice(0, 10);
+  const perUser = [];
+  let adminToken = null;
+  const ADMIN = (process.env.ADMIN_EMAIL || "").toLowerCase();
   try {
     const tokens = await listDocs("outlookTokens"); // [{id: uid, data: {refresh_token,email}}]
     for (const t of tokens) {
@@ -99,20 +102,47 @@ module.exports = async (req, res) => {
       try { token = await graphTokenFor(uid, auth); }
       catch (e) { log.errors.push((auth.email || uid) + ": " + e.message); continue; }
       log.users++;
+      if (!adminToken || (auth.email || "").toLowerCase() === ADMIN) adminToken = token;
+      let uSent = 0, uEvents = 0;
 
       for (const it of items) {
         if (it.due > today) continue;
         const stamp = it.id + "|" + it.due;
         if (done[stamp]) { log.skipped++; continue; }
         try {
-          if (it.autoEmail && it.email) { await sendMail(token, it); log.sent++; }
-          if (it.autoEvent && it.eventDate) { await makeEvent(token, it); log.events++; }
+          if (it.autoEmail && it.email) { await sendMail(token, it); log.sent++; uSent++; }
+          if (it.autoEvent && it.eventDate) { await makeEvent(token, it); log.events++; uEvents++; }
           done[stamp] = new Date().toISOString();
         } catch (e) {
           log.errors.push((auth.email || uid) + " / " + stamp + ": " + e.message);
         }
       }
       try { await setSubDoc(queuePath, { data: JSON.stringify({ items, done }), email: auth.email || "" }); } catch (e) {}
+      if (uSent || uEvents) perUser.push({ email: auth.email || uid, sent: uSent, events: uEvents });
+    }
+
+    if (ADMIN && adminToken && (log.sent || log.events || log.errors.length)) {
+      try {
+        const L = [];
+        L.push("BDI University follow-up automation — daily summary");
+        L.push(today);
+        L.push("");
+        L.push("Totals: " + log.sent + " email(s) sent, " + log.events + " calendar event(s) created, across " + log.users + " user(s).");
+        if (perUser.length) {
+          L.push("");
+          L.push("By person:");
+          perUser.forEach((u) => L.push("  - " + u.email + ": " + u.sent + " email(s), " + u.events + " event(s)"));
+        }
+        if (log.errors.length) {
+          L.push("");
+          L.push("Issues (" + log.errors.length + "):");
+          log.errors.forEach((e) => L.push("  - " + e));
+        }
+        L.push("");
+        L.push("Sent automatically by BDI University.");
+        await sendMail(adminToken, { email: process.env.ADMIN_EMAIL, subject: "Follow-up automation summary — " + today, body: L.join("\n") });
+        log.summarySent = true;
+      } catch (e) { log.errors.push("summary email: " + e.message); }
     }
     await setDoc("shared", "automationLog", { data: JSON.stringify(log) });
     res.status(200).json(log);
