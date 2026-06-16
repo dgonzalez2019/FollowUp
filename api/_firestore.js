@@ -99,4 +99,42 @@ async function setDoc(coll, id, obj) {
   return true;
 }
 
-module.exports = { getDoc, setDoc, getAccessToken, base };
+async function listDocs(coll) {
+  const token = await getAccessToken();
+  const out = [];
+  let pageToken = "";
+  do {
+    const u = base() + "/" + coll + "?pageSize=300" + (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : "");
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token } });
+    if (!r.ok) break;
+    const j = await r.json();
+    (j.documents || []).forEach((d) => {
+      const id = d.name.split("/").pop();
+      out.push({ id, data: d.fields ? fromFields(d.fields) : {} });
+    });
+    pageToken = j.nextPageToken || "";
+  } while (pageToken);
+  return out;
+}
+
+// subcollection doc helpers: users/{uid}/auto/queue
+async function getSubDoc(path) {
+  const token = await getAccessToken();
+  const r = await fetch(base() + "/" + path, { headers: { Authorization: "Bearer " + token } });
+  if (r.status === 404) return null;
+  const j = await r.json();
+  if (!j.fields) return null;
+  return fromFields(j.fields);
+}
+async function setSubDoc(path, obj) {
+  const token = await getAccessToken();
+  const r = await fetch(base() + "/" + path, {
+    method: "PATCH",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ fields: toFields(obj) }),
+  });
+  if (!r.ok) throw new Error("Firestore write failed: " + (await r.text()));
+  return true;
+}
+
+module.exports = { getDoc, setDoc, listDocs, getSubDoc, setSubDoc, getAccessToken, base };

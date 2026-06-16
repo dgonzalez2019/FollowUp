@@ -42,8 +42,9 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Step 1: send the admin to Microsoft to grant consent
+    // Step 1: send the user to Microsoft to grant consent (carry their uid in state)
     if (action === "login") {
+      const uid = url.searchParams.get("uid") || "";
       const auth = new URL("https://login.microsoftonline.com/" + (process.env.MS_TENANT_ID || "common") + "/oauth2/v2.0/authorize");
       auth.searchParams.set("client_id", clientId);
       auth.searchParams.set("response_type", "code");
@@ -51,6 +52,7 @@ module.exports = async (req, res) => {
       auth.searchParams.set("response_mode", "query");
       auth.searchParams.set("scope", SCOPES);
       auth.searchParams.set("prompt", "consent");
+      if (uid) auth.searchParams.set("state", uid);
       res.writeHead(302, { Location: auth.toString() });
       res.end();
       return;
@@ -81,11 +83,19 @@ module.exports = async (req, res) => {
         headers: { Authorization: "Bearer " + tok.access_token },
       }).then((x) => x.json()).catch(() => ({}));
 
-      await setDoc("shared", "msAuth", {
+      const uid = url.searchParams.get("state") || "";
+      const record = {
         refresh_token: tok.refresh_token,
         email: me.mail || me.userPrincipalName || "",
         connectedAt: new Date().toISOString(),
-      });
+      };
+      if (uid) {
+        // per-user connection: store under this person's own doc
+        await setDoc("outlookTokens", uid, record);
+      } else {
+        // fallback (no uid supplied) keeps older single-admin behaviour
+        await setDoc("shared", "msAuth", record);
+      }
 
       res.writeHead(302, { Location: "/?msconnected=1" });
       res.end();

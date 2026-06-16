@@ -1,19 +1,16 @@
-// BDI University — daily automation runner (Vercel Cron)
-// Runs once a day. Reads the automation queue the site saved to Firestore,
-// and for every follow-up whose next-contact date is today (or past) and that
-// the admin flagged for automation, it:
-//   1. sends the follow-up email from the admin's Outlook (Mail.Send), and/or
-//   2. creates an Outlook calendar event for the next contact (Calendars.ReadWrite)
-// Then it records what it did so the same item isn't actioned twice.
+// BDI University — daily automation runner (Vercel Cron), PER-USER edition.
+// Each employee connects their own Outlook (token stored in outlookTokens/{uid}).
+// Each employee's flagged follow-ups are saved to users/{uid}/auto/queue.
+// This job loops over every connected user and, for their items due today,
+//   1. sends the follow-up email from THAT user's Outlook, and/or
+//   2. creates a calendar event on THAT user's Outlook,
+// then records what it did so nothing fires twice.
 //
-// Env vars: MS_CLIENT_ID, MS_CLIENT_SECRET, plus the Firebase service-account vars
-// used by _firestore.js. Protected by CRON_SECRET.
+// Env: MS_CLIENT_ID, MS_CLIENT_SECRET, MS_TENANT_ID, Firebase SA vars, CRON_SECRET.
 
-const { getDoc, setDoc } = require("./_firestore.js");
+const { listDocs, getSubDoc, setSubDoc, setDoc } = require("./_firestore.js");
 
-async function graphToken() {
-  const auth = await getDoc("shared", "msAuth");
-  if (!auth || !auth.refresh_token) throw new Error("Outlook not connected (no refresh token).");
+async function graphTokenFor(uid, auth) {
   const body = new URLSearchParams({
     client_id: process.env.MS_CLIENT_ID,
     client_secret: process.env.MS_CLIENT_SECRET,
@@ -27,10 +24,10 @@ async function graphToken() {
     body: body.toString(),
   });
   const tok = await r.json();
-  if (!tok.access_token) throw new Error("Token refresh failed: " + JSON.stringify(tok));
-  // Microsoft may rotate the refresh token; persist the new one if present
+  if (!tok.access_token) throw new Error("token refresh failed: " + (tok.error_description || JSON.stringify(tok)));
+  // persist a rotated refresh token if Microsoft issued a new one
   if (tok.refresh_token && tok.refresh_token !== auth.refresh_token) {
-    await setDoc("shared", "msAuth", { refresh_token: tok.refresh_token, email: auth.email || "", connectedAt: auth.connectedAt || "" });
+    await setDoc("outlookTokens", uid, { refresh_token: tok.refresh_token, email: auth.email || "", connectedAt: auth.connectedAt || "" });
   }
   return tok.access_token;
 }
@@ -56,7 +53,7 @@ async function sendMail(token, item) {
 }
 
 async function makeEvent(token, item) {
-  const start = item.eventDate; // YYYY-MM-DD
+  const start = item.eventDate;
   const ev = {
     subject: "Follow up: " + (item.name || item.email) + (item.company ? " (" + item.company + ")" : ""),
     body: { contentType: "Text", content: (item.subject ? "Re: " + item.subject + "\n\n" : "") + "Auto-created by BDI University follow-up automation." },
@@ -74,40 +71,49 @@ async function makeEvent(token, item) {
 }
 
 module.exports = async (req, res) => {
-  // Allow Vercel Cron (sends the secret) or a manual admin trigger with the same secret
   const secret = (req.headers.authorization || "").replace("Bearer ", "") ||
     new URL(req.url, "https://x").searchParams.get("key");
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
-  const log = { ran: new Date().toISOString(), sent: 0, events: 0, skipped: 0, errors: [] };
+  const log = { ran: new Date().toISOString(), users: 0, sent: 0, events: 0, skipped: 0, errors: [] };
+  const today = new Date().toISOString().slice(0, 10);
   try {
-    const queueDoc = await getDoc("shared", "automation");
-    const queue = queueDoc && queueDoc.data ? JSON.parse(queueDoc.data) : { items: [], done: {} };
-    const items = queue.items || [];
-    const done = queue.done || {};
-    const today = new Date().toISOString().slice(0, 10);
+    const tokens = await listDocs("outlookTokens"); // [{id: uid, data: {refresh_token,email}}]
+    for (const t of tokens) {
+      const uid = t.id;
+      const auth = t.data || {};
+      if (!auth.refresh_token) continue;
+      // load this user's automation queue
+      const queuePath = "users/" + uid + "/auto/queue";
+      let queue;
+      try { queue = await getSubDoc(queuePath); } catch (e) { queue = null; }
+      const parsed = queue && queue.data ? JSON.parse(queue.data) : null;
+      const items = (parsed && parsed.items) || [];
+      const done = (parsed && parsed.done) || {};
+      const dueNow = items.filter((it) => it.due <= today && !done[it.id + "|" + it.due]);
+      if (dueNow.length === 0) continue;
 
-    let token = null;
-    if (items.some((it) => it.due <= today && !done[it.id + "|" + it.due])) {
-      token = await graphToken();
-    }
+      let token;
+      try { token = await graphTokenFor(uid, auth); }
+      catch (e) { log.errors.push((auth.email || uid) + ": " + e.message); continue; }
+      log.users++;
 
-    for (const it of items) {
-      if (it.due > today) { continue; }
-      const stamp = it.id + "|" + it.due;
-      if (done[stamp]) { log.skipped++; continue; }
-      try {
-        if (it.autoEmail && it.email) { await sendMail(token, it); log.sent++; }
-        if (it.autoEvent && it.eventDate) { await makeEvent(token, it); log.events++; }
-        done[stamp] = new Date().toISOString();
-      } catch (e) {
-        log.errors.push(stamp + ": " + e.message);
+      for (const it of items) {
+        if (it.due > today) continue;
+        const stamp = it.id + "|" + it.due;
+        if (done[stamp]) { log.skipped++; continue; }
+        try {
+          if (it.autoEmail && it.email) { await sendMail(token, it); log.sent++; }
+          if (it.autoEvent && it.eventDate) { await makeEvent(token, it); log.events++; }
+          done[stamp] = new Date().toISOString();
+        } catch (e) {
+          log.errors.push((auth.email || uid) + " / " + stamp + ": " + e.message);
+        }
       }
+      try { await setSubDoc(queuePath, { data: JSON.stringify({ items, done }), email: auth.email || "" }); } catch (e) {}
     }
-
-    await setDoc("shared", "automation", { data: JSON.stringify({ items, done }) });
     await setDoc("shared", "automationLog", { data: JSON.stringify(log) });
     res.status(200).json(log);
   } catch (e) {
