@@ -3694,6 +3694,7 @@ function FollowUpDesk() {
                   <div>
                     <p className="fd-hint" style={{ marginTop: 0 }}>Connect your own Microsoft 365 account so the site can send your follow-up emails and add your calendar events for you — even when you're not online. Each person connects their own Outlook; your automation always sends from your account.</p>
                     <button className="fd-btn primary sm" onClick={() => { window.location.assign(window.location.origin + "/api/ms-auth?action=login&uid=" + (user ? user.uid : "")); }}><Mail size={14} /> Connect Outlook</button>
+                    <span style={{ marginLeft: 10, fontWeight: 800, color: "var(--danger)", textTransform: "uppercase", letterSpacing: ".04em" }}>DO NOT USE</span>
                     <p className="fd-hint" style={{ fontSize: 11, marginTop: 8 }}>Connects {(user && user.email) || "your account"}. Your flagged follow-ups send from your Outlook only — never anyone else\u2019s.</p>
                   </div>
                 )}
