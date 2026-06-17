@@ -32,13 +32,24 @@ async function graphTokenFor(uid, auth) {
   return tok.access_token;
 }
 
+function escapeHtml(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 async function sendMail(token, item) {
   const toList = [{ emailAddress: { address: item.email } }];
   const ccList = (item.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean).map((a) => ({ emailAddress: { address: a } }));
+  let bodyObj;
+  if (item.htmlSig) {
+    // convert the plain-text body to simple HTML and append the user's signature
+    const htmlBody = escapeHtml(item.body || "").replace(/\n/g, "<br>");
+    bodyObj = { contentType: "HTML", content: "<div>" + htmlBody + "</div><br>" + item.htmlSig };
+  } else {
+    bodyObj = { contentType: "Text", content: item.body || "" };
+  }
   const msg = {
     message: {
       subject: item.subject || "Following up",
-      body: { contentType: "Text", content: item.body || "" },
+      body: bodyObj,
       toRecipients: toList,
       ccRecipients: ccList,
     },
