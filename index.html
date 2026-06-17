@@ -3002,6 +3002,13 @@ function FollowUpDesk() {
   const liveAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const [espnLive, setEspnLive] = useState({});
   const [espnAll, setEspnAll] = useState({});
+  const [feedAt, setFeedAt] = useState(0);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (section !== "bracket") return;
+    const iv = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [section]);
   const [resDay, setResDay] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const [lbView, setLbView] = useState(null);
   useEffect(() => {
@@ -3082,6 +3089,7 @@ function FollowUpDesk() {
       const batch = {};
       evs.forEach((ev) => { const g = parseEv(ev); if (g) batch[g.id] = g; });
       setEspnAll((prev) => (wholesale ? batch : { ...prev, ...batch }));
+      setFeedAt(Date.now());
       const cur = brDataRef.current;
       const pairOf = {};
       Object.values(cur.matches || {}).forEach((m) => { pairOf[[m.home, m.away].sort().join("|")] = m.id; });
@@ -3151,6 +3159,13 @@ function FollowUpDesk() {
     (espnGames || []).forEach((g) => { if (g.status !== "pre") byPair[[g.hc, g.ac].sort().join("|")] = g; });
     return Object.values(byPair);
   }, [brLive, espnGames]);
+  const agoLabel = (ms) => {
+    if (!ms) return "";
+    const s = Math.max(0, Math.round((nowTick - ms) / 1000));
+    if (s < 60) return s + "s ago";
+    const m = Math.floor(s / 60);
+    return m < 60 ? m + "m ago" : Math.floor(m / 60) + "h ago";
+  };
 
   if (cloudOn && !authReady) {
     return <div className="fd-root"><div className="fd-auth"><div className="fd-empty">Connecting…</div></div></div>;
@@ -5042,7 +5057,7 @@ function FollowUpDesk() {
           {bracketView === "standings" && (
           <>
             <div className="fd-panel">
-              <div className="fd-panel-head">Group stage — live standings <span className="fd-count">updates automatically</span></div>
+              <div className="fd-panel-head">Group stage — live standings <span className="fd-count">{feedAt ? "updated " + agoLabel(feedAt) : "connecting…"}</span></div>
               <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Real tables built from results so far — in-progress games count live. <span style={{ color: "var(--lime)", fontWeight: 600 }}>Top two</span> advance automatically; <span style={{ color: "var(--accent)", fontWeight: 600 }}>3rd place</span> competes for the eight best-third spots.</p>
             </div>
             <div className="fd-stand-grid">
