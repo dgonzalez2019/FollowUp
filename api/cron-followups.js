@@ -106,6 +106,7 @@ module.exports = async (req, res) => {
       const parsed = queue && queue.data ? JSON.parse(queue.data) : null;
       const items = (parsed && parsed.items) || [];
       const done = (parsed && parsed.done) || {};
+      const sentLog = (parsed && parsed.sentLog) || {};
       const dueNow = items.filter((it) => it.due <= today && !done[it.id + "|" + it.due]);
       if (dueNow.length === 0) continue;
 
@@ -121,14 +122,14 @@ module.exports = async (req, res) => {
         const stamp = it.id + "|" + it.due;
         if (done[stamp]) { log.skipped++; continue; }
         try {
-          if (it.autoEmail && it.email) { await sendMail(token, it); log.sent++; uSent++; }
+          if (it.autoEmail && it.email) { await sendMail(token, it); log.sent++; uSent++; sentLog[it.id] = { lastDue: it.due, at: new Date().toISOString() }; }
           if (it.autoEvent && it.eventDate) { await makeEvent(token, it); log.events++; uEvents++; }
           done[stamp] = new Date().toISOString();
         } catch (e) {
           log.errors.push((auth.email || uid) + " / " + stamp + ": " + e.message);
         }
       }
-      try { await setSubDoc(queuePath, { data: JSON.stringify({ items, done }), email: auth.email || "" }); } catch (e) {}
+      try { await setSubDoc(queuePath, { data: JSON.stringify({ items, done, sentLog }), email: auth.email || "" }); } catch (e) {}
       if (uSent || uEvents) perUser.push({ email: auth.email || uid, sent: uSent, events: uEvents });
     }
 
