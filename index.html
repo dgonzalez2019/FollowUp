@@ -2217,10 +2217,12 @@ function PlansViewer() {
 const ACCT_MONTHS = ["2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"];
 const acctMonthLabel = (key) => { const p = (key || "").split("-"); const d = new Date(+p[0], +p[1] - 1, 1); return d.toLocaleDateString(undefined, { month: "long", year: "numeric" }); };
 const acctMoney = (n) => { const v = Number(n) || 0; return (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
-// Retainage withheld = -(Gross × ret%); Receivables = Gross + Withheld + Retainage billed.
+// Retainage withheld = -(Gross × ret%) when a rate is set; otherwise the directly
+// entered withheld amount (the workbook used both). Receivables = Gross + Withheld +
+// Retainage billed.
 const acctRow = (r) => {
   const gross = Number(r.gross) || 0, retPct = Number(r.retPct) || 0, retBilled = Number(r.retBilled) || 0;
-  const withheld = -(gross * retPct / 100);
+  const withheld = retPct ? -(gross * retPct / 100) : (Number(r.withheld) || 0);
   return { gross, retPct, retBilled, withheld, receivables: gross + withheld + retBilled };
 };
 const ACCT_TEMPLATE = [
@@ -2253,6 +2255,244 @@ const ACCT_TEMPLATE = [
   { proj: "2242-13", client: "HTG", name: "Normandy Cove", pm: "Scott", contract: 23868430.48, toBill: 23868430.48, retDraw: 308035.54, retPct: 0, group: "htg" },
   { proj: "2247-06", client: "HTG", name: "The Shores", pm: "Scott", contract: 16256301.36, toBill: 16256301.36, retDraw: 0, retPct: 0, group: "htg" },
 ];
+const ACCT_HISTORY = {
+  "2025-12": [
+    {"proj": "2020", "client": "USPS", "name": "USPS Facilities", "pm": "David", "group": "current", "gross": 38979.78},
+    {"proj": "2020-339604", "client": "USPS Hubworks", "name": "Opa Locka Truckers exit gate", "pm": "David", "group": "current", "contract": 5003.91, "toBill": 38621.78},
+    {"proj": "2020-588384", "client": "USPS Hubworks", "name": "Opa Locka Truckers exit gate", "pm": "David", "group": "current", "contract": 5003.91, "toBill": 5003.91},
+    {"proj": "2020-760892", "client": "USPS Hubworks", "name": "Tampa FL. Ehrlich Branch", "pm": "David", "group": "current", "gross": 10229.24},
+    {"proj": "2020-721376", "client": "USPS Hubworks", "name": "Jensen Beach Main Office Flooring", "pm": "David", "group": "current", "gross": 1435.27},
+    {"proj": "2020-671854", "client": "USPS Hubworks", "name": "USPS Bradenton Ceiling Damaged", "pm": "David", "group": "current", "toBill": 6120.72},
+    {"proj": "2020-711571", "client": "USPS Hubworks", "name": "USPS St Cloud PO Box Area", "pm": "David", "group": "current", "toBill": 45281.48},
+    {"proj": "2217-01", "client": "Mater Academy", "name": "MLA South Campus Phase 1", "pm": "Yamile", "group": "current", "contract": 7377997.0, "gross": 40246.91},
+    {"proj": "2217-02", "client": "Mater Academy", "name": "MLA South Campus Phase 2", "pm": "Yamile", "group": "current", "contract": 7377997.0, "gross": 14355.86, "withheld": -717.79, "retBilled": 320282.19},
+    {"proj": "2231-29", "client": "Luxcom", "name": "Sunrise Gardens", "pm": "Wail", "group": "current", "contract": 2358738.24, "toBill": 211507.71, "retDraw": 1928829.09, "gross": 73069.12, "withheld": -3115.06, "submitted": "2026-01-19"},
+    {"proj": "2233-02", "client": "Resorts World", "name": "JC Penney Demolition", "pm": "Yamile", "group": "current", "contract": 39106573.82, "toBill": 6513027.0, "retDraw": 33912.19, "gross": 75372.66, "retPct": 10, "submitted": "2025-12-24"},
+    {"proj": "2233-06", "client": "HTG", "name": "Courtside II", "pm": "Nez", "group": "current", "contract": 39106573.82, "toBill": 779404.0, "retDraw": 2120326.27, "gross": 616044.54, "submitted": "2026-01-06"},
+    {"proj": "2233-16P", "client": "MDCPS", "name": "Lillie Evans K-8 Pre Construction", "pm": "Teo", "group": "current", "contract": 4750.0, "toBill": 4750.0},
+    {"proj": "2233-18", "client": "MDCPS", "name": "Cutler Ridge ES - Ph2 Renovations", "pm": "Lazaro", "group": "current", "toBill": 2474947.75},
+    {"proj": "2233-18P", "client": "MDCPS", "name": "Cutler Ridge ES Pre Construction", "pm": "Teo", "group": "current", "contract": 6187.0, "gross": 6187.0, "submitted": "2026-01-05"},
+    {"proj": "2236-24", "client": "Heineken", "name": "Heneiken Office @ Coral Gables", "pm": "Yamile", "group": "current", "contract": 2760310.15, "gross": 212979.41, "withheld": -16401.46, "retBilled": 252063.46, "submitted": "2026-01-06"},
+    {"proj": "2236-08", "client": "HTG Grand East", "name": "Grand East Village", "pm": "Scott", "group": "current", "contract": 18487346.63, "toBill": 4820546.27, "retDraw": 841345.14, "gross": 584320.46, "submitted": "2025-12-27"},
+    {"proj": "2236-28", "client": "Havana", "name": "Havana Enclave", "pm": "Nez", "group": "current", "toBill": 21947625.07, "retDraw": 2111778.75, "gross": 3701720.86, "withheld": -324118.85, "submitted": "2025-12-24"},
+    {"proj": "2238-05", "client": "USPS", "name": "USPS Key Largo HVAC Replacement", "pm": "David", "group": "current", "toBill": 28892.33},
+    {"proj": "2242-04P", "client": "MDCPS", "name": "Leewod K-8 Phase 2 PRE Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 28721.04},
+    {"proj": "2242-05", "client": "MDCPS", "name": "Lindsey Hopkins TEC - Structural Rep", "pm": "Lazaro", "group": "current", "contract": 4527209.53, "toBill": 4527209.53, "retDraw": 73813.58, "gross": 225411.91, "retPct": 5, "submitted": "2026-01-13"},
+    {"proj": "2242-06", "client": "MDCPS", "name": "Joella Good ES - Renovations", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 1726026.24, "retDraw": 22553.94, "gross": 142401.53, "retPct": 5, "submitted": "2026-01-09"},
+    {"proj": "2242-07P", "client": "MDCPS", "name": "Lindsey Hopkins GOB - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 12380.45},
+    {"proj": "2242-08P", "client": "MDCPS", "name": "Lindsey Hopkins HVAC - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 78888.0},
+    {"proj": "2242-10", "client": "MHC", "name": "Miami Everglades", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 95794.17, "retDraw": 30655.44, "gross": 74666.03, "retPct": 5, "submitted": "2026-01-08"},
+    {"proj": "2242-16", "client": "DV", "name": "Dulce Vida Apartments", "pm": "Wail", "group": "current", "contract": 528988.0, "toBill": 54653646.0},
+    {"proj": "2242-17", "client": "MHC", "name": "Loggerhead Marina", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 23012.84, "retDraw": 2755.16, "gross": 19197.36, "withheld": -2755.16, "submitted": "2026-01-08"},
+    {"proj": "2243-12", "client": "USPS", "name": "USPS Ft Myers Six Mile HVAC", "pm": "David", "group": "current", "contract": 528988.0, "toBill": 39648.57},
+    {"proj": "2244-01", "client": "UM", "name": "UM Cox 269/271", "pm": "Jocelyn", "group": "current", "contract": 125550.27, "toBill": 125550.27, "retDraw": 22730.14, "gross": 57146.76, "retPct": 10, "submitted": "2025-12-23"},
+    {"proj": "2244-09", "client": "UM", "name": "UM Cox NMR Labs", "pm": "Jocelyn", "group": "current", "contract": 23292.99, "toBill": 23292.99, "retPct": 10},
+    {"proj": "2242-03", "client": "HTG", "name": "Legacy Park II", "pm": "Scott", "group": "htg", "toBill": 34426085.5, "retDraw": 29746.0},
+    {"proj": "2242-11", "client": "HTG", "name": "Forest Glen", "pm": "Scott", "group": "htg", "toBill": 12913363.61, "retDraw": 262493.54, "gross": 959515.03, "withheld": -89372.75, "submitted": "2025-12-24"},
+    {"proj": "2242-13", "client": "HTG", "name": "Normandy Cove", "pm": "Scott", "group": "htg", "toBill": 27350051.54, "comments": "New Project"},
+  ],
+  "2026-01": [
+    {"proj": "2020", "client": "USPS", "name": "USPS Facilities", "pm": "David", "group": "current", "gross": 184721.78},
+    {"proj": "2020-339604", "client": "USPS Hubworks", "name": "Opa Locka Truckers exit gate", "pm": "David", "group": "current", "contract": 5003.91, "toBill": 38621.78},
+    {"proj": "2020-588384", "client": "USPS Hubworks", "name": "Opa Locka Truckers exit gate", "pm": "David", "group": "current", "contract": 5003.91, "toBill": 5003.91},
+    {"proj": "2020-671854", "client": "USPS Hubworks", "name": "USPS Bradenton Ceiling Damaged", "pm": "David", "group": "current", "gross": 6120.72, "submitted": "2026-01-29"},
+    {"proj": "2020-711571", "client": "USPS Hubworks", "name": "USPS St Cloud PO Box Area", "pm": "David", "group": "current", "toBill": 45281.48},
+    {"proj": "2231-29", "client": "Luxcom", "name": "Sunrise Gardens", "pm": "Wail", "group": "current", "contract": 2358738.24, "toBill": 211507.71, "retDraw": 1928829.09},
+    {"proj": "2233-02", "client": "Resorts World", "name": "JC Penney Demolition", "pm": "Yamile", "group": "current", "contract": 39106573.82, "toBill": 6513027.0, "retDraw": 33912.19, "retPct": 10},
+    {"proj": "2233-06", "client": "HTG", "name": "Courtside II", "pm": "Nez", "group": "current", "contract": 39106573.82, "toBill": 593113.54, "retDraw": 2120326.27, "gross": 480667.37, "submitted": "2026-02-02"},
+    {"proj": "2233-16P", "client": "MDCPS", "name": "Lillie Evans K-8 Pre Construction", "pm": "Teo", "group": "current", "contract": 4750.0, "toBill": 4750.0},
+    {"proj": "2233-18", "client": "MDCPS", "name": "Cutler Ridge ES - Ph2 Renovations", "pm": "Lazaro", "group": "current", "toBill": 1768118.85, "retDraw": 7841.45, "gross": 156828.9, "retPct": 5, "submitted": "2026-02-09"},
+    {"proj": "2236-08", "client": "HTG Grand East", "name": "Grand East Village", "pm": "Scott", "group": "current", "contract": 18487346.63, "toBill": 3541261.67, "retDraw": 841345.14, "gross": 1279284.6, "submitted": "2026-02-04"},
+    {"proj": "2236-28", "client": "Havana", "name": "Havana Enclave", "pm": "Nez", "group": "current", "toBill": 18297923.41, "retDraw": 2465456.67, "gross": 3636681.66, "withheld": -353677.92, "submitted": "2026-02-03"},
+    {"proj": "2238-05", "client": "USPS", "name": "USPS Key Largo HVAC Replacement", "pm": "David", "group": "current", "gross": 28892.33, "submitted": "2026-01-15"},
+    {"proj": "2242-04P", "client": "MDCPS", "name": "Leewod K-8 Phase 2 PRE Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 28721.04},
+    {"proj": "2242-05", "client": "MDCPS", "name": "Lindsey Hopkins TEC - Structural Rep", "pm": "Lazaro", "group": "current", "contract": 4148989.37, "toBill": 4148989.37, "retDraw": 92724.59, "gross": 378220.16, "retPct": 5, "submitted": "2026-02-10"},
+    {"proj": "2242-06", "client": "MDCPS", "name": "Joella Good ES - Renovations", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 1566552.31, "retDraw": 30936.56, "gross": 159473.93, "retPct": 5, "submitted": "2026-02-04"},
+    {"proj": "2242-07P", "client": "MDCPS", "name": "Lindsey Hopkins GOB - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 12380.45},
+    {"proj": "2242-08P", "client": "MDCPS", "name": "Lindsey Hopkins HVAC - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 78888.0},
+    {"proj": "2242-10", "client": "MHC", "name": "Miami Everglades", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 71860.85, "retDraw": 31852.11, "gross": 23933.32, "retPct": 5, "submitted": "2026-02-02"},
+    {"proj": "2242-16", "client": "DV", "name": "Dulce Vida Apartments", "pm": "Wail", "group": "current", "contract": 528988.0, "toBill": 53942925.6, "retDraw": 6635.29, "gross": 723822.71, "withheld": -6635.29, "submitted": "2026-02-09"},
+    {"proj": "2242-17", "client": "MHC", "name": "Loggerhead Marina", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 23012.84, "retDraw": 2755.16},
+    {"proj": "2242-26", "client": "MHC", "name": "Hollywood Marina Pavers", "pm": "Lazaro", "group": "current", "contract": 528988.0, "gross": 16000.0, "submitted": "2026-02-06"},
+    {"proj": "2242-28", "client": "MHC", "name": "ELS Water Heaters", "pm": "Lazaro", "group": "current", "contract": 528988.0, "gross": 9700.0, "submitted": "2026-02-06"},
+    {"proj": "2243-12", "client": "USPS", "name": "USPS Ft Myers Six Mile HVAC", "pm": "David", "group": "current", "contract": 528988.0, "toBill": 39648.57},
+    {"proj": "2244-01", "client": "UM", "name": "UM Cox 269/271", "pm": "Jocelyn", "group": "current", "contract": 67329.16, "toBill": 67329.16, "retDraw": 28869.84, "gross": 61397.05, "retPct": 10, "submitted": "2026-02-02"},
+    {"proj": "2244-09", "client": "UM", "name": "UM Cox NMR Labs", "pm": "Jocelyn", "group": "current", "retDraw": 2117.55, "gross": 21175.45, "retPct": 10, "submitted": "2026-02-05"},
+    {"proj": "2247-03P", "client": "MDCPS", "name": "Jane S Roberts Pre Cons", "pm": "Lazaro", "group": "current", "contract": 15461.58, "toBill": 15461.58, "retPct": 10},
+    {"proj": "2242-03", "client": "HTG", "name": "Legacy Park II", "pm": "Scott", "group": "htg", "toBill": 34426085.5, "retDraw": 29746.0},
+    {"proj": "2242-11", "client": "HTG", "name": "Forest Glen", "pm": "Scott", "group": "htg", "toBill": 11851954.27, "retDraw": 367373.65, "gross": 1125553.13, "withheld": -104880.13, "submitted": "2026-02-04"},
+    {"proj": "2242-13", "client": "HTG", "name": "Normandy Cove", "pm": "Scott", "group": "htg", "toBill": 27350051.54, "comments": "New Project"},
+  ],
+  "2026-02": [
+    {"proj": "2020", "client": "USPS", "name": "USPS Facilities", "pm": "David", "group": "current", "gross": 55384.71},
+    {"proj": "2231-29", "client": "Luxcom", "name": "Sunrise Gardens", "pm": "Wail", "group": "current", "contract": 2358738.24, "toBill": 63184.5, "gross": -89309.81, "retBilled": 1928829.09, "submitted": "2026-02-26"},
+    {"proj": "2233-02", "client": "Resorts World", "name": "JC Penney Demolition", "pm": "Yamile", "group": "current", "contract": 39106573.82, "toBill": 6462797.96, "retDraw": 38935.09, "gross": 50229.04, "retPct": 10, "submitted": "2026-02-25"},
+    {"proj": "2233-06", "client": "HTG", "name": "Courtside II", "pm": "Nez", "group": "current", "contract": 39106573.82, "toBill": 377455.79, "retDraw": 2120326.27, "gross": 215657.75, "submitted": "2026-03-02"},
+    {"proj": "2233-16P", "client": "MDCPS", "name": "Lillie Evans K-8 Pre Construction", "pm": "Teo", "group": "current", "contract": 4750.0, "toBill": 4750.0},
+    {"proj": "2233-18", "client": "MDCPS", "name": "Cutler Ridge ES - Ph2 Renovations", "pm": "Lazaro", "group": "current", "toBill": 1633774.85, "retDraw": 14558.64, "gross": 134344.0, "retPct": 5, "submitted": "2026-03-04"},
+    {"proj": "2236-08", "client": "HTG Grand East", "name": "Grand East Village", "pm": "Scott", "group": "current", "contract": 18487346.63, "toBill": 2970259.27, "retDraw": 841345.14, "gross": 1174053.62, "submitted": "2026-03-03"},
+    {"proj": "2236-09", "client": "Resorts World", "name": "Passport Corridor Upgrade", "pm": "Yamile", "group": "current", "contract": 18487346.63, "toBill": 1428902.89},
+    {"proj": "2236-28", "client": "Havana", "name": "Havana Enclave", "pm": "Nez", "group": "current", "toBill": 15232178.27, "retDraw": 2123837.54, "gross": 3197250.13, "withheld": -310217.08, "retBilled": 651836.2, "submitted": "2026-03-04"},
+    {"proj": "2242-04P", "client": "MDCPS", "name": "Leewod K-8 Phase 2 PRE Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 28721.04},
+    {"proj": "2242-05", "client": "MDCPS", "name": "Lindsey Hopkins TEC - Structural Rep", "pm": "Lazaro", "group": "current", "contract": 3569014.03, "toBill": 3569014.03, "retDraw": 121723.35, "gross": 579975.34, "retPct": 5, "submitted": "2026-03-06"},
+    {"proj": "2242-06", "client": "MDCPS", "name": "Joella Good ES - Renovations", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 1285943.99, "retDraw": 49077.46, "gross": 280608.92, "retPct": 5, "submitted": "2026-03-02"},
+    {"proj": "2242-07P", "client": "MDCPS", "name": "Lindsey Hopkins GOB - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "gross": 12380.45, "submitted": "2026-02-25"},
+    {"proj": "2242-08P", "client": "MDCPS", "name": "Lindsey Hopkins HVAC - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 78888.0},
+    {"proj": "2242-10", "client": "MHC", "name": "Miami Everglades", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 34986.45, "retDraw": 33695.83, "gross": 36874.4, "retPct": 5, "submitted": "2026-02-25"},
+    {"proj": "2242-16", "client": "DV", "name": "Dulce Vida Apartments", "pm": "Wail", "group": "current", "contract": 528988.0, "toBill": 53671981.07, "retDraw": 12491.55, "gross": 283229.38, "withheld": -5910.3, "submitted": "2026-02-27"},
+    {"proj": "2242-17", "client": "MHC", "name": "Loggerhead Marina", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 23012.84, "retDraw": 2755.16},
+    {"proj": "2243-12", "client": "USPS", "name": "USPS Ft Myers Six Mile HVAC", "pm": "David", "group": "current", "contract": 528988.0, "gross": 39648.57, "submitted": "2026-02-27"},
+    {"proj": "2244-01", "client": "UM", "name": "UM Cox 269/271", "pm": "Jocelyn", "group": "current", "contract": 78364.3, "toBill": 78364.3, "retDraw": 33241.15, "gross": 43713.07, "retPct": 10, "submitted": "2026-02-25"},
+    {"proj": "2244-09", "client": "UM", "name": "UM Cox NMR Labs", "pm": "Jocelyn", "group": "current", "retPct": 10, "retBilled": 2117.54, "submitted": "2026-02-19"},
+    {"proj": "2244-10", "client": "UM", "name": "UM CP-159 RO Water", "pm": "Jocelyn", "group": "current", "toBill": 33254.89},
+    {"proj": "2247-03P", "client": "MDCPS", "name": "Jane S Roberts Pre Cons", "pm": "Lazaro", "group": "current", "contract": 15461.58, "toBill": 15461.58, "retPct": 10},
+    {"proj": "2248-02", "client": "USPS", "name": "USPS Tarpon Springs Dock Lift", "pm": "David", "group": "current", "contract": 21534.0, "toBill": 21534.0, "retPct": 10},
+    {"proj": "2242-03", "client": "HTG", "name": "Legacy Park II", "pm": "Scott", "group": "htg", "toBill": 34047520.47, "retDraw": 73613.78, "gross": 536147.42, "withheld": -43867.78, "submitted": "2026-03-02"},
+    {"proj": "2242-11", "client": "HTG", "name": "Forest Glen", "pm": "Scott", "group": "htg", "toBill": 10673751.1, "retDraw": 482288.37, "gross": 1236863.76, "withheld": -114914.71, "submitted": "2026-02-27"},
+    {"proj": "2242-13", "client": "HTG", "name": "Normandy Cove", "pm": "Scott", "group": "htg", "toBill": 26632829.0, "retDraw": 31154.8, "gross": 717222.54, "withheld": -31154.8, "submitted": "2026-02-26", "comments": "New Project"},
+  ],
+  "2026-03": [
+    {"proj": "2020", "client": "USPS", "name": "USPS Facilities", "pm": "David", "group": "current", "gross": 201918.13},
+    {"proj": "2231-29", "client": "Luxcom", "name": "Sunrise Gardens", "pm": "Wail", "group": "current", "contract": 2358738.24, "toBill": 63184.5},
+    {"proj": "2233-02", "client": "Resorts World", "name": "JC Penney Demolition", "pm": "Yamile", "group": "current", "contract": 39106573.82, "toBill": 6462797.96, "retDraw": 38935.09, "gross": 23614.69, "withheld": -2361.47, "retBilled": 11173.64, "submitted": "2026-03-31"},
+    {"proj": "2233-06", "client": "HTG", "name": "Courtside II", "pm": "Nez", "group": "current", "contract": 39106573.82, "toBill": 110432.05, "retDraw": 2120326.27, "gross": 298434.46, "submitted": "2026-03-30"},
+    {"proj": "2233-16P", "client": "MDCPS", "name": "Lillie Evans K-8 Pre Construction", "pm": "Teo", "group": "current", "contract": 4750.0, "toBill": 4750.0},
+    {"proj": "2233-18", "client": "MDCPS", "name": "Cutler Ridge ES - Ph2 Renovations", "pm": "Lazaro", "group": "current", "toBill": 1449701.85, "retDraw": 23762.3, "gross": 184073.0, "retPct": 5, "submitted": "2026-04-02"},
+    {"proj": "2236-08", "client": "HTG Grand East", "name": "Grand East Village", "pm": "Scott", "group": "current", "contract": 18487346.63, "toBill": 2239201.19, "retDraw": 841345.14, "gross": 770949.86, "submitted": "2026-03-27"},
+    {"proj": "2236-09", "client": "Resorts World", "name": "Passport Corridor Upgrade", "pm": "Yamile", "group": "current", "contract": 18487346.63, "toBill": 1428902.89, "gross": 28156.64, "retPct": 10, "submitted": "2026-03-31"},
+    {"proj": "2236-28", "client": "Havana", "name": "Havana Enclave", "pm": "Nez", "group": "current", "toBill": 11930589.01, "retDraw": 2441874.05, "gross": 3301501.1, "withheld": -318036.51, "submitted": "2026-03-25"},
+    {"proj": "2242-04P", "client": "MDCPS", "name": "Leewod K-8 Phase 2 PRE Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 28721.04},
+    {"proj": "2242-05", "client": "MDCPS", "name": "Lindsey Hopkins TEC - Structural Rep", "pm": "Lazaro", "group": "current", "contract": 3034057.29, "toBill": 3034057.29, "retDraw": 148471.19, "gross": 534956.74, "retPct": 5, "submitted": "2026-04-02"},
+    {"proj": "2242-06", "client": "MDCPS", "name": "Joella Good ES - Renovations", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 1052204.94, "retDraw": 56245.0, "gross": 233738.45, "retPct": 5, "submitted": "2026-04-02"},
+    {"proj": "2242-07", "client": "MDCPS", "name": "Lindsey Hopkins GOB", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 3700694.0, "retDraw": 4119.3, "gross": 82386.0, "retPct": 5, "submitted": "2026-03-31"},
+    {"proj": "2242-08P", "client": "MDCPS", "name": "Lindsey Hopkins HVAC - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 78888.0},
+    {"proj": "2242-10", "client": "MHC", "name": "Miami Everglades", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 9198.14, "retDraw": 34985.24, "gross": 25788.31, "retPct": 5, "submitted": "2026-03-30"},
+    {"proj": "2242-16", "client": "DV", "name": "Dulce Vida Apartments", "pm": "Wail", "group": "current", "contract": 528988.0, "toBill": 50995112.12, "retDraw": 257961.72, "gross": 2677848.52, "withheld": -245470.16, "submitted": "2026-04-02"},
+    {"proj": "2242-17", "client": "MHC", "name": "Loggerhead Marina", "pm": "Lazaro", "group": "current", "contract": 528988.0, "toBill": 23012.84, "retDraw": 2755.16},
+    {"proj": "2242-27", "client": "MHC", "name": "ELS East Bathrooms", "pm": "Lazaro", "group": "current", "contract": 528988.0, "gross": 56939.0, "submitted": "2026-03-26"},
+    {"proj": "2244-01", "client": "UM", "name": "UM Cox 269/271", "pm": "Jocelyn", "group": "current", "contract": 62550.35, "toBill": 62550.35, "retDraw": 35546.58, "gross": 23054.27, "retPct": 10, "submitted": "2026-03-27"},
+    {"proj": "2244-10", "client": "UM", "name": "UM CP-159 RO Water", "pm": "Jocelyn", "group": "current", "toBill": 33254.89},
+    {"proj": "2247-03P", "client": "MDCPS", "name": "Jane S Roberts Pre Cons", "pm": "Lazaro", "group": "current", "contract": 15461.58, "toBill": 15461.58, "retPct": 10},
+    {"proj": "2248-02", "client": "USPS", "name": "USPS Tarpon Springs Dock Lift", "pm": "David", "group": "current", "contract": 21534.0, "toBill": 21534.0, "retPct": 10},
+    {"proj": "2242-03", "client": "HTG", "name": "Legacy Park II", "pm": "Scott", "group": "htg", "toBill": 33655203.24, "retDraw": 110408.77, "gross": 392317.23, "withheld": -48978.69, "submitted": "2026-03-27"},
+    {"proj": "2242-11", "client": "HTG", "name": "Forest Glen", "pm": "Scott", "group": "htg", "toBill": 8525968.75, "retDraw": 686821.14, "gross": 2187867.14, "withheld": -204532.77, "submitted": "2026-03-27"},
+    {"proj": "2242-13", "client": "HTG", "name": "Normandy Cove", "pm": "Scott", "group": "htg", "toBill": 26632829.0, "retDraw": 31154.8},
+  ],
+  "2026-04": [
+    {"proj": "2020", "client": "USPS", "name": "USPS Facilities", "pm": "David", "group": "current", "gross": 10130.35},
+    {"proj": "2231-29", "client": "Luxcom", "name": "Sunrise Gardens", "pm": "Wail", "group": "current", "contract": 2358738.24, "toBill": 63184.5},
+    {"proj": "2233-02", "client": "Resorts World", "name": "JC Penney Demolition", "pm": "Yamile", "group": "current", "contract": 39106573.82, "toBill": 6428890.04, "retDraw": 37729.05, "gross": 76061.3, "retPct": 10, "submitted": "2026-05-07"},
+    {"proj": "2233-06", "client": "HTG", "name": "Courtside II", "pm": "Nez", "group": "current", "contract": 39106573.82, "retDraw": 1982642.36, "gross": 218562.65, "retBilled": 137683.91, "submitted": "2026-04-30"},
+    {"proj": "2233-18", "client": "MDCPS", "name": "Cutler Ridge ES - Ph2 Renovations", "pm": "Lazaro", "group": "current", "toBill": 1266747.22, "retDraw": 32910.03, "gross": 182954.63, "retPct": 5, "submitted": "2018-05-07"},
+    {"proj": "2236-08", "client": "HTG Grand East", "name": "Grand East Village", "pm": "Scott", "group": "current", "contract": 18487346.63, "toBill": 1472466.9, "retDraw": 841345.14, "gross": 917706.35, "submitted": "2026-04-28"},
+    {"proj": "2236-09", "client": "Resorts World", "name": "Passport Corridor Upgrade", "pm": "Yamile", "group": "current", "contract": 18487346.63, "toBill": 1281947.6, "retDraw": 14695.53, "gross": 118798.65, "retPct": 10, "submitted": "2026-05-12"},
+    {"proj": "2236-28", "client": "Havana", "name": "Havana Enclave", "pm": "Nez", "group": "current", "toBill": 9663605.78, "retDraw": 2316676.96, "gross": 2266942.92, "withheld": -199649.91, "retBilled": 324850.0, "submitted": "2026-05-04"},
+    {"proj": "2242-04P", "client": "MDCPS", "name": "Leewod K-8 Phase 2 PRE Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 19147.36, "gross": 9573.68, "submitted": "2026-04-30"},
+    {"proj": "2242-05", "client": "MDCPS", "name": "Lindsey Hopkins TEC - Structural Rep", "pm": "Lazaro", "group": "current", "contract": 2306223.87, "toBill": 2306223.87, "retDraw": 184862.86, "gross": 727833.42, "retPct": 5, "submitted": "2026-05-05"},
+    {"proj": "2242-06", "client": "MDCPS", "name": "Joella Good ES - Renovations", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 820818.42, "retDraw": 67814.33, "gross": 231386.52, "retPct": 5, "submitted": "2026-05-05"},
+    {"proj": "2242-07", "client": "MDCPS", "name": "Lindsey Hopkins GOB", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 3700694.0, "retDraw": 4119.3, "retPct": 5},
+    {"proj": "2242-08P", "client": "MDCPS", "name": "Lindsey Hopkins HVAC - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 59166.0, "gross": 19722.0, "submitted": "2026-04-30"},
+    {"proj": "2242-10", "client": "MHC", "name": "Miami Everglades", "pm": "Lazaro", "group": "current", "contract": 528988.0, "retDraw": 35445.15, "gross": 9198.14, "retPct": 5, "submitted": "2026-04-30"},
+    {"proj": "2242-16", "client": "DV", "name": "Dulce Vida Apartments", "pm": "Wail", "group": "current", "contract": 528988.0, "toBill": 49192632.59, "retDraw": 376333.09, "gross": 1808280.53, "withheld": -118371.37, "submitted": "2026-05-01"},
+    {"proj": "2242-17", "client": "MHC", "name": "Loggerhead Marina", "pm": "Lazaro", "group": "current", "contract": 528988.0, "gross": 23012.84, "retPct": 5, "retBilled": 3905.8, "submitted": "2026-04-22"},
+    {"proj": "2242-27", "client": "MHC", "name": "ELS East Bathrooms", "pm": "Lazaro", "group": "current", "contract": 528988.0, "gross": 1952.0, "submitted": "2026-04-24"},
+    {"proj": "2244-01", "client": "UM", "name": "UM Cox 269/271", "pm": "Jocelyn", "group": "current", "contract": 29150.53, "toBill": 29150.53, "retDraw": 39187.3, "gross": 36407.2, "retPct": 10, "submitted": "2026-04-24"},
+    {"proj": "2244-10", "client": "UM", "name": "UM CP-159 RO Water", "pm": "Jocelyn", "group": "current", "toBill": 33254.89},
+    {"proj": "2247-05-1", "client": "MDCPS", "name": "Aventura K-8 Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-2", "client": "MDCPS", "name": "Oak Grove ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-3", "client": "MDCPS", "name": "MA Milan K-8 Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-4", "client": "MDCPS", "name": "Miami Springs ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-23"},
+    {"proj": "2247-05-5", "client": "MDCPS", "name": "South Hialeah ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-23"},
+    {"proj": "2247-05-6", "client": "MDCPS", "name": "EWF Stirrup ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-23"},
+    {"proj": "2247-05-7", "client": "MDCPS", "name": "Henry M Flagler ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-23"},
+    {"proj": "2247-05-8", "client": "MDCPS", "name": "Auburndale ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-9", "client": "MDCPS", "name": "Ludlam ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-10", "client": "MDCPS", "name": "Rockway ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-11", "client": "MDCPS", "name": "Sweetwater ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-12", "client": "MDCPS", "name": "Horace Mann MSS Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "toBill": 15000.0},
+    {"proj": "2247-05-13", "client": "MDCPS", "name": "Van E Blanton ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-14", "client": "MDCPS", "name": "Zora Neale Hurston ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-15", "client": "MDCPS", "name": "Frank C Martin K-8 Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-23"},
+    {"proj": "2247-05-16", "client": "MDCPS", "name": "Coral Reef ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-22"},
+    {"proj": "2247-05-17", "client": "MDCPS", "name": "Henry Perrine Academy Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-22"},
+    {"proj": "2247-05-18", "client": "MDCPS", "name": "Jane S Roberts K-8 Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-17"},
+    {"proj": "2247-05-19", "client": "MDCPS", "name": "Claude Pepper ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-29"},
+    {"proj": "2247-05-20", "client": "MDCPS", "name": "Winston Park Mini Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-14"},
+    {"proj": "2247-05-21", "client": "MDCPS", "name": "Leewood K-8 Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-22"},
+    {"proj": "2247-05-22", "client": "MDCPS", "name": "Miami Heights ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-22"},
+    {"proj": "2247-05-23", "client": "MDCPS", "name": "Leisure City K-8 Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "gross": 15000.0, "submitted": "2026-04-22"},
+    {"proj": "2247-03P", "client": "MDCPS", "name": "Jane S Roberts Pre Cons", "pm": "Lazaro", "group": "current", "contract": 15461.58, "toBill": 15461.58, "retPct": 10},
+    {"proj": "2247-09", "client": "Juliet Cosm", "name": "Juliet Cosmetics Interior Ren", "pm": "Jocelyn", "group": "current", "toBill": 106970.47},
+    {"proj": "2247-13", "client": "MHC", "name": "Miami Everglades Pool Resurfacing", "pm": "Lazaro", "group": "current", "gross": 46596.0, "submitted": "2026-05-05"},
+    {"proj": "2247-14", "client": "Cerveceria", "name": "La Tropical 40 yr recertification", "pm": "Lazaro", "group": "current", "toBill": 43360.63},
+    {"proj": "2248-01", "client": "USPS", "name": "USPS West Palm Riviera Beach HVAC", "pm": "David", "group": "current", "toBill": 207406.59},
+    {"proj": "2248-02", "client": "USPS", "name": "USPS Tarpon Springs Dock Lift", "pm": "David", "group": "current", "contract": 21534.0, "toBill": 21534.0, "retPct": 10},
+    {"proj": "2242-03", "client": "HTG", "name": "Legacy Park II", "pm": "Scott", "group": "htg", "toBill": 31368144.88, "retDraw": 351298.3, "gross": 2287058.36, "withheld": -228705.83, "submitted": "2026-04-30"},
+    {"proj": "2242-11", "client": "HTG", "name": "Forest Glen", "pm": "Scott", "group": "htg", "toBill": 7366182.22, "retDraw": 806321.26, "gross": 1282717.87, "withheld": -119500.12, "submitted": "2026-04-30"},
+    {"proj": "2242-13", "client": "HTG", "name": "Normandy Cove", "pm": "Scott", "group": "htg", "toBill": 26073470.97, "retDraw": 78077.33, "gross": 563766.93, "withheld": -46922.53, "submitted": "2026-04-30"},
+    {"proj": "2247-06", "client": "HTG", "name": "The Shores", "pm": "Scott", "group": "htg", "toBill": 16256301.36},
+  ],
+  "2026-05": [
+    {"proj": "2020", "client": "USPS", "name": "USPS Facilities", "pm": "David", "group": "current", "gross": 36571.43},
+    {"proj": "2231-29", "client": "Luxcom", "name": "Sunrise Gardens", "pm": "Wail", "group": "current", "contract": 2358738.24, "toBill": 63184.5},
+    {"proj": "2233-02", "client": "Resorts World", "name": "JC Penney Demolition", "pm": "Yamile", "group": "current", "contract": 39106573.82, "toBill": 6115370.8, "retDraw": 69229.22, "gross": 315001.67, "withheld": -31500.16, "submitted": "2026-06-02"},
+    {"proj": "2233-06", "client": "HTG", "name": "Courtside II", "pm": "Nez", "group": "current", "contract": 39106573.82, "retDraw": 1982642.36},
+    {"proj": "2233-18", "client": "MDCPS", "name": "Cutler Ridge ES - Ph2 Renovations", "pm": "Lazaro", "group": "current", "toBill": 1059390.65, "retDraw": 43277.86, "gross": 207356.57, "retPct": 5, "submitted": "2026-06-05"},
+    {"proj": "2236-08", "client": "HTG Grand East", "name": "Grand East Village", "pm": "Scott", "group": "current", "contract": 18487346.63, "toBill": 984171.69, "retDraw": 841345.14, "gross": 503324.67, "submitted": "2026-06-02"},
+    {"proj": "2236-09", "client": "Resorts World", "name": "Passport Corridor Upgrade", "pm": "Yamile", "group": "current", "contract": 18487346.63, "toBill": 1270718.41, "retDraw": 15818.45, "gross": 11229.19, "retPct": 10, "submitted": "2026-06-09"},
+    {"proj": "2236-28", "client": "Havana", "name": "Havana Enclave", "pm": "Nez", "group": "current", "toBill": 8007122.21, "retDraw": 2423228.1, "gross": 1653830.74, "withheld": -106554.14, "submitted": "2026-06-03"},
+    {"proj": "2242-04P", "client": "MDCPS", "name": "Leewod K-8 Phase 2 PRE Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 19147.36},
+    {"proj": "2242-05", "client": "MDCPS", "name": "Lindsey Hopkins TEC - Structural Rep", "pm": "Lazaro", "group": "current", "contract": 2038099.64, "toBill": 2038099.64, "retDraw": 198269.07, "gross": 268124.23, "retPct": 5, "submitted": "2026-06-03"},
+    {"proj": "2242-06", "client": "MDCPS", "name": "Joella Good ES - Renovations", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 655233.57, "retDraw": 76093.57, "gross": 165584.85, "retPct": 5, "submitted": "2026-06-03"},
+    {"proj": "2242-07", "client": "MDCPS", "name": "Lindsey Hopkins GOB", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 3700694.0, "retDraw": 4119.3, "retPct": 5},
+    {"proj": "2242-08P", "client": "MDCPS", "name": "Lindsey Hopkins HVAC - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 59166.0},
+    {"proj": "2242-10", "client": "MHC", "name": "Miami Everglades", "pm": "Lazaro", "group": "current", "contract": 528988.0, "retDraw": 35445.15, "retPct": 5},
+    {"proj": "2242-16", "client": "DV", "name": "Dulce Vida Apartments", "pm": "Wail", "group": "current", "contract": 528988.0, "toBill": 46467126.43, "retDraw": 738142.46, "gross": 2725506.15, "retPct": 10, "submitted": "2026-05-29"},
+    {"proj": "2242-32", "client": "Brito", "name": "Brito Law Interior Renovation", "pm": "Jocelyn", "group": "current", "toBill": 1006749.05, "retDraw": 16636.76, "gross": 212807.38, "withheld": -16636.76, "submitted": "2026-05-29"},
+    {"proj": "2244-01", "client": "UM", "name": "UM Cox 269/271", "pm": "Jocelyn", "group": "current", "contract": 22002.5, "toBill": 22002.5, "retDraw": 41224.56, "gross": 20372.59, "retPct": 10, "submitted": "2026-05-29"},
+    {"proj": "2244-10", "client": "UM", "name": "UM CP-159 RO Water", "pm": "Jocelyn", "group": "current", "toBill": 33254.89},
+    {"proj": "2247-05-12", "client": "MDCPS", "name": "Horace Mann MSS Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "toBill": 15000.0},
+    {"proj": "2247-03P", "client": "MDCPS", "name": "Jane S Roberts Pre Cons", "pm": "Lazaro", "group": "current", "contract": 15461.58, "toBill": 15461.58, "retPct": 10},
+    {"proj": "2247-09", "client": "Juliet Cosm", "name": "Juliet Cosmetics Interior Ren", "pm": "Jocelyn", "group": "current", "toBill": 67462.9, "gross": 39507.57, "submitted": "2026-05-29"},
+    {"proj": "2247-14", "client": "Cerveceria", "name": "La Tropical 40 yr recertification", "pm": "Lazaro", "group": "current", "toBill": 43360.63, "comments": "New project"},
+    {"proj": "2248-01", "client": "USPS", "name": "USPS West Palm Riviera Beach HVAC", "pm": "David", "group": "current", "gross": 207406.59, "submitted": "2026-05-08"},
+    {"proj": "2248-02", "client": "USPS", "name": "USPS Tarpon Springs Dock Lift", "pm": "David", "group": "current", "contract": 21534.0, "toBill": 21534.0, "retPct": 10},
+    {"proj": "2242-03", "client": "HTG", "name": "Legacy Park II", "pm": "Scott", "group": "htg", "toBill": 28473542.76, "retDraw": 656989.94, "gross": 3056916.4, "withheld": -305691.64, "submitted": "2026-06-01"},
+    {"proj": "2242-11", "client": "HTG", "name": "Forest Glen", "pm": "Scott", "group": "htg", "toBill": 5464400.87, "retDraw": 806321.26, "gross": 1905794.48, "submitted": "2026-06-01"},
+    {"proj": "2242-13", "client": "HTG", "name": "Normandy Cove", "pm": "Scott", "group": "htg", "toBill": 23868430.48, "retDraw": 308035.54, "gross": 2205040.49, "withheld": -220504.07, "submitted": "2026-05-29"},
+    {"proj": "2247-06", "client": "HTG", "name": "The Shores", "pm": "Scott", "group": "htg", "toBill": 16256301.36},
+  ],
+  "2026-06": [
+    {"proj": "2020", "client": "USPS", "name": "USPS Facilities", "pm": "David", "group": "current", "gross": 13811.24},
+    {"proj": "2231-29", "client": "Luxcom", "name": "Sunrise Gardens", "pm": "Wail", "group": "current", "contract": 2358738.24, "toBill": 63184.5},
+    {"proj": "2233-02", "client": "Resorts World", "name": "JC Penney Demolition", "pm": "Yamile", "group": "current", "contract": 39106573.82, "toBill": 6115370.8, "retDraw": 69229.22, "retPct": 10},
+    {"proj": "2233-06", "client": "HTG", "name": "Courtside II", "pm": "Nez", "group": "current", "contract": 39106573.82, "retDraw": 1982642.36},
+    {"proj": "2233-18", "client": "MDCPS", "name": "Cutler Ridge ES - Ph2 Renovations", "pm": "Lazaro", "group": "current", "toBill": 1059390.65, "retDraw": 43277.86, "retPct": 5},
+    {"proj": "2236-08", "client": "HTG Grand East", "name": "Grand East Village", "pm": "Scott", "group": "current", "contract": 18487346.63, "toBill": 984171.69, "retDraw": 841345.14},
+    {"proj": "2236-09", "client": "Resorts World", "name": "Passport Corridor Upgrade", "pm": "Yamile", "group": "current", "contract": 18487346.63, "toBill": 1270718.41, "retDraw": 15818.45, "retPct": 10},
+    {"proj": "2236-28", "client": "Havana", "name": "Havana Enclave", "pm": "Nez", "group": "current", "toBill": 8007122.21, "retDraw": 2423228.1},
+    {"proj": "2242-04P", "client": "MDCPS", "name": "Leewod K-8 Phase 2 PRE Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 19147.36},
+    {"proj": "2242-05", "client": "MDCPS", "name": "Lindsey Hopkins TEC - Structural Rep", "pm": "Lazaro", "group": "current", "contract": 2038099.64, "toBill": 2038099.64, "retDraw": 198269.07, "retPct": 5},
+    {"proj": "2242-06", "client": "MDCPS", "name": "Joella Good ES - Renovations", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 655233.57, "retDraw": 76093.57, "retPct": 5},
+    {"proj": "2242-07", "client": "MDCPS", "name": "Lindsey Hopkins GOB", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 3700694.0, "retDraw": 4119.3, "retPct": 5},
+    {"proj": "2242-08P", "client": "MDCPS", "name": "Lindsey Hopkins HVAC - Pre Con", "pm": "Lazaro", "group": "current", "contract": 16526.96, "toBill": 59166.0},
+    {"proj": "2242-10", "client": "MHC", "name": "Miami Everglades", "pm": "Lazaro", "group": "current", "contract": 528988.0, "retDraw": 35445.15, "retPct": 5},
+    {"proj": "2242-16", "client": "DV", "name": "Dulce Vida Apartments", "pm": "Wail", "group": "current", "contract": 528988.0, "toBill": 46467126.43, "retDraw": 738142.46, "retPct": 10},
+    {"proj": "2242-30", "client": "MDCPS", "name": "Ben Sheppard ES Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "toBill": 15000.0},
+    {"proj": "2242-32", "client": "Brito", "name": "Brito Law Interior Renovation", "pm": "Jocelyn", "group": "current", "toBill": 1006749.05, "retDraw": 16636.76},
+    {"proj": "2244-01", "client": "UM", "name": "UM Cox 269/271", "pm": "Jocelyn", "group": "current", "contract": 22002.5, "toBill": 22002.5, "retDraw": 41224.56, "retPct": 10},
+    {"proj": "2244-10", "client": "UM", "name": "UM CP-159 RO Water", "pm": "Jocelyn", "group": "current", "toBill": 33254.89},
+    {"proj": "2247-05-12", "client": "MDCPS", "name": "Horace Mann MSS Mini Soccer Pitch", "pm": "Lazaro", "group": "current", "toBill": 15000.0},
+    {"proj": "2247-03P", "client": "MDCPS", "name": "Jane S Roberts Pre Cons", "pm": "Lazaro", "group": "current", "contract": 15461.58, "toBill": 15461.58, "retPct": 10},
+    {"proj": "2247-09", "client": "Juliet Cosm", "name": "Juliet Cosmetics Interior Ren", "pm": "Jocelyn", "group": "current", "toBill": 67462.9},
+    {"proj": "2247-14", "client": "Cerveceria", "name": "La Tropical 40 yr recertification", "pm": "Lazaro", "group": "current", "toBill": 43360.63},
+    {"proj": "2248-02", "client": "USPS", "name": "USPS Tarpon Springs Dock Lift", "pm": "David", "group": "current", "contract": 21534.0, "toBill": 21534.0, "retPct": 10},
+    {"proj": "2242-03", "client": "HTG", "name": "Legacy Park II", "pm": "Scott", "group": "htg", "toBill": 28473542.76, "retDraw": 656989.94},
+    {"proj": "2242-11", "client": "HTG", "name": "Forest Glen", "pm": "Scott", "group": "htg", "toBill": 5464400.87, "retDraw": 806321.26},
+    {"proj": "2242-13", "client": "HTG", "name": "Normandy Cove", "pm": "Scott", "group": "htg", "toBill": 23868430.48, "retDraw": 308035.54},
+    {"proj": "2247-06", "client": "HTG", "name": "The Shores", "pm": "Scott", "group": "htg", "toBill": 16256301.36},
+  ],
+};
 
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
@@ -2414,7 +2654,10 @@ function FollowUpDesk() {
         .catch((e) => { console.error("bracket save failed", e); setToast("Bracket save failed" + (e && e.code ? " — " + e.code : "")); });
     }
   };
-  const acctRows = acctData.months[acctMonth] || [];
+  // A month shows its saved rows if present, otherwise the historical data imported
+  // from the workbook (given stable ids so edits promote it into the shared store).
+  const acctMonthRows = (mk) => acctData.months[mk] || (ACCT_HISTORY[mk] ? ACCT_HISTORY[mk].map((t, i) => ({ id: "h-" + mk + "-" + i, ...t })) : []);
+  const acctRows = acctMonthRows(acctMonth);
   const acctWrite = (next) => {
     if (cloudOn && user) fbDb.collection("shared").doc("accounting").set({ data: JSON.stringify(next), updatedAt: Date.now() })
       .catch((e) => { console.error("accounting save failed", e); setToast("Accounting save failed" + (e && e.code ? " — " + e.code : "")); });
@@ -5566,7 +5809,9 @@ function FollowUpDesk() {
                                   {numCell(r, "retDraw", 90)}
                                   {numCell(r, "gross", 96)}
                                   {numCell(r, "retPct", 52)}
-                                  <td className="fd-acct-calc" style={{ color: c.withheld ? "var(--danger)" : "var(--faint)" }}>{c.withheld ? acctMoney(c.withheld) : "—"}</td>
+                                  {r.retPct ? (
+                                    <td className="fd-acct-calc" style={{ color: c.withheld ? "var(--danger)" : "var(--faint)" }}>{c.withheld ? acctMoney(c.withheld) : "—"}</td>
+                                  ) : numCell(r, "withheld", 96)}
                                   {numCell(r, "retBilled", 86)}
                                   <td className="fd-acct-calc" style={{ fontWeight: 700, color: "var(--lime)" }}>{acctMoney(c.receivables)}</td>
                                   <td><input className="fd-acct-in" style={{ minWidth: 130 }} type="date" value={r.submitted || ""} onChange={(e) => acctUpdate(r.id, { submitted: e.target.value })} onBlur={acctCommit} /></td>
@@ -5601,7 +5846,10 @@ function FollowUpDesk() {
                   const ranked = Object.keys(byPm).map((pm) => ({ pm, gross: byPm[pm], pct: totalGross ? byPm[pm] / totalGross * 100 : 0 })).sort((a, b) => b.gross - a.gross);
                   const yr = acctMonth.slice(0, 4);
                   const ytd = {};
-                  Object.keys(acctData.months).forEach((mk) => { if (mk.slice(0, 4) !== yr) return; (acctData.months[mk] || []).forEach((r) => { const pm = (r.pm || "").trim() || "—"; ytd[pm] = (ytd[pm] || 0) + (Number(r.gross) || 0); }); });
+                  const ytdKeys = {};
+                  Object.keys(acctData.months).forEach((mk) => { ytdKeys[mk] = 1; });
+                  Object.keys(ACCT_HISTORY).forEach((mk) => { ytdKeys[mk] = 1; });
+                  Object.keys(ytdKeys).forEach((mk) => { if (mk.slice(0, 4) !== yr) return; acctMonthRows(mk).forEach((r) => { const pm = (r.pm || "").trim() || "—"; ytd[pm] = (ytd[pm] || 0) + (Number(r.gross) || 0); }); });
                   const ytdTotal = Object.values(ytd).reduce((s, v) => s + v, 0);
                   return (
                     <div className="fd-panel">
