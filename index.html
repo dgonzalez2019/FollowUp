@@ -2543,6 +2543,31 @@ function FollowUpDesk() {
     }, () => {});
     return () => unsub && unsub();
   }, [user]);
+  // Reconcile: when the automation has sent items, reflect it in each follow-up's log
+  useEffect(() => {
+    if (!cloudOn || !user) return;
+    const ref = fbDb.collection("users").doc(user.uid).collection("auto").doc("queue");
+    const unsub = ref.onSnapshot((snap) => {
+      try {
+        const d = snap.exists && snap.data().data ? JSON.parse(snap.data().data) : null;
+        const sent = (d && d.sentLog) || {};   // { followupId: { lastDue, at } }
+        if (!Object.keys(sent).length) return;
+        setFollowups((arr) => {
+          let changed = false;
+          const next = arr.map((f) => {
+            const rec = sent[f.id];
+            if (rec && rec.at && f.lastAutoLogged !== rec.at) {
+              changed = true;
+              return { ...f, lastContact: (rec.at || "").slice(0, 10) || f.lastContact, followUpsSent: (f.followUpsSent || 0) + 1, reminded: true, lastAutoLogged: rec.at };
+            }
+            return f;
+          });
+          return changed ? next : arr;
+        });
+      } catch (e) {}
+    }, () => {});
+    return () => unsub && unsub();
+  }, [user]);
   useEffect(() => {
     if (!cloudOn || !user || !msConnected) return;
     const items = followups
@@ -2561,9 +2586,9 @@ function FollowUpDesk() {
     const t = setTimeout(() => {
       const ref = fbDb.collection("users").doc(user.uid).collection("auto").doc("queue");
       ref.get().then((snap) => {
-        let done = {};
-        try { const d = snap.exists && snap.data().data ? JSON.parse(snap.data().data) : null; if (d && d.done) done = d.done; } catch (e) {}
-        ref.set({ data: JSON.stringify({ items, done }), email: (user.email || "").toLowerCase() }).catch(() => {});
+        let done = {}, sentLog = {};
+        try { const d = snap.exists && snap.data().data ? JSON.parse(snap.data().data) : null; if (d && d.done) done = d.done; if (d && d.sentLog) sentLog = d.sentLog; } catch (e) {}
+        ref.set({ data: JSON.stringify({ items, done, sentLog }), email: (user.email || "").toLowerCase() }).catch(() => {});
       }).catch(() => {});
     }, 800);
     return () => clearTimeout(t);
