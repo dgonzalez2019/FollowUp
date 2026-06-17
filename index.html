@@ -4763,7 +4763,7 @@ function FollowUpDesk() {
         {section === "bracket" && (
         <>
           <div className="fd-subnav">
-            {[["board", "Leaderboard"], ["standings", "Group standings"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
+            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
             ))}
           </div>
@@ -4904,6 +4904,43 @@ function FollowUpDesk() {
 
           {bracketView === "board" && (
           <>
+            <div className="fd-panel">
+              <label className="fd-label">Your leaderboard name</label>
+              <input className="fd-input short" style={{ maxWidth: 220 }} key={myBrName} defaultValue={myBrName}
+                onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== myBrName) saveMyBr({ name: v }); }} />
+            </div>
+            {(() => {
+              const champs = {};
+              let total = 0;
+              Object.values(brPicksAll).forEach((p) => {
+                const c = p && p.ko && p.ko.M104;
+                if (c) { champs[c] = (champs[c] || 0) + 1; total++; }
+              });
+              if (total === 0) return null;
+              const ranked = Object.keys(champs).map((c) => ({ c, n: champs[c], pct: Math.round((champs[c] / total) * 100) })).sort((a, b) => b.n - a.n);
+              const top = ranked[0];
+              return (
+                <details className="fd-disclose">
+                  <summary><ChevronRight size={14} className="fd-disclose-chev" /> Office picks <span className="fd-count">{total} {total === 1 ? "pick" : "picks"} in</span></summary>
+                  <div className="fd-disclose-body">
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 10px" }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>{wcLabel(top.c)}</span>
+                      <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontWeight: 700, color: "var(--lime)", fontSize: 18 }}>{top.pct}%</span>
+                    </div>
+                    {ranked.slice(0, 5).map((r) => (
+                      <div key={r.c} style={{ padding: "5px 0" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 4 }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>{wcLabel(r.c)}</span>
+                          <span className="fd-hint" style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}>{r.pct}% · {r.n}</span>
+                        </div>
+                        <div className="fd-champ-bar"><div className="fd-champ-fill" style={{ width: r.pct + "%" }}></div></div>
+                      </div>
+                    ))}
+                    <p className="fd-hint" style={{ fontSize: 11.5, margin: "6px 0 0" }}>Who the office picked to lift the trophy.</p>
+                  </div>
+                </details>
+              );
+            })()}
             {(() => {
               const live = Object.values(brLive).filter((m) => m.status === "live").sort((a, b) => a.id.localeCompare(b.id));
               if (live.length === 0) return null;
@@ -4952,45 +4989,6 @@ function FollowUpDesk() {
                 </div>
               </>
             )}
-            {(() => {
-              const champs = {};
-              let total = 0;
-              Object.values(brPicksAll).forEach((p) => {
-                const c = p && p.ko && p.ko.M104;
-                if (c) { champs[c] = (champs[c] || 0) + 1; total++; }
-              });
-              if (total === 0) return null;
-              const ranked = Object.keys(champs).map((c) => ({ c, n: champs[c], pct: Math.round((champs[c] / total) * 100) })).sort((a, b) => b.n - a.n);
-              const top = ranked[0];
-              return (
-                <details className="fd-disclose">
-                  <summary><ChevronRight size={14} className="fd-disclose-chev" /> Office picks <span className="fd-count">{total} {total === 1 ? "pick" : "picks"} in</span></summary>
-                  <div className="fd-disclose-body">
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 10px" }}>
-                      <span style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>{wcLabel(top.c)}</span>
-                      <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontWeight: 700, color: "var(--lime)", fontSize: 18 }}>{top.pct}%</span>
-                    </div>
-                    {ranked.slice(0, 5).map((r) => (
-                      <div key={r.c} style={{ padding: "5px 0" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 4 }}>
-                          <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>{wcLabel(r.c)}</span>
-                          <span className="fd-hint" style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}>{r.pct}% · {r.n}</span>
-                        </div>
-                        <div className="fd-champ-bar"><div className="fd-champ-fill" style={{ width: r.pct + "%" }}></div></div>
-                      </div>
-                    ))}
-                    <p className="fd-hint" style={{ fontSize: 11.5, margin: "6px 0 0" }}>Who the office picked to lift the trophy.</p>
-                  </div>
-                </details>
-              );
-            })()}
-            <details className="fd-disclose">
-              <summary><ChevronRight size={14} className="fd-disclose-chev" /> Your leaderboard name <span className="fd-count">{myBrName}</span></summary>
-              <div className="fd-disclose-body">
-                <input className="fd-input short" style={{ maxWidth: 220 }} key={myBrName} defaultValue={myBrName}
-                  onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== myBrName) saveMyBr({ name: v }); }} />
-              </div>
-            </details>
             {lbView && brPicksAll[lbView] && (() => {
               const p = brPicksAll[lbView];
               const slots = brMyBracket(p);
@@ -5084,73 +5082,8 @@ function FollowUpDesk() {
           </>
           )}
 
-          {bracketView === "standings" && (
-          <>
-            <div className="fd-panel">
-              <div className="fd-panel-head">Group stage — live standings <span className="fd-count">{feedAt ? "updated " + agoLabel(feedAt) : "connecting…"}</span></div>
-              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Real tables built from results so far — in-progress games count live. <span style={{ color: "var(--lime)", fontWeight: 600 }}>Top two</span> advance automatically; <span style={{ color: "var(--accent)", fontWeight: 600 }}>3rd place</span> competes for the eight best-third spots.</p>
-            </div>
-            <div className="fd-stand-grid">
-              {Object.keys(WC_GROUPS).map((grp) => {
-                const tbl = brLiveTable(liveStandGames, grp);
-                return (
-                  <div className="fd-stand" key={grp}>
-                    <div className="fd-stand-h">
-                      {tbl.inPlay && <span className="fd-live-dot"></span>}
-                      Group {grp}
-                      <span className="fd-count">{tbl.played}/6 played</span>
-                    </div>
-                    <table className="fd-stand-tbl">
-                      <thead>
-                        <tr>
-                          <th className="fd-stand-team">Team</th>
-                          <th>Pl</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {tbl.rows.map((r, i) => (
-                          <tr key={r.c} className={"fd-stand-row" + (i < 2 ? " q" : i === 2 ? " q3" : "")}>
-                            <td className="fd-stand-team"><span className="fd-stand-cell"><span className="fd-stand-pos">{i + 1}</span>{wcLabel(r.c)}</span></td>
-                            <td>{r.pl}</td><td>{r.w}</td><td>{r.d}</td><td>{r.l}</td>
-                            <td>{r.gd > 0 ? "+" + r.gd : r.gd}</td>
-                            <td className="fd-stand-pts">{r.p}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="fd-panel" style={{ marginTop: 20 }}>
-              <div className="fd-panel-head">Projected scores <span className="fd-count">if groups end as they stand</span></div>
-              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Where everyone would land if the current group tables were final — exact-spot and advance points for your group orders, plus your best-thirds that are currently in the top eight. Knockout points already earned are included.</p>
-            </div>
-            {Object.keys(brPicksAll).length === 0 ? (
-              <div className="fd-empty"><Users size={28} /><span>No players yet — make a pick to appear here.</span></div>
-            ) : (
-              <div className="fd-list">
-                {Object.keys(brPicksAll)
-                  .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", s: brProjScore(brPicksAll[uid], liveStandGames, brLive, brReal), now: brScore(brPicksAll[uid], brLive, brReal) }))
-                  .sort((a, b) => b.s.total - a.s.total || a.name.localeCompare(b.name))
-                  .map((r, i) => (
-                    <button key={r.uid} className="fd-dir-row fd-lb-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined} onClick={() => { setLbView(r.uid); setBracketView("board"); }}>
-                      <span className="fd-ext">{i + 1}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>} <ChevronRight size={13} style={{ opacity: .5, verticalAlign: "middle" }} /></div>
-                        <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
-                          proj groups {r.s.g} · thirds {r.s.t} · bracket {r.s.b} · now {r.now.total}
-                        </div>
-                      </div>
-                      <span className="fd-ext" style={{ color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.1)" }}>{r.s.total}</span>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </>
-          )}
-
           {bracketView === "results" && (
+          <>
             <div className="fd-panel" style={{ padding: "16px 14px" }}>
               {(() => {
                 const MIN = new Date(2026, 5, 11), MAX = new Date(2026, 6, 19);
@@ -5206,6 +5139,45 @@ function FollowUpDesk() {
                 );
               })()}
             </div>
+            <details className="fd-disclose">
+              <summary><ChevronRight size={14} className="fd-disclose-chev" /> Group standings <span className="fd-count">{feedAt ? "updated " + agoLabel(feedAt) : "live"}</span></summary>
+              <div className="fd-disclose-body">
+                <p className="fd-hint" style={{ fontSize: 12.5, margin: "0 0 12px" }}>Live tables — in-progress games count. <span style={{ color: "var(--lime)", fontWeight: 600 }}>Top two</span> advance; <span style={{ color: "var(--accent)", fontWeight: 600 }}>3rd place</span> competes for the eight best-third spots.</p>
+                <div className="fd-stand-grid">
+                  {Object.keys(WC_GROUPS).map((grp) => {
+                    const tbl = brLiveTable(liveStandGames, grp);
+                    return (
+                      <div className="fd-stand" key={grp}>
+                        <div className="fd-stand-h">
+                          {tbl.inPlay && <span className="fd-live-dot"></span>}
+                          Group {grp}
+                          <span className="fd-count">{tbl.played}/6 played</span>
+                        </div>
+                        <table className="fd-stand-tbl">
+                          <thead>
+                            <tr>
+                              <th className="fd-stand-team">Team</th>
+                              <th>Pl</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tbl.rows.map((r, i) => (
+                              <tr key={r.c} className={"fd-stand-row" + (i < 2 ? " q" : i === 2 ? " q3" : "")}>
+                                <td className="fd-stand-team"><span className="fd-stand-cell"><span className="fd-stand-pos">{i + 1}</span>{wcLabel(r.c)}</span></td>
+                                <td>{r.pl}</td><td>{r.w}</td><td>{r.d}</td><td>{r.l}</td>
+                                <td>{r.gd > 0 ? "+" + r.gd : r.gd}</td>
+                                <td className="fd-stand-pts">{r.p}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </details>
+          </>
           )}
 
           {bracketView === "manage" && isAdmin && (
