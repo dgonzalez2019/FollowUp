@@ -1,0 +1,94 @@
+rules_version = '2';
+
+// BDI University — Firestore security rules.
+//
+// Mirrors the app's access model (see index.html):
+//  - Signed-in users share some docs (bracket, app config) read-only.
+//  - The Accounting workbook and the USPS list are private to an access list
+//    kept in shared/appConfig (acctAccessList/acctManagers, uspsAccessList/
+//    uspsManagers), which only the admin can edit.
+//  - Per-user data lives under users/{uid} and is private to that user.
+//
+// IMPORTANT: rules from different match blocks are OR-combined, so the
+// sensitive shared docs are listed explicitly and there is deliberately NO
+// catch-all `match /shared/{doc}` rule — adding one would re-grant read to
+// every signed-in user and defeat the Accounting/USPS locks.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function emailLc() {
+      return request.auth != null && request.auth.token.email != null
+        ? request.auth.token.email.lower()
+        : "";
+    }
+    // The app treats this address as the admin (ADMINS in index.html).
+    function isAdmin() {
+      return emailLc() == "dgonzalez@bdico.com";
+    }
+    // Access lists are stored as lowercased emails on shared/appConfig.
+    function cfg() {
+      return exists(/databases/$(database)/documents/shared/appConfig)
+        ? get(/databases/$(database)/documents/shared/appConfig).data
+        : {};
+    }
+    // `d` is the appConfig data map, passed in so cfg() is fetched at most once
+    // per access list (rules functions can't bind locals, and document reads
+    // inside a single evaluation are capped).
+    function listHas(d, field) {
+      return field in d && d[field] is list && d[field].hasAny([emailLc()]);
+    }
+    function acctAllowed() {
+      return isAdmin() || listHas(cfg(), "acctAccessList") || listHas(cfg(), "acctManagers");
+    }
+    function uspsAllowed() {
+      return isAdmin() || listHas(cfg(), "uspsAccessList") || listHas(cfg(), "uspsManagers");
+    }
+
+    // Shared app config (tab visibility + access lists). Everyone signed in may
+    // read it; only the admin may change it — the access lists live here, so a
+    // non-admin must never be able to grant themselves access.
+    match /shared/appConfig {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Accounting workbook (monthly requisitions & PM billings):
+    // visible AND editable ONLY to people with Accounting access.
+    match /shared/accounting {
+      allow read, write: if acctAllowed();
+    }
+
+    // USPS shared job list: only people with USPS access.
+    match /shared/usps {
+      allow read, write: if uspsAllowed();
+    }
+
+    // World Cup bracket fixtures/results: everyone signed in reads the board;
+    // only the admin writes scores/locks (and the admin's live-feed auto-sync).
+    match /shared/bracket {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Bracket picks: everyone signed in can read the leaderboard; each person
+    // may only create or change their own pick document.
+    match /bracketPicks/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Per-user private data and any subcollections (e.g. users/{uid}/auto/queue).
+    match /users/{uid}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Outlook OAuth tokens: strictly per-user.
+    match /outlookTokens/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+  }
+}
