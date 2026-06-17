@@ -63,8 +63,15 @@ async function sendMail(token, item) {
   if (!r.ok) throw new Error("sendMail failed: " + (await r.text()));
 }
 
+function nextWeekday(dateStr) {
+  const d = new Date(dateStr + "T12:00:00Z");
+  const day = d.getUTCDay();
+  if (day === 6) d.setUTCDate(d.getUTCDate() + 2);      // Sat -> Mon
+  else if (day === 0) d.setUTCDate(d.getUTCDate() + 1); // Sun -> Mon
+  return d.toISOString().slice(0, 10);
+}
 async function makeEvent(token, item) {
-  const start = item.eventDate;
+  const start = nextWeekday(item.eventDate);
   const ev = {
     subject: "Follow up: " + (item.name || item.email) + (item.company ? " (" + item.company + ")" : ""),
     body: { contentType: "Text", content: (item.subject ? "Re: " + item.subject + "\n\n" : "") + "Auto-created by BDI University follow-up automation." },
@@ -90,6 +97,14 @@ module.exports = async (req, res) => {
   }
   const log = { ran: new Date().toISOString(), users: 0, sent: 0, events: 0, skipped: 0, errors: [] };
   const today = new Date().toISOString().slice(0, 10);
+  // Skip weekends: anything due Sat/Sun simply waits and goes out Monday.
+  const dow = new Date().getUTCDay(); // 0=Sun, 6=Sat (cron runs 13:00 UTC = 9am ET, same calendar day)
+  if (dow === 0 || dow === 6) {
+    const skipLog = { ran: new Date().toISOString(), skippedWeekend: true };
+    try { await setDoc("shared", "automationLog", { data: JSON.stringify(skipLog) }); } catch (e) {}
+    res.status(200).json(skipLog);
+    return;
+  }
   const perUser = [];
   let adminToken = null;
   const ADMIN = (process.env.ADMIN_EMAIL || "").toLowerCase();
