@@ -725,11 +725,28 @@ button.fd-admin-chip:disabled{cursor:default;}
         "https://unpkg.com/@babel/standalone/babel.min.js"
       ] }
   ], showError);
-  // Once all three are in, compile the app's text/babel script (dynamic load skips auto-compile).
-  var startTries = 0;
+  // Once all three are in, compile and run the app source ourselves. We MUST pin the
+  // React preset to the "classic" runtime (React.createElement). Babel 8's preset-react
+  // defaults to the "automatic" runtime, which emits `import {jsx} from "react/jsx-runtime"`;
+  // that bare import cannot be resolved in a plain in-browser script and silently fails,
+  // leaving a white screen. Compiling manually keeps us correct on both Babel 7 and 8.
+  var startTries = 0, started = false;
   (function start() {
+    if (started) return;
     if (window.React && window.ReactDOM && window.Babel) {
-      try { window.Babel.transformScriptTags(); } catch (e) {}
+      started = true;
+      try {
+        var srcTag = document.getElementById("app-src");
+        var compiled = window.Babel.transform(srcTag.textContent, {
+          presets: [["react", { runtime: "classic" }]]
+        }).code;
+        var runner = document.createElement("script");
+        runner.textContent = compiled;
+        document.body.appendChild(runner);
+      } catch (e) {
+        console.error("App failed to compile/run:", e);
+        showError("the app");
+      }
       return;
     }
     if (startTries++ < 200) setTimeout(start, 50);
@@ -739,7 +756,7 @@ button.fd-admin-chip:disabled{cursor:default;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
-<script type="text/babel" data-presets="react">
+<script type="text/plain" id="app-src">
 const { useState, useEffect, useMemo, useRef } = React;
 
 // =====================================================================
