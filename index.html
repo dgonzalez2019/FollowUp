@@ -370,6 +370,20 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-pb-row{display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--line); font-size:12.5px;}
 .fd-pb-row:last-child{border-bottom:none;}
 .fd-pb-row .fd-pb-pts{margin-left:auto;}
+.fd-acct-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+.fd-acct-tbl{border-collapse:collapse; width:100%; min-width:1080px; font-size:12.5px;}
+.fd-acct-tbl th{position:sticky; top:0; background:var(--surface-3); font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--faint); text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); white-space:nowrap;}
+.fd-acct-tbl td{padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
+.fd-acct-tbl tr:hover td{background:var(--surface-2);}
+.fd-acct-in{width:100%; background:var(--surface-2); border:1px solid var(--line); border-radius:7px; color:var(--ink); font-family:inherit; font-size:12.5px; padding:6px 7px;}
+.fd-acct-in:focus{outline:none; border-color:var(--accent); background:var(--surface);}
+.fd-acct-num{text-align:right; font-variant-numeric:tabular-nums; font-family:'IBM Plex Mono',monospace;}
+.fd-acct-calc{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; padding-right:10px; color:var(--ink);}
+.fd-acct-tbl tr.fd-acct-tot td{font-weight:700; color:var(--ink); background:var(--surface-3); border-top:2px solid var(--line-strong);}
+.fd-acct-totgrid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px;}
+.fd-acct-totgrid > div{display:flex; flex-direction:column; gap:3px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2);}
+.fd-acct-totgrid > div span{font-size:11px; color:var(--muted);}
+.fd-acct-totgrid > div b{font-family:'IBM Plex Mono',monospace; font-size:16px; font-variant-numeric:tabular-nums;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2199,6 +2213,47 @@ function PlansViewer() {
 }
 
 
+// ===== Accounting: monthly requisitions & PM billings (Monthly_Req_of_Payments) =====
+const ACCT_MONTHS = ["2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"];
+const acctMonthLabel = (key) => { const p = (key || "").split("-"); const d = new Date(+p[0], +p[1] - 1, 1); return d.toLocaleDateString(undefined, { month: "long", year: "numeric" }); };
+const acctMoney = (n) => { const v = Number(n) || 0; return (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+// Retainage withheld = -(Gross × ret%); Receivables = Gross + Withheld + Retainage billed.
+const acctRow = (r) => {
+  const gross = Number(r.gross) || 0, retPct = Number(r.retPct) || 0, retBilled = Number(r.retBilled) || 0;
+  const withheld = -(gross * retPct / 100);
+  return { gross, retPct, retBilled, withheld, receivables: gross + withheld + retBilled };
+};
+const ACCT_TEMPLATE = [
+  { proj: "2020", client: "USPS", name: "USPS Facilities", pm: "David", contract: 0, retPct: 0, group: "current" },
+  { proj: "2231-29", client: "Luxcom", name: "Sunrise Gardens", pm: "Wail", contract: 2358738.24, retPct: 0, group: "current" },
+  { proj: "2233-02", client: "Resorts World", name: "JC Penney Demolition", pm: "Yamile", contract: 39106573.82, retPct: 10, group: "current" },
+  { proj: "2233-06", client: "HTG", name: "Courtside II", pm: "Nez", contract: 39106573.82, retPct: 0, group: "current" },
+  { proj: "2233-18", client: "MDCPS", name: "Cutler Ridge ES - Ph2 Renovations", pm: "Lazaro", contract: 1059390.65, retPct: 5, group: "current" },
+  { proj: "2236-08", client: "HTG Grand East", name: "Grand East Village", pm: "Scott", contract: 18487346.63, retPct: 0, group: "current" },
+  { proj: "2236-09", client: "Resorts World", name: "Passport Corridor Upgrade", pm: "Yamile", contract: 18487346.63, retPct: 10, group: "current" },
+  { proj: "2236-28", client: "Havana", name: "Havana Enclave", pm: "Nez", contract: 8007122.21, retPct: 0, group: "current" },
+  { proj: "2242-04P", client: "MDCPS", name: "Leewod K-8 Phase 2 PRE Con", pm: "Lazaro", contract: 16526.96, retPct: 0, group: "current" },
+  { proj: "2242-05", client: "MDCPS", name: "Lindsey Hopkins TEC - Structural Rep", pm: "Lazaro", contract: 2038099.64, retPct: 5, group: "current" },
+  { proj: "2242-06", client: "MDCPS", name: "Joella Good ES - Renovations", pm: "Lazaro", contract: 16526.96, retPct: 5, group: "current" },
+  { proj: "2242-07", client: "MDCPS", name: "Lindsey Hopkins GOB", pm: "Lazaro", contract: 16526.96, retPct: 5, group: "current" },
+  { proj: "2242-08P", client: "MDCPS", name: "Lindsey Hopkins HVAC - Pre Con", pm: "Lazaro", contract: 16526.96, retPct: 0, group: "current" },
+  { proj: "2242-10", client: "MHC", name: "Miami Everglades", pm: "Lazaro", contract: 528988, retPct: 5, group: "current" },
+  { proj: "2242-16", client: "DV", name: "Dulce Vida Apartments", pm: "Wail", contract: 528988, retPct: 10, group: "current" },
+  { proj: "2242-30", client: "MDCPS", name: "Ben Sheppard ES Mini Soccer Pitch", pm: "Lazaro", contract: 15000, retPct: 0, group: "current" },
+  { proj: "2242-32", client: "Brito", name: "Brito Law Interior Renovation", pm: "Jocelyn", contract: 1006749.05, retPct: 0, group: "current" },
+  { proj: "2244-01", client: "UM", name: "UM Cox 269/271", pm: "Jocelyn", contract: 22002.5, retPct: 10, group: "current" },
+  { proj: "2244-10", client: "UM", name: "UM CP-159 RO Water", pm: "Jocelyn", contract: 33254.89, retPct: 0, group: "current" },
+  { proj: "2247-05-12", client: "MDCPS", name: "Horace Mann MSS Mini Soccer Pitch", pm: "Lazaro", contract: 15000, retPct: 0, group: "current" },
+  { proj: "2247-03P", client: "MDCPS", name: "Jane S Roberts Pre Cons", pm: "Lazaro", contract: 15461.58, retPct: 10, group: "current" },
+  { proj: "2247-09", client: "Juliet Cosm", name: "Juliet Cosmetics Interior Ren", pm: "Jocelyn", contract: 67462.9, retPct: 0, group: "current" },
+  { proj: "2247-14", client: "Cerveceria", name: "La Tropical 40 yr recertification", pm: "Lazaro", contract: 43360.63, retPct: 0, group: "current" },
+  { proj: "2248-02", client: "USPS", name: "USPS Tarpon Springs Dock Lift", pm: "David", contract: 21534, retPct: 10, group: "current" },
+  { proj: "2242-03", client: "HTG", name: "Legacy Park II", pm: "Scott", contract: 28473542.76, retPct: 0, group: "htg" },
+  { proj: "2242-11", client: "HTG", name: "Forest Glen", pm: "Scott", contract: 5464400.87, retPct: 0, group: "htg" },
+  { proj: "2242-13", client: "HTG", name: "Normandy Cove", pm: "Scott", contract: 23868430.48, retPct: 0, group: "htg" },
+  { proj: "2247-06", client: "HTG", name: "The Shores", pm: "Scott", contract: 16256301.36, retPct: 0, group: "htg" },
+];
+
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -2218,6 +2273,8 @@ function FollowUpDesk() {
   const [bracketView, setBracketView] = useState("board");
   const [brData, setBrData] = useState({ matches: {}, groupLocked: false, bracketLocked: false });
   const [brPicksAll, setBrPicksAll] = useState({});
+  const [acctData, setAcctData] = useState({ months: {} });
+  const [acctMonth, setAcctMonth] = useState(() => { const d = new Date(); const k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); return ACCT_MONTHS.indexOf(k) >= 0 ? k : "2026-06"; });
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
@@ -2339,6 +2396,13 @@ function FollowUpDesk() {
     }, (e) => console.error("bracket picks sync failed", e));
     return unsub;
   }, [cloudOn, user]);
+  useEffect(() => {
+    if (!cloudOn || !user) return;
+    const unsub = fbDb.collection("shared").doc("accounting").onSnapshot((snap) => {
+      if (snap.exists) { try { const d = JSON.parse(snap.data().data || "{}"); setAcctData({ months: {}, ...d }); } catch (e) { console.error("accounting parse failed", e); } }
+    }, (e) => console.error("accounting sync failed", e));
+    return unsub;
+  }, [cloudOn, user]);
   const myBr = (user && brPicksAll[user.uid]) || {};
   const myBrName = myBr.name || ((user && user.email) || "").split("@")[0] || "Player";
   const saveBracketShared = (next) => {
@@ -2348,6 +2412,21 @@ function FollowUpDesk() {
         .catch((e) => { console.error("bracket save failed", e); setToast("Bracket save failed" + (e && e.code ? " — " + e.code : "")); });
     }
   };
+  const acctRows = acctData.months[acctMonth] || [];
+  const acctWrite = (next) => {
+    if (cloudOn && user) fbDb.collection("shared").doc("accounting").set({ data: JSON.stringify(next), updatedAt: Date.now() })
+      .catch((e) => { console.error("accounting save failed", e); setToast("Accounting save failed" + (e && e.code ? " — " + e.code : "")); });
+  };
+  const acctSet = (rows, persist) => {
+    const next = { ...acctData, months: { ...acctData.months, [acctMonth]: rows } };
+    setAcctData(next);
+    if (persist) acctWrite(next);
+  };
+  const acctUpdate = (id, patch) => acctSet(acctRows.map((r) => r.id === id ? { ...r, ...patch } : r), false);
+  const acctCommit = () => acctWrite(acctData);
+  const acctAddRow = (group) => acctSet([...acctRows, { id: "r" + Date.now() + Math.random().toString(36).slice(2, 6), proj: "", client: "", name: "", pm: "", contract: 0, gross: 0, retPct: 0, retBilled: 0, submitted: "", comments: "", group: group || "current" }], true);
+  const acctDelRow = (id) => acctSet(acctRows.filter((r) => r.id !== id), true);
+  const acctSeed = () => acctSet([...acctRows, ...ACCT_TEMPLATE.map((t, i) => ({ id: "t" + i + "-" + t.proj, gross: 0, retBilled: 0, submitted: "", comments: "", ...t }))], true);
   const saveMyBr = (patch) => {
     if (!cloudOn || !user) return;
     const next = { name: myBrName, ...myBr, ...patch };
@@ -3729,6 +3808,11 @@ function FollowUpDesk() {
               <Grid size={15} /> {t.name}
             </button>
           ))}
+          {tabVisible("accounting") && (
+            <button className={"fd-nav-btn" + (section === "accounting" ? " active" : "")} onClick={() => setSection("accounting")}>
+              <FileText size={15} /> Accounting
+            </button>
+          )}
           {tabVisible("bracket") && (
             <button className={"fd-nav-btn" + (section === "bracket" ? " active" : "")} onClick={() => setSection("bracket")}>
               <Trophy size={15} /> Bracket
@@ -5382,6 +5466,127 @@ function FollowUpDesk() {
             })}
           </>
           )}
+        </>
+        )}
+
+        {section === "accounting" && (
+        <>
+          <div className="fd-panel">
+            <div className="fd-panel-head">Monthly requisitions <span className="fd-count">{acctMonthLabel(acctMonth)}</span></div>
+            <p className="fd-hint" style={{ fontSize: 12.5, margin: "0 0 12px" }}>Enter each project's Gross Billings and Retainage Billed for the month — Retainage Withheld and Receivables calculate automatically, and PM billings roll up below. Data is shared across the office.</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              <select className="fd-select" value={acctMonth} onChange={(e) => setAcctMonth(e.target.value)}>
+                {ACCT_MONTHS.map((k) => <option key={k} value={k}>{acctMonthLabel(k)}</option>)}
+              </select>
+              <button className="fd-btn ghost sm" onClick={() => acctAddRow("current")}><Plus size={14} /> Add project</button>
+              {acctRows.length === 0 && <button className="fd-btn primary sm" onClick={acctSeed}>Load standard project list</button>}
+            </div>
+          </div>
+          {acctRows.length === 0 ? (
+            <div className="fd-empty"><FileText size={28} /><span>No projects for {acctMonthLabel(acctMonth)} yet. Add one, or load the standard project list to start.</span></div>
+          ) : (() => {
+            const tot = { contract: 0, gross: 0, withheld: 0, retBilled: 0, receivables: 0 };
+            acctRows.forEach((r) => { const c = acctRow(r); tot.contract += Number(r.contract) || 0; tot.gross += c.gross; tot.withheld += c.withheld; tot.retBilled += c.retBilled; tot.receivables += c.receivables; });
+            const groups = [["current", "Current projects"], ["htg", "HTG BDI"]];
+            const numCell = (r, field, w) => (
+              <td><input className="fd-acct-in fd-acct-num" style={{ minWidth: w }} type="number" value={(r[field] === 0 || r[field] == null) ? "" : r[field]} placeholder="0"
+                onChange={(e) => acctUpdate(r.id, { [field]: e.target.value === "" ? 0 : +e.target.value })} onBlur={acctCommit} /></td>
+            );
+            const txtCell = (r, field, w) => (
+              <td><input className="fd-acct-in" style={{ minWidth: w }} value={r[field] || ""}
+                onChange={(e) => acctUpdate(r.id, { [field]: e.target.value })} onBlur={acctCommit} /></td>
+            );
+            return (
+              <>
+                {groups.map(([gk, glabel]) => {
+                  const rows = acctRows.filter((r) => (r.group || "current") === gk);
+                  if (rows.length === 0) return null;
+                  return (
+                    <div className="fd-panel" key={gk} style={{ padding: 0, overflow: "hidden" }}>
+                      <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0 }}>{glabel} <span className="fd-count">{rows.length}</span></div>
+                      <div className="fd-acct-wrap">
+                        <table className="fd-acct-tbl">
+                          <thead><tr>
+                            <th>Project #</th><th>Client</th><th>Project name</th><th>PM</th><th>Contract</th>
+                            <th>Gross billings</th><th>Ret %</th><th>Withheld</th><th>Ret billed</th><th>Receivables</th><th>Submitted</th><th>Comments</th><th></th>
+                          </tr></thead>
+                          <tbody>
+                            {rows.map((r) => {
+                              const c = acctRow(r);
+                              return (
+                                <tr key={r.id}>
+                                  {txtCell(r, "proj", 80)}
+                                  {txtCell(r, "client", 90)}
+                                  {txtCell(r, "name", 170)}
+                                  {txtCell(r, "pm", 80)}
+                                  {numCell(r, "contract", 96)}
+                                  {numCell(r, "gross", 96)}
+                                  {numCell(r, "retPct", 52)}
+                                  <td className="fd-acct-calc" style={{ color: c.withheld ? "var(--danger)" : "var(--faint)" }}>{c.withheld ? acctMoney(c.withheld) : "—"}</td>
+                                  {numCell(r, "retBilled", 86)}
+                                  <td className="fd-acct-calc" style={{ fontWeight: 700, color: "var(--lime)" }}>{acctMoney(c.receivables)}</td>
+                                  <td><input className="fd-acct-in" style={{ minWidth: 130 }} type="date" value={r.submitted || ""} onChange={(e) => acctUpdate(r.id, { submitted: e.target.value })} onBlur={acctCommit} /></td>
+                                  {txtCell(r, "comments", 130)}
+                                  <td><button className="fd-icon-btn sm danger" title="Remove project" onClick={() => acctDelRow(r.id)}><Trash2 size={14} /></button></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{ padding: "8px 14px" }}><button className="fd-btn ghost sm" onClick={() => acctAddRow(gk)}><Plus size={13} /> Add to {glabel}</button></div>
+                    </div>
+                  );
+                })}
+                <div className="fd-panel">
+                  <div className="fd-panel-head">Month totals <span className="fd-count">{acctMonthLabel(acctMonth)}</span></div>
+                  <div className="fd-acct-totgrid">
+                    <div><span>Gross billings</span><b>{acctMoney(tot.gross)}</b></div>
+                    <div><span>Retainage withheld</span><b style={{ color: "var(--danger)" }}>{acctMoney(tot.withheld)}</b></div>
+                    <div><span>Retainage billed</span><b>{acctMoney(tot.retBilled)}</b></div>
+                    <div><span>Receivables</span><b style={{ color: "var(--lime)" }}>{acctMoney(tot.receivables)}</b></div>
+                  </div>
+                </div>
+                {(() => {
+                  const byPm = {};
+                  acctRows.forEach((r) => { const pm = (r.pm || "").trim() || "—"; byPm[pm] = (byPm[pm] || 0) + (Number(r.gross) || 0); });
+                  const totalGross = Object.values(byPm).reduce((s, v) => s + v, 0);
+                  const ranked = Object.keys(byPm).map((pm) => ({ pm, gross: byPm[pm], pct: totalGross ? byPm[pm] / totalGross * 100 : 0 })).sort((a, b) => b.gross - a.gross);
+                  const yr = acctMonth.slice(0, 4);
+                  const ytd = {};
+                  Object.keys(acctData.months).forEach((mk) => { if (mk.slice(0, 4) !== yr) return; (acctData.months[mk] || []).forEach((r) => { const pm = (r.pm || "").trim() || "—"; ytd[pm] = (ytd[pm] || 0) + (Number(r.gross) || 0); }); });
+                  const ytdTotal = Object.values(ytd).reduce((s, v) => s + v, 0);
+                  return (
+                    <div className="fd-panel">
+                      <div className="fd-panel-head">PM billings <span className="fd-count">by project manager</span></div>
+                      <p className="fd-hint" style={{ fontSize: 12.5, margin: "0 0 10px" }}>Gross billings grouped by project manager, with each PM's share of the month and their year-to-date total.</p>
+                      <div className="fd-acct-wrap">
+                        <table className="fd-acct-tbl" style={{ minWidth: 520 }}>
+                          <thead><tr><th>Project manager</th><th>Gross billings</th><th>% of month</th><th>Year to date</th></tr></thead>
+                          <tbody>
+                            {ranked.map((p) => (
+                              <tr key={p.pm}>
+                                <td style={{ padding: "8px 8px" }}>{p.pm}</td>
+                                <td className="fd-acct-calc">{acctMoney(p.gross)}</td>
+                                <td className="fd-acct-calc">{p.pct.toFixed(1)}%</td>
+                                <td className="fd-acct-calc">{acctMoney(ytd[p.pm] || 0)}</td>
+                              </tr>
+                            ))}
+                            <tr className="fd-acct-tot">
+                              <td style={{ padding: "8px 8px" }}>Total</td>
+                              <td className="fd-acct-calc">{acctMoney(totalGross)}</td>
+                              <td className="fd-acct-calc">{totalGross ? "100.0%" : "0.0%"}</td>
+                              <td className="fd-acct-calc">{acctMoney(ytdTotal)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            );
+          })()}
         </>
         )}
 
