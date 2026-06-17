@@ -1,31 +1,19 @@
-const CACHE = "bdi-univ-v2";
-const SHELL = ["./", "./index.html", "./icon-192.png", "./icon-512.png"];
-
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
-});
-
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+/* This service worker is intentionally inert. The app no longer uses offline
+   caching (it caused stale "white screen" loads). On install it takes over and
+   clears all old caches, then unregisters itself, healing any device that still
+   has an old worker. */
+self.addEventListener("install", function () { self.skipWaiting(); });
+self.addEventListener("activate", function (event) {
+  event.waitUntil(
+    caches.keys().then(function (names) {
+      return Promise.all(names.map(function (n) { return caches.delete(n); }));
+    }).then(function () {
+      return self.registration.unregister();
+    }).then(function () {
+      return self.clients.matchAll();
+    }).then(function (clients) {
+      clients.forEach(function (c) { c.navigate(c.url); });
+    })
   );
 });
-
-// Network-first for same-origin requests; Firebase/CDN traffic passes through untouched.
-self.addEventListener("fetch", (e) => {
-  const req = e.request;
-  if (req.method !== "GET") return;
-  const url = new URL(req.url);
-  if (url.origin !== location.origin) return;
-  e.respondWith(
-    fetch(req)
-      .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
-        return res;
-      })
-      .catch(() => caches.match(req).then((m) => m || caches.match("./index.html")))
-  );
-});
+/* Never intercept fetches — always go straight to the network. */

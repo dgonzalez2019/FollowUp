@@ -5228,10 +5228,19 @@ function FollowUpDesk() {
 ReactDOM.createRoot(document.getElementById("root")).render(<FollowUpDesk />);
 </script>
 <script>
+/* Permanent white-screen fix: no service worker. We actively remove any previously
+   installed worker AND delete its caches, so devices stuck on an old/broken cached
+   shell heal themselves the next time they load the site. The page now always loads
+   fresh from the network (with the multi-CDN fallback handling library loading). */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", function () {
-    navigator.serviceWorker.register("sw.js").catch(function () {});
-  });
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    regs.forEach(function (r) { r.unregister(); });
+  }).catch(function () {});
+}
+if (window.caches && caches.keys) {
+  caches.keys().then(function (names) {
+    names.forEach(function (n) { caches.delete(n); });
+  }).catch(function () {});
 }
 </script>
 </body>
