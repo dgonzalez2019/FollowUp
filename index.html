@@ -371,7 +371,7 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-pb-row:last-child{border-bottom:none;}
 .fd-pb-row .fd-pb-pts{margin-left:auto;}
 .fd-acct-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-.fd-acct-tbl{border-collapse:collapse; width:100%; min-width:1080px; font-size:12.5px;}
+.fd-acct-tbl{border-collapse:collapse; width:100%; min-width:1260px; font-size:12.5px;}
 .fd-acct-tbl th{position:sticky; top:0; background:var(--surface-3); font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--faint); text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); white-space:nowrap;}
 .fd-acct-tbl td{padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
 .fd-acct-tbl tr:hover td{background:var(--surface-2);}
@@ -2224,34 +2224,34 @@ const acctRow = (r) => {
   return { gross, retPct, retBilled, withheld, receivables: gross + withheld + retBilled };
 };
 const ACCT_TEMPLATE = [
-  { proj: "2020", client: "USPS", name: "USPS Facilities", pm: "David", contract: 0, retPct: 0, group: "current" },
-  { proj: "2231-29", client: "Luxcom", name: "Sunrise Gardens", pm: "Wail", contract: 2358738.24, retPct: 0, group: "current" },
-  { proj: "2233-02", client: "Resorts World", name: "JC Penney Demolition", pm: "Yamile", contract: 39106573.82, retPct: 10, group: "current" },
-  { proj: "2233-06", client: "HTG", name: "Courtside II", pm: "Nez", contract: 39106573.82, retPct: 0, group: "current" },
-  { proj: "2233-18", client: "MDCPS", name: "Cutler Ridge ES - Ph2 Renovations", pm: "Lazaro", contract: 1059390.65, retPct: 5, group: "current" },
-  { proj: "2236-08", client: "HTG Grand East", name: "Grand East Village", pm: "Scott", contract: 18487346.63, retPct: 0, group: "current" },
-  { proj: "2236-09", client: "Resorts World", name: "Passport Corridor Upgrade", pm: "Yamile", contract: 18487346.63, retPct: 10, group: "current" },
-  { proj: "2236-28", client: "Havana", name: "Havana Enclave", pm: "Nez", contract: 8007122.21, retPct: 0, group: "current" },
-  { proj: "2242-04P", client: "MDCPS", name: "Leewod K-8 Phase 2 PRE Con", pm: "Lazaro", contract: 16526.96, retPct: 0, group: "current" },
-  { proj: "2242-05", client: "MDCPS", name: "Lindsey Hopkins TEC - Structural Rep", pm: "Lazaro", contract: 2038099.64, retPct: 5, group: "current" },
-  { proj: "2242-06", client: "MDCPS", name: "Joella Good ES - Renovations", pm: "Lazaro", contract: 16526.96, retPct: 5, group: "current" },
-  { proj: "2242-07", client: "MDCPS", name: "Lindsey Hopkins GOB", pm: "Lazaro", contract: 16526.96, retPct: 5, group: "current" },
-  { proj: "2242-08P", client: "MDCPS", name: "Lindsey Hopkins HVAC - Pre Con", pm: "Lazaro", contract: 16526.96, retPct: 0, group: "current" },
-  { proj: "2242-10", client: "MHC", name: "Miami Everglades", pm: "Lazaro", contract: 528988, retPct: 5, group: "current" },
-  { proj: "2242-16", client: "DV", name: "Dulce Vida Apartments", pm: "Wail", contract: 528988, retPct: 10, group: "current" },
-  { proj: "2242-30", client: "MDCPS", name: "Ben Sheppard ES Mini Soccer Pitch", pm: "Lazaro", contract: 15000, retPct: 0, group: "current" },
-  { proj: "2242-32", client: "Brito", name: "Brito Law Interior Renovation", pm: "Jocelyn", contract: 1006749.05, retPct: 0, group: "current" },
-  { proj: "2244-01", client: "UM", name: "UM Cox 269/271", pm: "Jocelyn", contract: 22002.5, retPct: 10, group: "current" },
-  { proj: "2244-10", client: "UM", name: "UM CP-159 RO Water", pm: "Jocelyn", contract: 33254.89, retPct: 0, group: "current" },
-  { proj: "2247-05-12", client: "MDCPS", name: "Horace Mann MSS Mini Soccer Pitch", pm: "Lazaro", contract: 15000, retPct: 0, group: "current" },
-  { proj: "2247-03P", client: "MDCPS", name: "Jane S Roberts Pre Cons", pm: "Lazaro", contract: 15461.58, retPct: 10, group: "current" },
-  { proj: "2247-09", client: "Juliet Cosm", name: "Juliet Cosmetics Interior Ren", pm: "Jocelyn", contract: 67462.9, retPct: 0, group: "current" },
-  { proj: "2247-14", client: "Cerveceria", name: "La Tropical 40 yr recertification", pm: "Lazaro", contract: 43360.63, retPct: 0, group: "current" },
-  { proj: "2248-02", client: "USPS", name: "USPS Tarpon Springs Dock Lift", pm: "David", contract: 21534, retPct: 10, group: "current" },
-  { proj: "2242-03", client: "HTG", name: "Legacy Park II", pm: "Scott", contract: 28473542.76, retPct: 0, group: "htg" },
-  { proj: "2242-11", client: "HTG", name: "Forest Glen", pm: "Scott", contract: 5464400.87, retPct: 0, group: "htg" },
-  { proj: "2242-13", client: "HTG", name: "Normandy Cove", pm: "Scott", contract: 23868430.48, retPct: 0, group: "htg" },
-  { proj: "2247-06", client: "HTG", name: "The Shores", pm: "Scott", contract: 16256301.36, retPct: 0, group: "htg" },
+  { proj: "2020", client: "USPS", name: "USPS Facilities", pm: "David", contract: 0, toBill: 0, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2231-29", client: "Luxcom", name: "Sunrise Gardens", pm: "Wail", contract: 2358738.24, toBill: 63184.5, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2233-02", client: "Resorts World", name: "JC Penney Demolition", pm: "Yamile", contract: 39106573.82, toBill: 6115370.8, retDraw: 69229.22, retPct: 10, group: "current" },
+  { proj: "2233-06", client: "HTG", name: "Courtside II", pm: "Nez", contract: 39106573.82, toBill: 0, retDraw: 1982642.36, retPct: 0, group: "current" },
+  { proj: "2233-18", client: "MDCPS", name: "Cutler Ridge ES - Ph2 Renovations", pm: "Lazaro", contract: 1059390.65, toBill: 1059390.65, retDraw: 43277.86, retPct: 5, group: "current" },
+  { proj: "2236-08", client: "HTG Grand East", name: "Grand East Village", pm: "Scott", contract: 18487346.63, toBill: 984171.69, retDraw: 841345.14, retPct: 0, group: "current" },
+  { proj: "2236-09", client: "Resorts World", name: "Passport Corridor Upgrade", pm: "Yamile", contract: 18487346.63, toBill: 1270718.41, retDraw: 15818.45, retPct: 10, group: "current" },
+  { proj: "2236-28", client: "Havana", name: "Havana Enclave", pm: "Nez", contract: 8007122.21, toBill: 8007122.21, retDraw: 2423228.1, retPct: 0, group: "current" },
+  { proj: "2242-04P", client: "MDCPS", name: "Leewod K-8 Phase 2 PRE Con", pm: "Lazaro", contract: 16526.96, toBill: 19147.36, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2242-05", client: "MDCPS", name: "Lindsey Hopkins TEC - Structural Rep", pm: "Lazaro", contract: 2038099.64, toBill: 2038099.64, retDraw: 198269.07, retPct: 5, group: "current" },
+  { proj: "2242-06", client: "MDCPS", name: "Joella Good ES - Renovations", pm: "Lazaro", contract: 16526.96, toBill: 655233.57, retDraw: 76093.57, retPct: 5, group: "current" },
+  { proj: "2242-07", client: "MDCPS", name: "Lindsey Hopkins GOB", pm: "Lazaro", contract: 16526.96, toBill: 3700694, retDraw: 4119.3, retPct: 5, group: "current" },
+  { proj: "2242-08P", client: "MDCPS", name: "Lindsey Hopkins HVAC - Pre Con", pm: "Lazaro", contract: 16526.96, toBill: 59166, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2242-10", client: "MHC", name: "Miami Everglades", pm: "Lazaro", contract: 528988, toBill: 0, retDraw: 35445.15, retPct: 5, group: "current" },
+  { proj: "2242-16", client: "DV", name: "Dulce Vida Apartments", pm: "Wail", contract: 528988, toBill: 46467126.43, retDraw: 738142.46, retPct: 10, group: "current" },
+  { proj: "2242-30", client: "MDCPS", name: "Ben Sheppard ES Mini Soccer Pitch", pm: "Lazaro", contract: 15000, toBill: 15000, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2242-32", client: "Brito", name: "Brito Law Interior Renovation", pm: "Jocelyn", contract: 1006749.05, toBill: 1006749.05, retDraw: 16636.76, retPct: 0, group: "current" },
+  { proj: "2244-01", client: "UM", name: "UM Cox 269/271", pm: "Jocelyn", contract: 22002.5, toBill: 22002.5, retDraw: 41224.56, retPct: 10, group: "current" },
+  { proj: "2244-10", client: "UM", name: "UM CP-159 RO Water", pm: "Jocelyn", contract: 33254.89, toBill: 33254.89, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2247-05-12", client: "MDCPS", name: "Horace Mann MSS Mini Soccer Pitch", pm: "Lazaro", contract: 15000, toBill: 15000, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2247-03P", client: "MDCPS", name: "Jane S Roberts Pre Cons", pm: "Lazaro", contract: 15461.58, toBill: 15461.58, retDraw: 0, retPct: 10, group: "current" },
+  { proj: "2247-09", client: "Juliet Cosm", name: "Juliet Cosmetics Interior Ren", pm: "Jocelyn", contract: 67462.9, toBill: 67462.9, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2247-14", client: "Cerveceria", name: "La Tropical 40 yr recertification", pm: "Lazaro", contract: 43360.63, toBill: 43360.63, retDraw: 0, retPct: 0, group: "current" },
+  { proj: "2248-02", client: "USPS", name: "USPS Tarpon Springs Dock Lift", pm: "David", contract: 21534, toBill: 21534, retDraw: 0, retPct: 10, group: "current" },
+  { proj: "2242-03", client: "HTG", name: "Legacy Park II", pm: "Scott", contract: 28473542.76, toBill: 28473542.76, retDraw: 656989.94, retPct: 0, group: "htg" },
+  { proj: "2242-11", client: "HTG", name: "Forest Glen", pm: "Scott", contract: 5464400.87, toBill: 5464400.87, retDraw: 806321.26, retPct: 0, group: "htg" },
+  { proj: "2242-13", client: "HTG", name: "Normandy Cove", pm: "Scott", contract: 23868430.48, toBill: 23868430.48, retDraw: 308035.54, retPct: 0, group: "htg" },
+  { proj: "2247-06", client: "HTG", name: "The Shores", pm: "Scott", contract: 16256301.36, toBill: 16256301.36, retDraw: 0, retPct: 0, group: "htg" },
 ];
 
 function FollowUpDesk() {
@@ -2285,11 +2285,13 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, acct: { access: [], managers: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
   const [adminNewMgr, setAdminNewMgr] = useState("");
+  const [adminNewAcct, setAdminNewAcct] = useState("");
+  const [adminNewAcctMgr, setAdminNewAcctMgr] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
   const [uspsItems, setUspsItems] = useState([]);
   const [uspsForm, setUspsForm] = useState(blankUspsForm());
@@ -2424,7 +2426,7 @@ function FollowUpDesk() {
   };
   const acctUpdate = (id, patch) => acctSet(acctRows.map((r) => r.id === id ? { ...r, ...patch } : r), false);
   const acctCommit = () => acctWrite(acctData);
-  const acctAddRow = (group) => acctSet([...acctRows, { id: "r" + Date.now() + Math.random().toString(36).slice(2, 6), proj: "", client: "", name: "", pm: "", contract: 0, gross: 0, retPct: 0, retBilled: 0, submitted: "", comments: "", group: group || "current" }], true);
+  const acctAddRow = (group) => acctSet([...acctRows, { id: "r" + Date.now() + Math.random().toString(36).slice(2, 6), proj: "", client: "", name: "", pm: "", contract: 0, toBill: 0, retDraw: 0, gross: 0, retPct: 0, retBilled: 0, submitted: "", comments: "", group: group || "current" }], true);
   const acctDelRow = (id) => acctSet(acctRows.filter((r) => r.id !== id), true);
   const acctSeed = () => acctSet([...acctRows, ...ACCT_TEMPLATE.map((t, i) => ({ id: "t" + i + "-" + t.proj, gross: 0, retBilled: 0, submitted: "", comments: "", ...t }))], true);
   const saveMyBr = (patch) => {
@@ -2544,7 +2546,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -3378,7 +3380,9 @@ function FollowUpDesk() {
     sharedSyncedRef.current = json;
     const uspsAccessList = ((next.usps && next.usps.access) || []).map((e) => String(e).toLowerCase());
     const uspsManagers = ((next.usps && next.usps.managers) || []).map((e) => String(e).toLowerCase());
-    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, updatedAt: Date.now() })
+    const acctAccessList = ((next.acct && next.acct.access) || []).map((e) => String(e).toLowerCase());
+    const acctManagers = ((next.acct && next.acct.managers) || []).map((e) => String(e).toLowerCase());
+    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, acctAccessList, acctManagers, updatedAt: Date.now() })
       .then(() => flash("Saved for everyone"))
       .catch((e) => { console.error(e); flash("Couldn't save — make sure the admin rule is published"); });
   };
@@ -3590,6 +3594,32 @@ function FollowUpDesk() {
     const cur = ((sharedConfig.usps && sharedConfig.usps.managers) || []).filter((x) => x !== em);
     saveSharedConfig({ ...sharedConfig, usps: { access, managers: cur } });
   };
+  const grantAcct = () => {
+    const em = adminNewAcct.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const cur = ((sharedConfig.acct && sharedConfig.acct.access) || []).filter((x) => x !== em);
+    const mgrs = (sharedConfig.acct && sharedConfig.acct.managers) || [];
+    saveSharedConfig({ ...sharedConfig, acct: { access: [...cur, em], managers: mgrs } });
+    setAdminNewAcct("");
+  };
+  const revokeAcct = (em) => {
+    const cur = ((sharedConfig.acct && sharedConfig.acct.access) || []).filter((x) => x !== em);
+    const mgrs = (sharedConfig.acct && sharedConfig.acct.managers) || [];
+    saveSharedConfig({ ...sharedConfig, acct: { access: cur, managers: mgrs } });
+  };
+  const addAcctManager = () => {
+    const em = adminNewAcctMgr.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const access = (sharedConfig.acct && sharedConfig.acct.access) || [];
+    const cur = ((sharedConfig.acct && sharedConfig.acct.managers) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, acct: { access, managers: [...cur, em] } });
+    setAdminNewAcctMgr("");
+  };
+  const removeAcctManager = (em) => {
+    const access = (sharedConfig.acct && sharedConfig.acct.access) || [];
+    const cur = ((sharedConfig.acct && sharedConfig.acct.managers) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, acct: { access, managers: cur } });
+  };
   const toggleTab = (key) => {
     const tabs = { ...sharedConfig.tabs, [key]: sharedConfig.tabs[key] === false ? true : false };
     saveSharedConfig({ ...sharedConfig, tabs });
@@ -3660,6 +3690,8 @@ function FollowUpDesk() {
   const myEmailLc = ((user && user.email) || "").toLowerCase();
   const isUspsManager = isAdmin || ((sharedConfig.usps && sharedConfig.usps.managers) || []).indexOf(myEmailLc) >= 0;
   const uspsHasAccess = isUspsManager || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(myEmailLc) >= 0;
+  const isAcctManager = isAdmin || ((sharedConfig.acct && sharedConfig.acct.managers) || []).indexOf(myEmailLc) >= 0;
+  const acctHasAccess = isAcctManager || ((sharedConfig.acct && sharedConfig.acct.access) || []).indexOf(myEmailLc) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
 
   const tabVisible = (key) => {
@@ -3808,7 +3840,7 @@ function FollowUpDesk() {
               <Grid size={15} /> {t.name}
             </button>
           ))}
-          {tabVisible("accounting") && (
+          {acctHasAccess && (
             <button className={"fd-nav-btn" + (section === "accounting" ? " active" : "")} onClick={() => setSection("accounting")}>
               <FileText size={15} /> Accounting
             </button>
@@ -3940,6 +3972,14 @@ function FollowUpDesk() {
                 <span className="fd-launch-ico"><Box size={20} /></span>
                 <span className="fd-launch-name">Plan Visualizer</span>
                 <span className="fd-launch-desc">Upload a PDF plan and see it as a quick 3D model you can spin around.</span>
+                <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
+              </button>
+            )}
+            {acctHasAccess && (
+              <button className="fd-launch" onClick={(e) => openTab("accounting", e)}>
+                <span className="fd-launch-ico"><FileText size={20} /></span>
+                <span className="fd-launch-name">Accounting</span>
+                <span className="fd-launch-desc">Monthly requisitions and PM billings, shared with everyone who has access.</span>
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
@@ -4747,38 +4787,6 @@ function FollowUpDesk() {
           </div>
 
           <div className="fd-panel" style={{ marginTop: 16 }}>
-            <div className="fd-group-head">Custom tabs <span className="fd-count">everyone</span></div>
-            {sharedConfig.customTabs.length === 0 ? (
-              <p className="fd-sub" style={{ fontSize: 13, margin: "8px 0 0" }}>No custom tabs yet. Add one below — it becomes a tab for everyone, holding the links you choose.</p>
-            ) : sharedConfig.customTabs.map((t) => (
-              <div className="fd-admin-tab" key={t.id}>
-                <div className="fd-admin-tab-head">
-                  <strong>{t.name}</strong>
-                  <button className="fd-icon-btn sm" title="Delete tab" onClick={() => deleteCustomTab(t.id)}><Trash2 size={15} /></button>
-                </div>
-                {t.links.map((lnk, i) => (
-                  <div className="fd-admin-link" key={i}>
-                    <span>{lnk.name} — {lnk.url}</span>
-                    <button className="fd-icon-btn sm" title="Remove link" onClick={() => removeLink(t.id, i)}><X size={14} /></button>
-                  </div>
-                ))}
-                <div className="fd-admin-addlink">
-                  <input className="fd-input" placeholder="Link name" value={(linkDrafts[t.id] || {}).name || ""}
-                    onChange={(e) => setLinkDrafts((d) => ({ ...d, [t.id]: { ...(d[t.id] || {}), name: e.target.value } }))} />
-                  <input className="fd-input" placeholder="Web address" value={(linkDrafts[t.id] || {}).url || ""}
-                    onChange={(e) => setLinkDrafts((d) => ({ ...d, [t.id]: { ...(d[t.id] || {}), url: e.target.value } }))}
-                    onKeyDown={(e) => { if (e.key === "Enter") addLink(t.id); }} />
-                  <button className="fd-btn" onClick={() => addLink(t.id)}>Add link</button>
-                </div>
-              </div>
-            ))}
-            <div className="fd-admin-addtab">
-              <input className="fd-input" placeholder="New tab name (e.g. Safety Docs)" value={adminNewTab}
-                onChange={(e) => setAdminNewTab(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCustomTab(); }} />
-              <button className="fd-btn primary" onClick={addCustomTab}>Add tab</button>
-            </div>
-          </div>
-          <div className="fd-panel" style={{ marginTop: 16 }}>
             <div className="fd-group-head">Per-person tabs</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Override what specific people see. Unchecked = hidden for that person, no matter the company setting. Calendar always shows.</p>
             {Object.keys(sharedConfig.overrides || {}).length === 0 ? (
@@ -4841,6 +4849,40 @@ function FollowUpDesk() {
               <input className="fd-input" placeholder="Email to make a USPS manager" value={adminNewMgr}
                 onChange={(e) => setAdminNewMgr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addUspsManager(); }} />
               <button className="fd-btn primary" onClick={addUspsManager}>Add manager</button>
+            </div>
+          </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Accounting tab access</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Accounting tab (monthly requisitions &amp; PM billings) is hidden from everyone except the people you add here, and they all share one synced workbook. You always have access.</p>
+            {((sharedConfig.acct && sharedConfig.acct.access) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one else has access yet. Add someone by email below.</p>
+            ) : ((sharedConfig.acct && sharedConfig.acct.access) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove access" onClick={() => revokeAcct(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to grant Accounting access" value={adminNewAcct}
+                onChange={(e) => setAdminNewAcct(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantAcct(); }} />
+              <button className="fd-btn primary" onClick={grantAcct}>Grant access</button>
+            </div>
+          </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Accounting managers</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Managers can edit the requisitions and grant access from inside the Accounting tab — without seeing this Admin tab. They automatically have Accounting access. Only you can set managers.</p>
+            {((sharedConfig.acct && sharedConfig.acct.managers) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No managers yet.</p>
+            ) : ((sharedConfig.acct && sharedConfig.acct.managers) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove manager" onClick={() => removeAcctManager(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to make an Accounting manager" value={adminNewAcctMgr}
+                onChange={(e) => setAdminNewAcctMgr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAcctManager(); }} />
+              <button className="fd-btn primary" onClick={addAcctManager}>Add manager</button>
             </div>
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
@@ -5469,7 +5511,7 @@ function FollowUpDesk() {
         </>
         )}
 
-        {section === "accounting" && (
+        {section === "accounting" && acctHasAccess && (
         <>
           <div className="fd-panel">
             <div className="fd-panel-head">Monthly requisitions <span className="fd-count">{acctMonthLabel(acctMonth)}</span></div>
@@ -5485,8 +5527,8 @@ function FollowUpDesk() {
           {acctRows.length === 0 ? (
             <div className="fd-empty"><FileText size={28} /><span>No projects for {acctMonthLabel(acctMonth)} yet. Add one, or load the standard project list to start.</span></div>
           ) : (() => {
-            const tot = { contract: 0, gross: 0, withheld: 0, retBilled: 0, receivables: 0 };
-            acctRows.forEach((r) => { const c = acctRow(r); tot.contract += Number(r.contract) || 0; tot.gross += c.gross; tot.withheld += c.withheld; tot.retBilled += c.retBilled; tot.receivables += c.receivables; });
+            const tot = { contract: 0, toBill: 0, retDraw: 0, gross: 0, withheld: 0, retBilled: 0, receivables: 0 };
+            acctRows.forEach((r) => { const c = acctRow(r); tot.contract += Number(r.contract) || 0; tot.toBill += Number(r.toBill) || 0; tot.retDraw += Number(r.retDraw) || 0; tot.gross += c.gross; tot.withheld += c.withheld; tot.retBilled += c.retBilled; tot.receivables += c.receivables; });
             const groups = [["current", "Current projects"], ["htg", "HTG BDI"]];
             const numCell = (r, field, w) => (
               <td><input className="fd-acct-in fd-acct-num" style={{ minWidth: w }} type="number" value={(r[field] === 0 || r[field] == null) ? "" : r[field]} placeholder="0"
@@ -5507,7 +5549,7 @@ function FollowUpDesk() {
                       <div className="fd-acct-wrap">
                         <table className="fd-acct-tbl">
                           <thead><tr>
-                            <th>Project #</th><th>Client</th><th>Project name</th><th>PM</th><th>Contract</th>
+                            <th>Project #</th><th>Client</th><th>Project name</th><th>PM</th><th>Contract</th><th>To bill after req.</th><th>Ret. to draw</th>
                             <th>Gross billings</th><th>Ret %</th><th>Withheld</th><th>Ret billed</th><th>Receivables</th><th>Submitted</th><th>Comments</th><th></th>
                           </tr></thead>
                           <tbody>
@@ -5520,6 +5562,8 @@ function FollowUpDesk() {
                                   {txtCell(r, "name", 170)}
                                   {txtCell(r, "pm", 80)}
                                   {numCell(r, "contract", 96)}
+                                  {numCell(r, "toBill", 96)}
+                                  {numCell(r, "retDraw", 90)}
                                   {numCell(r, "gross", 96)}
                                   {numCell(r, "retPct", 52)}
                                   <td className="fd-acct-calc" style={{ color: c.withheld ? "var(--danger)" : "var(--faint)" }}>{c.withheld ? acctMoney(c.withheld) : "—"}</td>
@@ -5541,6 +5585,9 @@ function FollowUpDesk() {
                 <div className="fd-panel">
                   <div className="fd-panel-head">Month totals <span className="fd-count">{acctMonthLabel(acctMonth)}</span></div>
                   <div className="fd-acct-totgrid">
+                    <div><span>Contract value</span><b>{acctMoney(tot.contract)}</b></div>
+                    <div><span>To bill after req.</span><b>{acctMoney(tot.toBill)}</b></div>
+                    <div><span>Retainage to draw</span><b>{acctMoney(tot.retDraw)}</b></div>
                     <div><span>Gross billings</span><b>{acctMoney(tot.gross)}</b></div>
                     <div><span>Retainage withheld</span><b style={{ color: "var(--danger)" }}>{acctMoney(tot.withheld)}</b></div>
                     <div><span>Retainage billed</span><b>{acctMoney(tot.retBilled)}</b></div>
