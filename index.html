@@ -338,6 +338,23 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-stand-row.q td.fd-stand-team{font-weight:600;}
 .fd-stand-row.q .fd-stand-pos{background:rgba(183,212,74,.2); color:var(--lime);}
 .fd-stand-row.q3 .fd-stand-pos{background:rgba(47,155,224,.18); color:var(--accent);}
+.fd-lb-scores{display:flex; gap:6px; flex-shrink:0;}
+.fd-lb-score{display:flex; flex-direction:column; align-items:center; gap:1px; min-width:50px; border:1px solid; border-radius:8px; padding:4px 8px; font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:15px; line-height:1.1; font-variant-numeric:tabular-nums;}
+.fd-lb-score-l{font-size:9px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; opacity:.75;}
+.fd-lb-score.actual{color:var(--lime); border-color:rgba(183,212,74,.35); background:rgba(183,212,74,.1);}
+.fd-lb-score.proj{color:#7cc3ef; border-color:rgba(47,155,224,.35); background:rgba(47,155,224,.1);}
+.fd-lb-legend{display:flex; flex-wrap:wrap; gap:14px; padding:2px 4px 12px; font-size:11.5px; color:var(--muted);}
+.fd-lb-legend span{display:inline-flex; align-items:center; gap:6px;}
+.fd-lb-dot{width:9px; height:9px; border-radius:3px; display:inline-block;}
+.fd-lb-dot.actual{background:var(--lime);}
+.fd-lb-dot.proj{background:#7cc3ef;}
+.fd-disclose{border:1px solid var(--line); border-radius:12px; background:var(--surface); box-shadow:var(--shadow-sm); margin-bottom:14px; overflow:hidden;}
+.fd-disclose>summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:9px; padding:13px 15px; font-weight:600; font-size:13.5px; color:var(--ink);}
+.fd-disclose>summary::-webkit-details-marker{display:none;}
+.fd-disclose>summary .fd-count{margin-left:auto;}
+.fd-disclose-chev{color:var(--muted); transition:transform .18s ease; flex-shrink:0;}
+.fd-disclose[open]>summary .fd-disclose-chev{transform:rotate(90deg);}
+.fd-disclose-body{padding:0 15px 15px;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -4905,6 +4922,36 @@ function FollowUpDesk() {
                 </div>
               );
             })()}
+            {Object.keys(brPicksAll).length === 0 ? (
+              <div className="fd-empty"><Users size={28} /><span>No players yet — make a pick and you’re on the board.</span></div>
+            ) : (
+              <>
+                <div className="fd-lb-legend">
+                  <span><span className="fd-lb-dot proj"></span> Projected — if groups end as they stand</span>
+                  <span><span className="fd-lb-dot actual"></span> Actual — points locked in so far</span>
+                </div>
+                <div className="fd-list">
+                  {Object.keys(brPicksAll)
+                    .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", now: brScore(brPicksAll[uid], brLive, brReal), proj: brProjScore(brPicksAll[uid], liveStandGames, brLive, brReal) }))
+                    .sort((a, b) => b.now.total - a.now.total || b.proj.total - a.proj.total || a.name.localeCompare(b.name))
+                    .map((r, i) => (
+                      <button key={r.uid} className="fd-dir-row fd-lb-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined} onClick={() => setLbView(r.uid)}>
+                        <span className="fd-ext">{i + 1}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>} <ChevronRight size={13} style={{ opacity: .5, verticalAlign: "middle" }} /></div>
+                          <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
+                            groups {r.now.g} · thirds {r.now.t} · bracket {r.now.b}
+                          </div>
+                        </div>
+                        <span className="fd-lb-scores">
+                          <span className="fd-lb-score proj"><span className="fd-lb-score-l">Proj</span>{r.proj.total}</span>
+                          <span className="fd-lb-score actual"><span className="fd-lb-score-l">Actual</span>{r.now.total}</span>
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              </>
+            )}
             {(() => {
               const champs = {};
               let total = 0;
@@ -4916,51 +4963,34 @@ function FollowUpDesk() {
               const ranked = Object.keys(champs).map((c) => ({ c, n: champs[c], pct: Math.round((champs[c] / total) * 100) })).sort((a, b) => b.n - a.n);
               const top = ranked[0];
               return (
-                <div className="fd-panel">
-                  <div className="fd-panel-head">Office favorite <span className="fd-count">{total} {total === 1 ? "pick" : "picks"} in</span></div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 10px" }}>
-                    <span style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>{wcLabel(top.c)}</span>
-                    <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontWeight: 700, color: "var(--lime)", fontSize: 18 }}>{top.pct}%</span>
-                  </div>
-                  {ranked.slice(0, 5).map((r) => (
-                    <div key={r.c} style={{ padding: "5px 0" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 4 }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>{wcLabel(r.c)}</span>
-                        <span className="fd-hint" style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}>{r.pct}% · {r.n}</span>
-                      </div>
-                      <div className="fd-champ-bar"><div className="fd-champ-fill" style={{ width: r.pct + "%" }}></div></div>
+                <details className="fd-disclose">
+                  <summary><ChevronRight size={14} className="fd-disclose-chev" /> Office picks <span className="fd-count">{total} {total === 1 ? "pick" : "picks"} in</span></summary>
+                  <div className="fd-disclose-body">
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 10px" }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>{wcLabel(top.c)}</span>
+                      <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontWeight: 700, color: "var(--lime)", fontSize: 18 }}>{top.pct}%</span>
                     </div>
-                  ))}
-                  <p className="fd-hint" style={{ fontSize: 11.5, margin: "6px 0 0" }}>Who the office picked to lift the trophy.</p>
-                </div>
+                    {ranked.slice(0, 5).map((r) => (
+                      <div key={r.c} style={{ padding: "5px 0" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 4 }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>{wcLabel(r.c)}</span>
+                          <span className="fd-hint" style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}>{r.pct}% · {r.n}</span>
+                        </div>
+                        <div className="fd-champ-bar"><div className="fd-champ-fill" style={{ width: r.pct + "%" }}></div></div>
+                      </div>
+                    ))}
+                    <p className="fd-hint" style={{ fontSize: 11.5, margin: "6px 0 0" }}>Who the office picked to lift the trophy.</p>
+                  </div>
+                </details>
               );
             })()}
-            <div className="fd-panel">
-              <label className="fd-label">Your leaderboard name</label>
-              <input className="fd-input short" style={{ maxWidth: 220 }} key={myBrName} defaultValue={myBrName}
-                onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== myBrName) saveMyBr({ name: v }); }} />
-            </div>
-            {Object.keys(brPicksAll).length === 0 ? (
-              <div className="fd-empty"><Users size={28} /><span>No players yet — make a pick and you’re on the board.</span></div>
-            ) : (
-              <div className="fd-list">
-                {Object.keys(brPicksAll)
-                  .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", s: brScore(brPicksAll[uid], brLive, brReal) }))
-                  .sort((a, b) => b.s.total - a.s.total || a.name.localeCompare(b.name))
-                  .map((r, i) => (
-                    <button key={r.uid} className="fd-dir-row fd-lb-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined} onClick={() => setLbView(r.uid)}>
-                      <span className="fd-ext">{i + 1}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>} <ChevronRight size={13} style={{ opacity: .5, verticalAlign: "middle" }} /></div>
-                        <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
-                          groups {r.s.g} · thirds {r.s.t} · bracket {r.s.b}
-                        </div>
-                      </div>
-                      <span className="fd-ext" style={{ color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.1)" }}>{r.s.total}</span>
-                    </button>
-                  ))}
+            <details className="fd-disclose">
+              <summary><ChevronRight size={14} className="fd-disclose-chev" /> Your leaderboard name <span className="fd-count">{myBrName}</span></summary>
+              <div className="fd-disclose-body">
+                <input className="fd-input short" style={{ maxWidth: 220 }} key={myBrName} defaultValue={myBrName}
+                  onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== myBrName) saveMyBr({ name: v }); }} />
               </div>
-            )}
+            </details>
             {lbView && brPicksAll[lbView] && (() => {
               const p = brPicksAll[lbView];
               const slots = brMyBracket(p);
