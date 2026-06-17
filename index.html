@@ -322,6 +322,22 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-lb-chip{display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line-strong); border-radius:20px; padding:5px 11px; font-size:12.5px; background:var(--surface-2);}
 .fd-lb-chip.hit{border-color:rgba(183,212,74,.55); background:rgba(183,212,74,.1);}
 .fd-lb-chip.miss{border-color:rgba(224,97,73,.4); opacity:.65;}
+.fd-stand-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr)); gap:12px;}
+.fd-stand{border:1px solid var(--line); border-radius:12px; background:var(--surface-2); overflow:hidden;}
+.fd-stand-h{display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); font-weight:700; font-size:13px; color:var(--ink);}
+.fd-stand-h .fd-count{margin-left:auto;}
+.fd-stand-tbl{width:100%; border-collapse:collapse; font-size:12.5px;}
+.fd-stand-tbl th{font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--faint); text-align:right; padding:7px 7px; border-bottom:1px solid var(--line);}
+.fd-stand-tbl th.fd-stand-team{text-align:left; padding-left:12px;}
+.fd-stand-tbl td{padding:7px 7px; text-align:right; font-variant-numeric:tabular-nums; border-bottom:1px solid var(--line); color:var(--muted);}
+.fd-stand-tbl tr:last-child td{border-bottom:none;}
+.fd-stand-tbl td.fd-stand-team{text-align:left; padding-left:12px; color:var(--ink);}
+.fd-stand-tbl td.fd-stand-pts{font-weight:700; color:var(--ink);}
+.fd-stand-cell{display:flex; align-items:center;}
+.fd-stand-pos{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:5px; background:var(--surface-3); color:var(--muted); font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; margin-right:9px; flex-shrink:0;}
+.fd-stand-row.q td.fd-stand-team{font-weight:600;}
+.fd-stand-row.q .fd-stand-pos{background:rgba(183,212,74,.2); color:var(--lime);}
+.fd-stand-row.q3 .fd-stand-pos{background:rgba(47,155,224,.18); color:var(--accent);}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -1569,6 +1585,65 @@ function brSeedMatches() {
     });
   });
   return out;
+}
+
+// Full live standings table for one group (P/W/D/L/GF/GA/GD/Pts). Counts finished
+// games and any in-progress live games (so the table updates as scores come in).
+// Same tiebreaks as brStandings: pts -> GD -> GF -> head-to-head -> seeding order.
+function brLiveTable(matchesObj, grp) {
+  const teams = WC_GROUPS[grp] || [];
+  const ms = Object.values(matchesObj || {}).filter((m) => m.stage === "group" && m.group === grp);
+  const counted = ms.filter((m) => (m.status === "final" || m.status === "live") && m.hs != null && m.as != null);
+  const t = {};
+  teams.forEach((c) => (t[c] = { c, pl: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, p: 0 }));
+  counted.forEach((m) => {
+    if (!t[m.home] || !t[m.away]) return;
+    t[m.home].pl++; t[m.away].pl++;
+    t[m.home].gf += m.hs; t[m.home].ga += m.as;
+    t[m.away].gf += m.as; t[m.away].ga += m.hs;
+    t[m.home].gd += m.hs - m.as; t[m.away].gd += m.as - m.hs;
+    if (m.hs > m.as) { t[m.home].p += 3; t[m.home].w++; t[m.away].l++; }
+    else if (m.hs < m.as) { t[m.away].p += 3; t[m.away].w++; t[m.home].l++; }
+    else { t[m.home].p += 1; t[m.away].p += 1; t[m.home].d++; t[m.away].d++; }
+  });
+  const h2h = (a, b) => {
+    const g = counted.find((m) => m.status === "final" && ((m.home === a && m.away === b) || (m.home === b && m.away === a)));
+    if (!g) return 0;
+    const w = brWinner(g);
+    return w === a ? -1 : w === b ? 1 : 0;
+  };
+  const rows = Object.values(t).sort((x, y) => y.p - x.p || y.gd - x.gd || y.gf - x.gf || h2h(x.c, y.c) || teams.indexOf(x.c) - teams.indexOf(y.c));
+  return { rows, order: rows.map((r) => r.c), played: counted.filter((m) => m.status === "final").length, inPlay: ms.some((m) => m.status === "live") };
+}
+
+// Projected score for a player IF every group finished exactly as it stands right now.
+// Group order points + advance points are scored against the current live tables, and
+// best-thirds points against the eight 3rd-place teams currently in qualifying position.
+// Knockout/champion points already earned (from real results) are carried in unchanged.
+function brProjScore(p, matchesObj, realX) {
+  const ranks = {};
+  const thirdRows = [];
+  Object.keys(WC_GROUPS).forEach((grp) => {
+    const tbl = brLiveTable(matchesObj, grp);
+    ranks[grp] = tbl.order;
+    if (tbl.rows[2]) thirdRows.push({ grp, s: tbl.rows[2] });
+  });
+  const projThirds = {};
+  thirdRows
+    .sort((a, b) => b.s.p - a.s.p || b.s.gd - a.s.gd || b.s.gf - a.s.gf || a.grp.localeCompare(b.grp))
+    .slice(0, 8)
+    .forEach((x) => (projThirds[x.s.c] = 1));
+  let g = 0, t = 0;
+  Object.keys(WC_GROUPS).forEach((grp) => {
+    const order = ranks[grp];
+    brRankOf(p, grp).forEach((c, i) => {
+      if (order[i] === c) g += BR_SCORING.pos;
+      else if (i < 2 && order.indexOf(c) >= 0 && order.indexOf(c) < 2) g += BR_SCORING.adv;
+    });
+  });
+  (p.thirds || []).forEach((c) => { if (projThirds[c]) t += BR_SCORING.third; });
+  const b = brScore(p, matchesObj, realX).b;
+  return { g, t, b, total: g + t + b };
 }
 
 function BrGroupOrder({ order, locked, onChange }) {
@@ -4641,7 +4716,7 @@ function FollowUpDesk() {
         {section === "bracket" && (
         <>
           <div className="fd-subnav">
-            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
+            {[["board", "Leaderboard"], ["standings", "Group standings"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
             ))}
           </div>
@@ -4946,6 +5021,72 @@ function FollowUpDesk() {
                 </div>
               );
             })()}
+          </>
+          )}
+
+          {bracketView === "standings" && (
+          <>
+            <div className="fd-panel">
+              <div className="fd-panel-head">Group stage — live standings <span className="fd-count">updates automatically</span></div>
+              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Real tables built from results so far — in-progress games count live. <span style={{ color: "var(--lime)", fontWeight: 600 }}>Top two</span> advance automatically; <span style={{ color: "var(--accent)", fontWeight: 600 }}>3rd place</span> competes for the eight best-third spots.</p>
+            </div>
+            <div className="fd-stand-grid">
+              {Object.keys(WC_GROUPS).map((grp) => {
+                const tbl = brLiveTable(brLive, grp);
+                return (
+                  <div className="fd-stand" key={grp}>
+                    <div className="fd-stand-h">
+                      {tbl.inPlay && <span className="fd-live-dot"></span>}
+                      Group {grp}
+                      <span className="fd-count">{tbl.played}/6 played</span>
+                    </div>
+                    <table className="fd-stand-tbl">
+                      <thead>
+                        <tr>
+                          <th className="fd-stand-team">Team</th>
+                          <th>Pl</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tbl.rows.map((r, i) => (
+                          <tr key={r.c} className={"fd-stand-row" + (i < 2 ? " q" : i === 2 ? " q3" : "")}>
+                            <td className="fd-stand-team"><span className="fd-stand-cell"><span className="fd-stand-pos">{i + 1}</span>{wcLabel(r.c)}</span></td>
+                            <td>{r.pl}</td><td>{r.w}</td><td>{r.d}</td><td>{r.l}</td>
+                            <td>{r.gd > 0 ? "+" + r.gd : r.gd}</td>
+                            <td className="fd-stand-pts">{r.p}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="fd-panel" style={{ marginTop: 20 }}>
+              <div className="fd-panel-head">Projected scores <span className="fd-count">if groups end as they stand</span></div>
+              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Where everyone would land if the current group tables were final — exact-spot and advance points for your group orders, plus your best-thirds that are currently in the top eight. Knockout points already earned are included.</p>
+            </div>
+            {Object.keys(brPicksAll).length === 0 ? (
+              <div className="fd-empty"><Users size={28} /><span>No players yet — make a pick to appear here.</span></div>
+            ) : (
+              <div className="fd-list">
+                {Object.keys(brPicksAll)
+                  .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", s: brProjScore(brPicksAll[uid], brLive, brReal), now: brScore(brPicksAll[uid], brLive, brReal) }))
+                  .sort((a, b) => b.s.total - a.s.total || a.name.localeCompare(b.name))
+                  .map((r, i) => (
+                    <button key={r.uid} className="fd-dir-row fd-lb-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined} onClick={() => { setLbView(r.uid); setBracketView("board"); }}>
+                      <span className="fd-ext">{i + 1}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="fd-dir-name">{r.name}{user && r.uid === user.uid && <span className="fd-count">you</span>} <ChevronRight size={13} style={{ opacity: .5, verticalAlign: "middle" }} /></div>
+                        <div className="fd-dir-meta" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
+                          proj groups {r.s.g} · thirds {r.s.t} · bracket {r.s.b} · now {r.now.total}
+                        </div>
+                      </div>
+                      <span className="fd-ext" style={{ color: "var(--lime)", borderColor: "rgba(183,212,74,.35)", background: "rgba(183,212,74,.1)" }}>{r.s.total}</span>
+                    </button>
+                  ))}
+              </div>
+            )}
           </>
           )}
 
