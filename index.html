@@ -706,23 +706,26 @@ button.fd-admin-chip:disabled{cursor:default;}
     { name: "React",
       test: function () { return !!window.React; },
       urls: [
-        "https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js",
+        "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js",
-        "https://unpkg.com/react@18/umd/react.production.min.js"
+        "https://unpkg.com/react@18.3.1/umd/react.production.min.js"
       ] },
     { name: "ReactDOM",
       test: function () { return !!window.ReactDOM; },
       urls: [
-        "https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js",
+        "https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js",
-        "https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+        "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"
       ] },
+    // Pinned to exact versions on every CDN: an unversioned URL is a moving target,
+    // and Babel 8 shipping to it (with the automatic JSX runtime as the new default)
+    // is exactly what white-screened the app. Keep these versions locked.
     { name: "Babel",
       test: function () { return !!window.Babel; },
       urls: [
-        "https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js",
+        "https://cdn.jsdelivr.net/npm/@babel/standalone@7.26.4/babel.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js",
-        "https://unpkg.com/@babel/standalone/babel.min.js"
+        "https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"
       ] }
   ], showError);
   // Once all three are in, compile and run the app source ourselves. We MUST pin the
