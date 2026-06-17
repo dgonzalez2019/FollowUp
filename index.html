@@ -2553,6 +2553,7 @@ function FollowUpDesk() {
         return {
           id: f.id, email: f.email, cc: f.cc || "", name: f.name || "", company: f.company || "",
           subject: f.subject || "Following up", body: buildBody(f),
+          htmlSig: settings.htmlSignature || "",
           due: st.due || nextDue, eventDate: nextDue,
           autoEmail: !!f.autoEmail, autoEvent: !!f.autoEvent,
         };
@@ -3682,6 +3683,31 @@ function FollowUpDesk() {
             <label className="fd-label">Signature</label>
             <textarea className="fd-input area" rows={2} value={settings.signature}
               onChange={(e) => setSettings((s) => ({ ...s, signature: e.target.value }))} />
+            <div style={{ marginTop: 16 }}>
+              <label className="fd-label">Outlook HTML signature <span className="fd-count">used for automated emails</span></label>
+              <p className="fd-hint" style={{ marginTop: 0, fontSize: 12 }}>Paste your Outlook signature HTML below, or upload the .htm file from your Outlook signatures folder. When set, automated follow-ups send as formatted HTML with this signature. Images must use public web links to display.</p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                <label className="fd-btn ghost sm" style={{ cursor: "pointer" }}>
+                  <input type="file" accept=".htm,.html,text/html" style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => setSettings((s) => ({ ...s, htmlSignature: String(r.result || "") })); r.readAsText(f); }} />
+                  Upload .htm file
+                </label>
+                {settings.htmlSignature && <button className="fd-btn ghost sm" onClick={() => setSettings((s) => ({ ...s, htmlSignature: "" }))}>Remove</button>}
+              </div>
+              <textarea className="fd-input area" rows={4} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}
+                placeholder="<table>...your signature HTML...</table>" value={settings.htmlSignature || ""}
+                onChange={(e) => setSettings((s) => ({ ...s, htmlSignature: e.target.value }))} />
+              {settings.htmlSignature && (() => {
+                const hasLocalImg = /<img[^>]+src=["'](?!https?:|data:)/i.test(settings.htmlSignature);
+                return (
+                  <div style={{ marginTop: 10 }}>
+                    {hasLocalImg && <p className="fd-hint" style={{ color: "var(--danger)", fontSize: 12 }}>Heads up: an image in this signature uses a local/embedded path and won't show in sent emails. Replace it with a public https:// image link.</p>}
+                    <div className="fd-hint" style={{ fontSize: 11, marginBottom: 4 }}>Preview:</div>
+                    <div style={{ background: "#fff", color: "#111", borderRadius: 8, padding: 12, overflow: "auto", maxHeight: 220 }} dangerouslySetInnerHTML={{ __html: settings.htmlSignature }} />
+                  </div>
+                );
+              })()}
+            </div>
             {user && (
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
                 <label className="fd-label">Outlook automation</label>
