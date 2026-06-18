@@ -6,7 +6,9 @@
 // shared/insuranceLog so it re-arms automatically when a policy is renewed.
 //
 // Runs inside the daily cron (folded into cron-followups so it uses only one
-// Vercel cron slot). Sends from the admin's connected Outlook (ADMIN_EMAIL).
+// Vercel cron slot). Sends from the mailbox named in INSURANCE_FROM_EMAIL
+// (e.g. notifications@bdico.com), falling back to ADMIN_EMAIL — whichever it is
+// must have connected Outlook in the app.
 
 const { getDoc, setDoc, listDocs } = require("./_firestore.js");
 
@@ -87,11 +89,14 @@ async function runInsuranceReminders() {
     log.expired = expired.length;
     if (!expired.length && !soon.length) { await save(notified); return log; }
 
-    const ADMIN = (process.env.ADMIN_EMAIL || "").toLowerCase();
+    // Sender mailbox: INSURANCE_FROM_EMAIL if set (e.g. notifications@bdico.com),
+    // otherwise fall back to ADMIN_EMAIL. That mailbox must have connected Outlook.
+    const FROM = (process.env.INSURANCE_FROM_EMAIL || process.env.ADMIN_EMAIL || "").toLowerCase();
     const tokens = await listDocs("outlookTokens");
-    const adminTok = tokens.find((t) => ((t.data && t.data.email) || "").toLowerCase() === ADMIN && t.data.refresh_token);
-    if (!adminTok) { log.errors.push("admin Outlook not connected (set ADMIN_EMAIL and connect Outlook for that account)"); await save(notified); return log; }
-    const token = await graphToken(adminTok.data);
+    const senderTok = tokens.find((t) => ((t.data && t.data.email) || "").toLowerCase() === FROM && t.data.refresh_token);
+    if (!senderTok) { log.errors.push("sender Outlook not connected — set INSURANCE_FROM_EMAIL to a mailbox that has connected Outlook in the app (currently '" + FROM + "')"); await save(notified); return log; }
+    log.from = FROM;
+    const token = await graphToken(senderTok.data);
 
     const fmt = (d) => {
       const s = d.s;
