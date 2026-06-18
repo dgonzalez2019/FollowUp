@@ -2620,6 +2620,7 @@ function FollowUpDesk() {
     const email = authEmail.trim();
     if (!email || !authPass) { setAuthErr("Enter your email and password."); return; }
     if (authMode === "signup" && authPass.length < 6) { setAuthErr("Password must be at least 6 characters."); return; }
+    if (authMode === "signup" && !/@bdico\.com$/i.test(email)) { setAuthErr("Accounts are limited to @bdico.com email addresses."); return; }
     setAuthErr(""); setAuthBusy(true);
     lastSyncedRef.current = ""; cloudLoadedRef.current = false;
     const p = authMode === "signup"
@@ -3393,7 +3394,7 @@ function FollowUpDesk() {
             <img src={LOGO_SRC} alt="BDI Construction" style={{ height: 56, width: "auto", display: "block", marginBottom: 20 }} />
             <div className="fd-kicker">BDI UNIVERSITY</div>
             <h1 className="fd-title" style={{ fontSize: 30, margin: "0 0 6px" }}>{authMode === "signup" ? "Create account" : "Sign in"}</h1>
-            <p className="fd-sub" style={{ marginBottom: 18 }}>{authMode === "signup" ? "Make an account to sync your follow-ups, documents, and deadlines across devices." : "Sign in to load your data on any device."}</p>
+            <p className="fd-sub" style={{ marginBottom: 18 }}>{authMode === "signup" ? "Make an account with your @bdico.com email to sync your follow-ups, documents, and deadlines across devices." : "Sign in to load your data on any device."}</p>
             <label className="fd-label">Email</label>
             <input className="fd-input" type="email" autoComplete="username" value={authEmail} autoFocus
               onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@bdico.com"
