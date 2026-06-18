@@ -9,6 +9,7 @@
 // Env: MS_CLIENT_ID, MS_CLIENT_SECRET, MS_TENANT_ID, Firebase SA vars, CRON_SECRET.
 
 const { listDocs, getSubDoc, setSubDoc, setDoc } = require("./_firestore.js");
+const { runInsuranceReminders } = require("./_insurance.js");
 
 async function graphTokenFor(uid, auth) {
   const body = new URLSearchParams({
@@ -96,6 +97,9 @@ module.exports = async (req, res) => {
     return;
   }
   const log = { ran: new Date().toISOString(), users: 0, sent: 0, events: 0, skipped: 0, errors: [] };
+  // Subcontractor insurance reminders run every day (folded in here so the whole
+  // app uses a single Vercel cron slot — Hobby plan allows only one).
+  try { log.insurance = await runInsuranceReminders(); } catch (e) { log.errors.push("insurance: " + e.message); }
   const today = new Date().toISOString().slice(0, 10);
   // Skip weekends: anything due Sat/Sun simply waits and goes out Monday.
   const dow = new Date().getUTCDay(); // 0=Sun, 6=Sat (cron runs 13:00 UTC = 9am ET, same calendar day)
