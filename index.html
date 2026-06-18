@@ -2446,7 +2446,7 @@ function FollowUpDesk() {
   const insSet = (next, persist) => { setInsData(next); if (persist) insWrite(next); };
   const insUpdateSub = (id, patch) => insSet({ ...insData, subs: (insData.subs || []).map((s) => (s.id === id ? { ...s, ...patch } : s)) }, false);
   const insCommit = () => insWrite(insData);
-  const insAddSub = () => insSet({ ...insData, subs: [...(insData.subs || []), { id: "s" + Date.now() + Math.random().toString(36).slice(2, 6), name: "", carrier: "", coverage: "", policy: "", expires: "", days: "", notes: "" }] }, true);
+  const insAddSub = () => insSet({ ...insData, subs: [...(insData.subs || []), { id: "s" + Date.now() + Math.random().toString(36).slice(2, 6), projNum: "", projName: "", name: "", carrier: "", coverage: "", initialDate: "", expires: "", days: "", notes: "" }] }, true);
   const insDelSub = (id) => insSet({ ...insData, subs: (insData.subs || []).filter((s) => s.id !== id) }, true);
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
@@ -5851,9 +5851,9 @@ function FollowUpDesk() {
                 <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet. Add one to start tracking their insurance.</span></div>
               ) : (
                 <div className="fd-acct-wrap">
-                  <table className="fd-acct-tbl" style={{ minWidth: 980 }}>
+                  <table className="fd-acct-tbl" style={{ minWidth: 1180 }}>
                     <thead><tr>
-                      <th>Subcontractor</th><th>Carrier</th><th>Coverage</th><th>Policy #</th><th>Expires</th><th>Notice (days)</th><th>Status</th><th>Notes</th><th></th>
+                      <th>Project #</th><th>Project name</th><th>Subcontractor</th><th>Carrier</th><th>Coverage</th><th>Initial date</th><th>Expires</th><th>Notice (days)</th><th>Status</th><th>Notes</th><th></th>
                     </tr></thead>
                     <tbody>
                       {[...(insData.subs || [])].sort((a, b) => { const ea = a.expires || "9999", eb = b.expires || "9999"; return ea < eb ? -1 : ea > eb ? 1 : 0; }).map((s) => {
@@ -5861,10 +5861,12 @@ function FollowUpDesk() {
                         const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
                         return (
                           <tr key={s.id}>
+                            <td><input className="fd-acct-in" style={{ minWidth: 90 }} value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></td>
+                            <td><input className="fd-acct-in" style={{ minWidth: 150 }} value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></td>
                             <td><input className="fd-acct-in" style={{ minWidth: 150 }} value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></td>
                             <td><input className="fd-acct-in" style={{ minWidth: 120 }} value={s.carrier || ""} onChange={(e) => insUpdateSub(s.id, { carrier: e.target.value })} onBlur={insCommit} /></td>
                             <td><input className="fd-acct-in" style={{ minWidth: 110 }} value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 110 }} value={s.policy || ""} onChange={(e) => insUpdateSub(s.id, { policy: e.target.value })} onBlur={insCommit} /></td>
+                            <td><input className="fd-acct-in" style={{ minWidth: 140 }} type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></td>
                             <td><input className="fd-acct-in" style={{ minWidth: 140 }} type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></td>
                             <td><input className="fd-acct-in fd-acct-num" style={{ minWidth: 70 }} type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></td>
                             <td><span className={"fd-ins-badge " + st.state}>{label}</span></td>
