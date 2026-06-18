@@ -63,19 +63,29 @@ async function runInsuranceReminders() {
     if (!subs.length || !recipients.length) { log.note = "nothing to do (no subcontractors or no recipients)"; await save(notified); return log; }
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const due = [];
+    const dateStr = today.toISOString().slice(0, 10);
+    const expired = [], soon = [];
     subs.forEach((s) => {
       const exp = (s.expires || "").trim();
       if (!exp) return;
       const daysLeft = Math.round((new Date(exp + "T00:00:00") - today) / 86400000);
       const threshold = Number(s.days) || defDays;
-      if (daysLeft > threshold) return;                 // not yet inside the notice window
-      const key = (s.id || s.name) + "|" + exp;         // re-arms when the expiration date changes (renewal)
-      if (notified[key]) return;                        // already emailed for this expiry
-      due.push({ s: s, daysLeft: daysLeft, key: key });
+      if (daysLeft < 0) {
+        // EXPIRED: remind every day, until renewed. Keyed by the day so re-running
+        // the same day won't double-send but each new day re-notifies.
+        const key = (s.id || s.name) + "|" + exp + "|" + dateStr;
+        if (notified[key]) return;
+        expired.push({ s: s, daysLeft: daysLeft, key: key });
+      } else if (daysLeft <= threshold) {
+        // EXPIRING SOON: the advance notice, sent once per expiration date.
+        const key = (s.id || s.name) + "|" + exp;
+        if (notified[key]) return;
+        soon.push({ s: s, daysLeft: daysLeft, key: key });
+      }
     });
-    log.due = due.length;
-    if (!due.length) { await save(notified); return log; }
+    log.due = expired.length + soon.length;
+    log.expired = expired.length;
+    if (!expired.length && !soon.length) { await save(notified); return log; }
 
     const ADMIN = (process.env.ADMIN_EMAIL || "").toLowerCase();
     const tokens = await listDocs("outlookTokens");
@@ -83,25 +93,37 @@ async function runInsuranceReminders() {
     if (!adminTok) { log.errors.push("admin Outlook not connected (set ADMIN_EMAIL and connect Outlook for that account)"); await save(notified); return log; }
     const token = await graphToken(adminTok.data);
 
-    const dateStr = today.toISOString().slice(0, 10);
-    const lines = [];
-    lines.push("Subcontractor insurance reminder — " + dateStr);
-    lines.push("");
-    lines.push("These subcontractors need an updated Certificate of Insurance before they can be on site:");
-    lines.push("");
-    due.sort((a, b) => a.daysLeft - b.daysLeft).forEach(function (d) {
+    const fmt = (d) => {
       const s = d.s;
       const status = d.daysLeft < 0 ? ("EXPIRED " + Math.abs(d.daysLeft) + " day(s) ago") : ("expires in " + d.daysLeft + " day(s)");
       const proj = [s.projNum, s.projName].filter(Boolean).join(" ");
-      lines.push("  - " + (s.name || "(unnamed)") + (s.coverage ? " [" + s.coverage + "]" : "") + (proj ? " — project " + proj : "") + " — " + status + " (expires " + s.expires + ")");
-    });
+      return "  - " + (s.name || "(unnamed)") + (s.coverage ? " [" + s.coverage + "]" : "") + (proj ? " — project " + proj : "") + " — " + status + " (expires " + s.expires + ")";
+    };
+    const lines = [];
+    lines.push("Subcontractor insurance reminder — " + dateStr);
+    if (expired.length) {
+      lines.push("");
+      lines.push("EXPIRED — these subcontractors should not be on site until renewed:");
+      lines.push("");
+      expired.sort((a, b) => a.daysLeft - b.daysLeft).forEach((d) => lines.push(fmt(d)));
+    }
+    if (soon.length) {
+      lines.push("");
+      lines.push("Expiring soon — renew before the date below:");
+      lines.push("");
+      soon.sort((a, b) => a.daysLeft - b.daysLeft).forEach((d) => lines.push(fmt(d)));
+    }
     lines.push("");
-    lines.push("Collect a renewed COI before the expiration date so the subcontractor can remain on site.");
+    lines.push("Collect a renewed Certificate of Insurance before the expiration date.");
     lines.push("");
     lines.push("Sent automatically by BDI University.");
+    const due = expired.concat(soon);
 
+    const subject = expired.length
+      ? ("Subcontractor insurance — " + expired.length + " EXPIRED" + (soon.length ? " + " + soon.length + " expiring soon" : "") + " — " + dateStr)
+      : ("Subcontractor insurance expiring soon — " + dateStr);
     try {
-      await sendMail(token, recipients, "Subcontractor insurance expiring — " + dateStr, lines.join("\n"));
+      await sendMail(token, recipients, subject, lines.join("\n"));
       log.emailed = due.length;
       const stamp = new Date().toISOString();
       due.forEach(function (d) { notified[d.key] = stamp; });

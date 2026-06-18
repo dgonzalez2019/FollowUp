@@ -398,6 +398,10 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-ins-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px 12px;}
 .fd-ins-grid > div{display:flex; flex-direction:column; gap:4px; min-width:0;}
 .fd-ins-grid .fd-label{margin:0;}
+.fd-ins-flag{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); padding:9px 4px; cursor:pointer; font-family:inherit; color:var(--ink); font-size:13px;}
+.fd-ins-flag:last-child{border-bottom:none;}
+.fd-ins-flag:hover{background:var(--surface-3);}
+.fd-ins-flag-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2280,6 +2284,10 @@ function FollowUpDesk() {
   const [acctView, setAcctView] = useState("requisitions");
   const [insData, setInsData] = useState({ recipients: [], notifyDays: 30, subs: [] });
   const [insNewRecipient, setInsNewRecipient] = useState("");
+  const [insSearch, setInsSearch] = useState("");
+  const [insFilter, setInsFilter] = useState("all");
+  const [insSort, setInsSort] = useState("expires");
+  const [insOpen, setInsOpen] = useState({});
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
@@ -2451,10 +2459,31 @@ function FollowUpDesk() {
   const insSet = (next, persist) => { setInsData(next); if (persist) insWrite(next); };
   const insUpdateSub = (id, patch) => insSet({ ...insData, subs: (insData.subs || []).map((s) => (s.id === id ? { ...s, ...patch } : s)) }, false);
   const insCommit = () => insWrite(insData);
-  const insAddSub = () => insSet({ ...insData, subs: [...(insData.subs || []), { id: "s" + Date.now() + Math.random().toString(36).slice(2, 6), projNum: "", projName: "", name: "", coverage: "", initialDate: "", expires: "", days: "", notes: "" }] }, true);
+  const insToggleOpen = (id) => setInsOpen((o) => ({ ...o, [id]: !o[id] }));
+  const insAddSub = () => {
+    const id = "s" + Date.now() + Math.random().toString(36).slice(2, 6);
+    insSet({ ...insData, subs: [...(insData.subs || []), { id: id, projNum: "", projName: "", name: "", coverage: "", initialDate: "", expires: "", days: "", notes: "" }] }, true);
+    setInsOpen((o) => ({ ...o, [id]: true }));
+  };
   const insDelSub = (id) => insSet({ ...insData, subs: (insData.subs || []).filter((s) => s.id !== id) }, true);
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
+  // search + filter + sort for the subcontractor list
+  const insSubsView = (() => {
+    const ORDER = { expired: 0, soon: 1, ok: 2, none: 3 };
+    let arr = [...(insData.subs || [])];
+    const q = insSearch.trim().toLowerCase();
+    if (q) arr = arr.filter((s) => [s.name, s.projNum, s.projName, s.coverage, s.notes].join(" ").toLowerCase().indexOf(q) >= 0);
+    if (insFilter !== "all") arr = arr.filter((s) => insStatus(s, insData.notifyDays).state === insFilter);
+    const exp = (s) => s.expires || "9999-99-99";
+    arr.sort((a, b) => {
+      if (insSort === "name") return (a.name || "~").localeCompare(b.name || "~");
+      if (insSort === "project") return (a.projNum || "~").localeCompare(b.projNum || "~");
+      if (insSort === "status") { const d = ORDER[insStatus(a, insData.notifyDays).state] - ORDER[insStatus(b, insData.notifyDays).state]; return d || (exp(a) < exp(b) ? -1 : exp(a) > exp(b) ? 1 : 0); }
+      return exp(a) < exp(b) ? -1 : exp(a) > exp(b) ? 1 : 0;
+    });
+    return arr;
+  })();
   // Import the Monthly Requisitions workbook (.xlsx) entirely in the browser and write
   // the parsed months straight to Firestore. The data never ships in the page bundle —
   // it only ever lives in the access-gated shared/accounting doc.
@@ -5809,18 +5838,33 @@ function FollowUpDesk() {
               <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Every subcontractor on site must carry current insurance. Add each one with their Certificate of Insurance (COI) expiration date — the people below get an email reminder before it lapses.</p>
             </div>
             {(() => {
-              const subs = insData.subs || [];
-              let expired = 0, soon = 0;
-              subs.forEach((s) => { const st = insStatus(s, insData.notifyDays); if (st.state === "expired") expired++; else if (st.state === "soon") soon++; });
-              if (!expired && !soon) return null;
+              const flagged = (insData.subs || []).map((s) => ({ s: s, st: insStatus(s, insData.notifyDays) })).filter((x) => x.st.state === "expired" || x.st.state === "soon");
+              if (!flagged.length) return null;
+              const expired = flagged.filter((x) => x.st.state === "expired");
+              const soon = flagged.filter((x) => x.st.state === "soon");
+              const hot = expired.length > 0;
+              flagged.sort((a, b) => (a.s.expires || "9999") < (b.s.expires || "9999") ? -1 : 1);
+              const open = (id) => { setInsFilter("all"); setInsSearch(""); setInsOpen((o) => ({ ...o, [id]: true })); };
               return (
-                <div className="fd-panel" style={{ borderColor: expired ? "var(--danger)" : "#d99b2b" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", fontSize: 13.5 }}>
-                    {expired ? <span style={{ color: "var(--danger)", fontWeight: 700 }}>{expired} expired</span> : null}
-                    {soon ? <span style={{ color: "#d99b2b", fontWeight: 700 }}>{soon} expiring soon</span> : null}
-                    <span className="fd-hint" style={{ fontSize: 12 }}>Expired or lapsing subcontractors should not be on site until renewed.</span>
+                <details className="fd-disclose" open style={{ borderColor: hot ? "var(--danger)" : "#d99b2b" }}>
+                  <summary>
+                    <ChevronRight size={14} className="fd-disclose-chev" />
+                    <span style={{ color: hot ? "var(--danger)" : "#d99b2b", fontWeight: 700 }}>
+                      {expired.length ? expired.length + " expired" : ""}{expired.length && soon.length ? " · " : ""}{soon.length ? soon.length + " expiring soon" : ""}
+                    </span>
+                    <span className="fd-count">needs attention</span>
+                  </summary>
+                  <div className="fd-disclose-body">
+                    <p className="fd-hint" style={{ fontSize: 12, margin: "0 0 8px" }}>Expired or lapsing subcontractors should not be on site until renewed. Tap one to open it.</p>
+                    {flagged.map(({ s, st }) => (
+                      <button className="fd-ins-flag" key={s.id} onClick={() => open(s.id)}>
+                        <span className={"fd-ins-badge " + st.state}>{st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d" : st.daysLeft + "d left"}</span>
+                        <span className="fd-ins-flag-name">{s.name || "(unnamed)"}{(s.projNum || s.projName) ? " — " + [s.projNum, s.projName].filter(Boolean).join(" ") : ""}</span>
+                        <span className="fd-hint" style={{ marginLeft: "auto", fontSize: 12, whiteSpace: "nowrap" }}>{s.expires || "no date"}</span>
+                      </button>
+                    ))}
                   </div>
-                </div>
+                </details>
               );
             })()}
             <div className="fd-panel">
@@ -5849,35 +5893,68 @@ function FollowUpDesk() {
               </div>
             </div>
             <div className="fd-panel" style={{ padding: 0, overflow: "hidden" }}>
-              <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center" }}>Subcontractors
+              <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center" }}>Subcontractors <span className="fd-count">{(insData.subs || []).length}</span>
                 <button className="fd-btn ghost sm" style={{ marginLeft: "auto" }} onClick={insAddSub}><Plus size={14} /> Add subcontractor</button>
               </div>
               {(insData.subs || []).length === 0 ? (
                 <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet. Add one to start tracking their insurance.</span></div>
               ) : (
-                <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
-                  {[...(insData.subs || [])].sort((a, b) => { const ea = a.expires || "9999", eb = b.expires || "9999"; return ea < eb ? -1 : ea > eb ? 1 : 0; }).map((s) => {
-                    const st = insStatus(s, insData.notifyDays);
-                    const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
-                    return (
-                      <div className="fd-ins-card" key={s.id}>
-                        <div className="fd-ins-card-head">
-                          <span className={"fd-ins-badge " + st.state}>{label}</span>
-                          <button className="fd-icon-btn sm danger" style={{ marginLeft: "auto" }} title="Remove subcontractor" onClick={() => insDelSub(s.id)}><Trash2 size={14} /></button>
-                        </div>
-                        <div className="fd-ins-grid">
-                          <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></div>
-                          <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></div>
-                          <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></div>
-                          <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></div>
-                          <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></div>
-                          <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></div>
-                          <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></div>
-                          <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div style={{ padding: "12px 14px" }}>
+                  <div className="fd-usps-controls">
+                    <input className="fd-input" placeholder="Search subcontractor, project, coverage…" value={insSearch} onChange={(e) => setInsSearch(e.target.value)} />
+                    <select className="fd-input" value={insSort} onChange={(e) => setInsSort(e.target.value)}>
+                      <option value="expires">Expiration — soonest first</option>
+                      <option value="status">Status — expired first</option>
+                      <option value="name">Subcontractor — A to Z</option>
+                      <option value="project">Project # — A to Z</option>
+                    </select>
+                  </div>
+                  <div className="fd-subnav" style={{ marginTop: 0, marginBottom: 10 }}>
+                    {[["all", "All"], ["expired", "Expired"], ["soon", "Expiring soon"], ["ok", "Active"], ["none", "No date"]].map(([k, lbl]) => (
+                      <button key={k} className={"fd-subnav-btn" + (insFilter === k ? " active" : "")} onClick={() => setInsFilter(k)}>{lbl}</button>
+                    ))}
+                  </div>
+                  {insSubsView.length === 0 ? (
+                    <div className="fd-empty" style={{ padding: 24 }}><p>No subcontractors match your search or filter.</p></div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {insSubsView.map((s) => {
+                        const st = insStatus(s, insData.notifyDays);
+                        const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
+                        const color = st.state === "expired" ? "var(--danger)" : st.state === "soon" ? "#d99b2b" : st.state === "ok" ? "var(--ok)" : "var(--line-strong)";
+                        const open = !!insOpen[s.id];
+                        const proj = [s.projNum, s.projName].filter(Boolean).join(" ");
+                        return (
+                          <div className="fd-usps-card" key={s.id} style={{ borderLeft: "4px solid " + color }}>
+                            <div className="fd-usps-row" onClick={() => insToggleOpen(s.id)}>
+                              <span className="fd-usps-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}><ChevronRight size={16} /></span>
+                              <div className="fd-usps-rowmain">
+                                <div className="fd-usps-call">{s.name || "(unnamed subcontractor)"}</div>
+                                {(proj || s.coverage) ? <div className="fd-usps-rowfac">{proj}{proj && s.coverage ? "  ·  " : ""}{s.coverage || ""}</div> : null}
+                              </div>
+                              <span className="fd-hint" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{s.expires || "no date"}</span>
+                              <span className={"fd-ins-badge " + st.state}>{label}</span>
+                            </div>
+                            {open && (
+                              <div className="fd-usps-detail">
+                                <div className="fd-ins-grid">
+                                  <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></div>
+                                  <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></div>
+                                  <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></div>
+                                  <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></div>
+                                  <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></div>
+                                  <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></div>
+                                  <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></div>
+                                  <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></div>
+                                </div>
+                                <div style={{ marginTop: 10 }}><button className="fd-link-danger" onClick={() => insDelSub(s.id)}><Trash2 size={14} /> Remove subcontractor</button></div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
