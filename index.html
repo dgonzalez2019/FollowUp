@@ -393,6 +393,11 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-ins-chip{display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line-strong); border-radius:999px; padding:5px 6px 5px 12px; font-size:12.5px; background:var(--surface-2);}
 .fd-ins-chip button{background:none; border:none; color:var(--faint); cursor:pointer; display:inline-flex; padding:2px; border-radius:50%;}
 .fd-ins-chip button:hover{color:var(--danger); background:var(--danger-soft);}
+.fd-ins-card{border:1px solid var(--line); border-radius:12px; background:var(--surface-2); padding:12px 13px;}
+.fd-ins-card-head{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+.fd-ins-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px 12px;}
+.fd-ins-grid > div{display:flex; flex-direction:column; gap:4px; min-width:0;}
+.fd-ins-grid .fd-label{margin:0;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2446,7 +2451,7 @@ function FollowUpDesk() {
   const insSet = (next, persist) => { setInsData(next); if (persist) insWrite(next); };
   const insUpdateSub = (id, patch) => insSet({ ...insData, subs: (insData.subs || []).map((s) => (s.id === id ? { ...s, ...patch } : s)) }, false);
   const insCommit = () => insWrite(insData);
-  const insAddSub = () => insSet({ ...insData, subs: [...(insData.subs || []), { id: "s" + Date.now() + Math.random().toString(36).slice(2, 6), projNum: "", projName: "", name: "", carrier: "", coverage: "", initialDate: "", expires: "", days: "", notes: "" }] }, true);
+  const insAddSub = () => insSet({ ...insData, subs: [...(insData.subs || []), { id: "s" + Date.now() + Math.random().toString(36).slice(2, 6), projNum: "", projName: "", name: "", coverage: "", initialDate: "", expires: "", days: "", notes: "" }] }, true);
   const insDelSub = (id) => insSet({ ...insData, subs: (insData.subs || []).filter((s) => s.id !== id) }, true);
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
@@ -5850,33 +5855,29 @@ function FollowUpDesk() {
               {(insData.subs || []).length === 0 ? (
                 <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet. Add one to start tracking their insurance.</span></div>
               ) : (
-                <div className="fd-acct-wrap">
-                  <table className="fd-acct-tbl" style={{ minWidth: 1180 }}>
-                    <thead><tr>
-                      <th>Project #</th><th>Project name</th><th>Subcontractor</th><th>Carrier</th><th>Coverage</th><th>Initial date</th><th>Expires</th><th>Notice (days)</th><th>Status</th><th>Notes</th><th></th>
-                    </tr></thead>
-                    <tbody>
-                      {[...(insData.subs || [])].sort((a, b) => { const ea = a.expires || "9999", eb = b.expires || "9999"; return ea < eb ? -1 : ea > eb ? 1 : 0; }).map((s) => {
-                        const st = insStatus(s, insData.notifyDays);
-                        const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
-                        return (
-                          <tr key={s.id}>
-                            <td><input className="fd-acct-in" style={{ minWidth: 90 }} value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 150 }} value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 150 }} value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 120 }} value={s.carrier || ""} onChange={(e) => insUpdateSub(s.id, { carrier: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 110 }} value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 140 }} type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 140 }} type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></td>
-                            <td><input className="fd-acct-in fd-acct-num" style={{ minWidth: 70 }} type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></td>
-                            <td><span className={"fd-ins-badge " + st.state}>{label}</span></td>
-                            <td><input className="fd-acct-in" style={{ minWidth: 150 }} value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></td>
-                            <td><button className="fd-icon-btn sm danger" title="Remove subcontractor" onClick={() => insDelSub(s.id)}><Trash2 size={14} /></button></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  {[...(insData.subs || [])].sort((a, b) => { const ea = a.expires || "9999", eb = b.expires || "9999"; return ea < eb ? -1 : ea > eb ? 1 : 0; }).map((s) => {
+                    const st = insStatus(s, insData.notifyDays);
+                    const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
+                    return (
+                      <div className="fd-ins-card" key={s.id}>
+                        <div className="fd-ins-card-head">
+                          <span className={"fd-ins-badge " + st.state}>{label}</span>
+                          <button className="fd-icon-btn sm danger" style={{ marginLeft: "auto" }} title="Remove subcontractor" onClick={() => insDelSub(s.id)}><Trash2 size={14} /></button>
+                        </div>
+                        <div className="fd-ins-grid">
+                          <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></div>
+                          <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></div>
+                          <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></div>
+                          <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></div>
+                          <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></div>
+                          <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></div>
+                          <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></div>
+                          <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

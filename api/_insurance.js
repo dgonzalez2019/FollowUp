@@ -93,7 +93,7 @@ async function runInsuranceReminders() {
       const s = d.s;
       const status = d.daysLeft < 0 ? ("EXPIRED " + Math.abs(d.daysLeft) + " day(s) ago") : ("expires in " + d.daysLeft + " day(s)");
       const proj = [s.projNum, s.projName].filter(Boolean).join(" ");
-      lines.push("  - " + (s.name || "(unnamed)") + (s.coverage ? " [" + s.coverage + "]" : "") + (proj ? " — project " + proj : "") + " — " + status + " (expires " + s.expires + ")" + (s.carrier ? " — " + s.carrier : ""));
+      lines.push("  - " + (s.name || "(unnamed)") + (s.coverage ? " [" + s.coverage + "]" : "") + (proj ? " — project " + proj : "") + " — " + status + " (expires " + s.expires + ")");
     });
     lines.push("");
     lines.push("Collect a renewed COI before the expiration date so the subcontractor can remain on site.");
