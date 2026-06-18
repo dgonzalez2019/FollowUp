@@ -1,9 +1,11 @@
 {
   "functions": {
     "api/chat.js": { "maxDuration": 60 },
-    "api/cron-followups.js": { "maxDuration": 60 }
+    "api/cron-followups.js": { "maxDuration": 60 },
+    "api/cron-insurance.js": { "maxDuration": 60 }
   },
   "crons": [
-    { "path": "/api/cron-followups", "schedule": "0 13 * * *" }
+    { "path": "/api/cron-followups", "schedule": "0 13 * * *" },
+    { "path": "/api/cron-insurance", "schedule": "0 13 * * *" }
   ]
 }

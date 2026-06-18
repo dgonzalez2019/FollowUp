@@ -384,6 +384,15 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-acct-totgrid > div{display:flex; flex-direction:column; gap:3px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2);}
 .fd-acct-totgrid > div span{font-size:11px; color:var(--muted);}
 .fd-acct-totgrid > div b{font-family:'IBM Plex Mono',monospace; font-size:16px; font-variant-numeric:tabular-nums;}
+.fd-ins-badge{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; border:1px solid; white-space:nowrap; display:inline-block;}
+.fd-ins-badge.expired{color:var(--danger); border-color:var(--danger); background:var(--danger-soft);}
+.fd-ins-badge.soon{color:#d99b2b; border-color:#d99b2b; background:rgba(217,155,43,.12);}
+.fd-ins-badge.ok{color:var(--ok); border-color:rgba(76,175,125,.45); background:rgba(76,175,125,.1);}
+.fd-ins-badge.none{color:var(--faint); border-color:var(--line-strong); background:var(--surface-2);}
+.fd-ins-chips{display:flex; flex-wrap:wrap; gap:7px; margin-top:8px;}
+.fd-ins-chip{display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line-strong); border-radius:999px; padding:5px 6px 5px 12px; font-size:12.5px; background:var(--surface-2);}
+.fd-ins-chip button{background:none; border:none; color:var(--faint); cursor:pointer; display:inline-flex; padding:2px; border-radius:50%;}
+.fd-ins-chip button:hover{color:var(--danger); background:var(--danger-soft);}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2228,6 +2237,18 @@ const acctRow = (r) => {
   const withheld = retPct ? -(gross * retPct / 100) : (Number(r.withheld) || 0);
   return { gross, retPct, retBilled, withheld, receivables: gross + withheld + retBilled };
 };
+// Insurance status: days until a subcontractor's COI expires, and a state used for
+// the badge/sort. "soon" means within the per-sub or default notice window.
+const insStatus = (sub, defaultDays) => {
+  const exp = (sub.expires || "").trim();
+  if (!exp) return { state: "none", daysLeft: null, threshold: Number(defaultDays) || 30 };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(exp + "T00:00:00");
+  const daysLeft = Math.round((d - today) / 86400000);
+  const threshold = Number(sub.days) || Number(defaultDays) || 30;
+  const state = daysLeft < 0 ? "expired" : daysLeft <= threshold ? "soon" : "ok";
+  return { state, daysLeft, threshold };
+};
 
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
@@ -2251,6 +2272,9 @@ function FollowUpDesk() {
   const [acctData, setAcctData] = useState({ months: {} });
   const [acctMonth, setAcctMonth] = useState(() => { const d = new Date(); const k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); return ACCT_MONTHS.indexOf(k) >= 0 ? k : "2026-06"; });
   const acctImportRef = useRef(null);
+  const [acctView, setAcctView] = useState("requisitions");
+  const [insData, setInsData] = useState({ recipients: [], notifyDays: 30, subs: [] });
+  const [insNewRecipient, setInsNewRecipient] = useState("");
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
@@ -2382,6 +2406,13 @@ function FollowUpDesk() {
     }, (e) => console.error("accounting sync failed", e));
     return unsub;
   }, [cloudOn, user]);
+  useEffect(() => {
+    if (!cloudOn || !user) return;
+    const unsub = fbDb.collection("shared").doc("insurance").onSnapshot((snap) => {
+      if (snap.exists) { try { const d = JSON.parse(snap.data().data || "{}"); setInsData({ recipients: [], notifyDays: 30, subs: [], ...d }); } catch (e) { console.error("insurance parse failed", e); } }
+    }, (e) => console.error("insurance sync failed", e));
+    return unsub;
+  }, [cloudOn, user]);
   const myBr = (user && brPicksAll[user.uid]) || {};
   const myBrName = myBr.name || ((user && user.email) || "").split("@")[0] || "Player";
   const saveBracketShared = (next) => {
@@ -2407,6 +2438,18 @@ function FollowUpDesk() {
   const acctCommit = () => acctWrite(acctData);
   const acctAddRow = (group) => acctSet([...acctRows, { id: "r" + Date.now() + Math.random().toString(36).slice(2, 6), proj: "", client: "", name: "", pm: "", contract: 0, toBill: 0, retDraw: 0, gross: 0, retPct: 0, retBilled: 0, submitted: "", comments: "", group: group || "current" }], true);
   const acctDelRow = (id) => acctSet(acctRows.filter((r) => r.id !== id), true);
+  // ----- Insurance tracking (shared/insurance): subcontractor COI expiry + notify group -----
+  const insWrite = (next) => {
+    if (cloudOn && user) fbDb.collection("shared").doc("insurance").set({ data: JSON.stringify(next), updatedAt: Date.now() })
+      .catch((e) => { console.error("insurance save failed", e); setToast("Insurance save failed" + (e && e.code ? " — " + e.code : "")); });
+  };
+  const insSet = (next, persist) => { setInsData(next); if (persist) insWrite(next); };
+  const insUpdateSub = (id, patch) => insSet({ ...insData, subs: (insData.subs || []).map((s) => (s.id === id ? { ...s, ...patch } : s)) }, false);
+  const insCommit = () => insWrite(insData);
+  const insAddSub = () => insSet({ ...insData, subs: [...(insData.subs || []), { id: "s" + Date.now() + Math.random().toString(36).slice(2, 6), name: "", carrier: "", coverage: "", policy: "", expires: "", days: "", notes: "" }] }, true);
+  const insDelSub = (id) => insSet({ ...insData, subs: (insData.subs || []).filter((s) => s.id !== id) }, true);
+  const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
+  const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
   // Import the Monthly Requisitions workbook (.xlsx) entirely in the browser and write
   // the parsed months straight to Firestore. The data never ships in the page bundle —
   // it only ever lives in the access-gated shared/accounting doc.
@@ -5614,6 +5657,14 @@ function FollowUpDesk() {
 
         {section === "accounting" && acctHasAccess && (
         <>
+          {isAcctManager && (
+            <div className="fd-subnav">
+              <button className={"fd-subnav-btn" + (acctView === "requisitions" ? " active" : "")} onClick={() => setAcctView("requisitions")}>Requisitions &amp; PM billings</button>
+              <button className={"fd-subnav-btn" + (acctView === "insurance" ? " active" : "")} onClick={() => setAcctView("insurance")}>Insurance tracking</button>
+            </div>
+          )}
+          {isAcctManager && acctView === "requisitions" && (
+          <>
           <div className="fd-panel">
             <div className="fd-panel-head">Monthly requisitions <span className="fd-count">{acctMonthLabel(acctMonth)}</span></div>
             <p className="fd-hint" style={{ fontSize: 12.5, margin: "0 0 12px" }}>Enter each project's Gross Billings and Retainage Billed for the month — Retainage Withheld and Receivables calculate automatically, and PM billings roll up below. Data is shared across the office.</p>
@@ -5743,6 +5794,92 @@ function FollowUpDesk() {
               </>
             );
           })()}
+          </>
+          )}
+
+          {(!isAcctManager || acctView === "insurance") && (
+          <>
+            <div className="fd-panel">
+              <div className="fd-panel-head">Subcontractor insurance <span className="fd-count">{(insData.subs || []).length} on file</span></div>
+              <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Every subcontractor on site must carry current insurance. Add each one with their Certificate of Insurance (COI) expiration date — the people below get an email reminder before it lapses.</p>
+            </div>
+            {(() => {
+              const subs = insData.subs || [];
+              let expired = 0, soon = 0;
+              subs.forEach((s) => { const st = insStatus(s, insData.notifyDays); if (st.state === "expired") expired++; else if (st.state === "soon") soon++; });
+              if (!expired && !soon) return null;
+              return (
+                <div className="fd-panel" style={{ borderColor: expired ? "var(--danger)" : "#d99b2b" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", fontSize: 13.5 }}>
+                    {expired ? <span style={{ color: "var(--danger)", fontWeight: 700 }}>{expired} expired</span> : null}
+                    {soon ? <span style={{ color: "#d99b2b", fontWeight: 700 }}>{soon} expiring soon</span> : null}
+                    <span className="fd-hint" style={{ fontSize: 12 }}>Expired or lapsing subcontractors should not be on site until renewed.</span>
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="fd-panel">
+              <div className="fd-panel-head">Reminder settings</div>
+              <label className="fd-label">Notify these people (by email)</label>
+              {(insData.recipients || []).length === 0 ? (
+                <p className="fd-hint" style={{ fontSize: 12.5, margin: "2px 0 0" }}>No one will be emailed yet{isAcctManager ? " — add at least one address below." : ". Ask an accounting manager to add recipients."}</p>
+              ) : (
+                <div className="fd-ins-chips">
+                  {(insData.recipients || []).map((em) => (
+                    <span className="fd-ins-chip" key={em}>{em}{isAcctManager ? <button title="Remove" onClick={() => insDelRecipient(em)}><X size={13} /></button> : null}</span>
+                  ))}
+                </div>
+              )}
+              {isAcctManager && (
+                <div className="fd-admin-addtab" style={{ marginTop: 10 }}>
+                  <input className="fd-input" placeholder="name@bdico.com" value={insNewRecipient} onChange={(e) => setInsNewRecipient(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") insAddRecipient(); }} />
+                  <button className="fd-btn primary" onClick={insAddRecipient}>Add</button>
+                </div>
+              )}
+              <label className="fd-label" style={{ marginTop: 14 }}>Default reminder lead time</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input className="fd-input short" style={{ maxWidth: 90 }} type="number" min="1" value={insData.notifyDays || 30} disabled={!isAcctManager}
+                  onChange={(e) => insSet({ ...insData, notifyDays: e.target.value === "" ? 30 : +e.target.value }, false)} onBlur={insCommit} />
+                <span className="fd-hint" style={{ fontSize: 12.5 }}>days before expiry (a subcontractor can override this below)</span>
+              </div>
+            </div>
+            <div className="fd-panel" style={{ padding: 0, overflow: "hidden" }}>
+              <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center" }}>Subcontractors
+                <button className="fd-btn ghost sm" style={{ marginLeft: "auto" }} onClick={insAddSub}><Plus size={14} /> Add subcontractor</button>
+              </div>
+              {(insData.subs || []).length === 0 ? (
+                <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet. Add one to start tracking their insurance.</span></div>
+              ) : (
+                <div className="fd-acct-wrap">
+                  <table className="fd-acct-tbl" style={{ minWidth: 980 }}>
+                    <thead><tr>
+                      <th>Subcontractor</th><th>Carrier</th><th>Coverage</th><th>Policy #</th><th>Expires</th><th>Notice (days)</th><th>Status</th><th>Notes</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                      {[...(insData.subs || [])].sort((a, b) => { const ea = a.expires || "9999", eb = b.expires || "9999"; return ea < eb ? -1 : ea > eb ? 1 : 0; }).map((s) => {
+                        const st = insStatus(s, insData.notifyDays);
+                        const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
+                        return (
+                          <tr key={s.id}>
+                            <td><input className="fd-acct-in" style={{ minWidth: 150 }} value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></td>
+                            <td><input className="fd-acct-in" style={{ minWidth: 120 }} value={s.carrier || ""} onChange={(e) => insUpdateSub(s.id, { carrier: e.target.value })} onBlur={insCommit} /></td>
+                            <td><input className="fd-acct-in" style={{ minWidth: 110 }} value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></td>
+                            <td><input className="fd-acct-in" style={{ minWidth: 110 }} value={s.policy || ""} onChange={(e) => insUpdateSub(s.id, { policy: e.target.value })} onBlur={insCommit} /></td>
+                            <td><input className="fd-acct-in" style={{ minWidth: 140 }} type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></td>
+                            <td><input className="fd-acct-in fd-acct-num" style={{ minWidth: 70 }} type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></td>
+                            <td><span className={"fd-ins-badge " + st.state}>{label}</span></td>
+                            <td><input className="fd-acct-in" style={{ minWidth: 150 }} value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></td>
+                            <td><button className="fd-icon-btn sm danger" title="Remove subcontractor" onClick={() => insDelSub(s.id)}><Trash2 size={14} /></button></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+          )}
         </>
         )}
 

@@ -2,17 +2,19 @@ rules_version = '2';
 
 // BDI University — Firestore security rules.
 //
-// Mirrors the app's access model (see index.html):
-//  - Signed-in users share some docs (bracket, app config) read-only.
-//  - The Accounting workbook and the USPS list are private to an access list
-//    kept in shared/appConfig (acctAccessList/acctManagers, uspsAccessList/
-//    uspsManagers), which only the admin can edit.
-//  - Per-user data lives under users/{uid} and is private to that user.
+// Access model (mirrors index.html):
+//  - Only @bdico.com accounts can read/write anything; anyone else gets nothing.
+//  - Verification is enforced by the app's "Confirm your email" screen, NOT here,
+//    because the email_verified flag in a user's token is cached and lags behind
+//    real verification — gating reads on it locks out users who have verified.
+//  - Signed-in BDI users share some docs (bracket, app config) read-only.
+//  - Accounting + Insurance are private to access lists kept in shared/appConfig
+//    (acctAccessList/acctManagers, uspsAccessList/uspsManagers); only the admin edits the lists.
+//  - Per-user data under users/{uid} is private to that user.
 //
-// IMPORTANT: rules from different match blocks are OR-combined, so the
-// sensitive shared docs are listed explicitly and there is deliberately NO
-// catch-all `match /shared/{doc}` rule — adding one would re-grant read to
-// every signed-in user and defeat the Accounting/USPS locks.
+// IMPORTANT: match blocks are OR-combined, so the sensitive shared docs are
+// listed explicitly and there is deliberately NO catch-all `match /shared/{doc}`
+// rule — adding one would re-grant read to everyone and defeat the locks.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -22,24 +24,17 @@ service cloud.firestore {
         ? request.auth.token.email.lower()
         : "";
     }
-    // Only BDI employees (an @bdico.com email). Even if a non-bdico account were
-    // somehow created, it can read and write nothing.
+    // Only BDI employees (an @bdico.com email, end-anchored so lookalikes fail).
     function isBdi() {
       return emailLc().matches('^[^@]+@bdico[.]com$');
     }
-    // The mailbox must be verified — proves the person actually controls the
-    // address (so random@bdico.com that nobody owns can never confirm and is
-    // locked out at the data layer too).
-    function verified() {
-      return request.auth != null && request.auth.token.email_verified == true;
-    }
-    // A signed-in, verified BDI employee — the baseline for any access.
+    // A signed-in BDI employee — the baseline for any access.
     function signedIn() {
-      return request.auth != null && isBdi() && verified();
+      return request.auth != null && isBdi();
     }
     // The app treats this address as the admin (ADMINS in index.html).
     function isAdmin() {
-      return emailLc() == "dgonzalez@bdico.com" && verified();
+      return emailLc() == "dgonzalez@bdico.com";
     }
     // Access lists are stored as lowercased emails on shared/appConfig.
     function cfg() {
@@ -47,17 +42,15 @@ service cloud.firestore {
         ? get(/databases/$(database)/documents/shared/appConfig).data
         : {};
     }
-    // `d` is the appConfig data map, passed in so cfg() is fetched at most once
-    // per access list (rules functions can't bind locals, and document reads
-    // inside a single evaluation are capped).
+    // `d` is the appConfig data map, passed in so cfg() is fetched at most once per list.
     function listHas(d, field) {
       return field in d && d[field] is list && d[field].hasAny([emailLc()]);
     }
     function acctAllowed() {
-      return isBdi() && verified() && (isAdmin() || listHas(cfg(), "acctAccessList") || listHas(cfg(), "acctManagers"));
+      return isAdmin() || listHas(cfg(), "acctAccessList") || listHas(cfg(), "acctManagers");
     }
     function uspsAllowed() {
-      return isBdi() && verified() && (isAdmin() || listHas(cfg(), "uspsAccessList") || listHas(cfg(), "uspsManagers"));
+      return isAdmin() || listHas(cfg(), "uspsAccessList") || listHas(cfg(), "uspsManagers");
     }
 
     // Shared app config (tab visibility + access lists). Everyone signed in may
@@ -71,6 +64,13 @@ service cloud.firestore {
     // Accounting workbook (monthly requisitions & PM billings):
     // visible AND editable ONLY to people with Accounting access.
     match /shared/accounting {
+      allow read, write: if acctAllowed();
+    }
+
+    // Subcontractor insurance tracking — same access list as Accounting.
+    // (shared/insuranceLog is written only by the cron via the service account,
+    //  which bypasses rules, so it is intentionally NOT readable by clients.)
+    match /shared/insurance {
       allow read, write: if acctAllowed();
     }
 
