@@ -47,6 +47,11 @@ module.exports = async (req, res) => {
       res.status(401).json({ error: "Please sign in to use the assistant." });
       return;
     }
+    // Only BDI employees: the account's email must be on the bdico.com domain.
+    if (!/@bdico\.com$/i.test(String(account.email))) {
+      res.status(403).json({ error: "Access is limited to BDI (@bdico.com) accounts." });
+      return;
+    }
 
     // ---- 2) Sanitize and cap the conversation ----
     const messages = (Array.isArray(body.messages) ? body.messages : [])

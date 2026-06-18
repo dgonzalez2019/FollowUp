@@ -17,13 +17,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
-    }
     function emailLc() {
       return request.auth != null && request.auth.token.email != null
         ? request.auth.token.email.lower()
         : "";
+    }
+    // Only BDI employees (an @bdico.com email). Even if a non-bdico account were
+    // somehow created, it can read and write nothing.
+    function isBdi() {
+      return emailLc().matches('^[^@]+@bdico[.]com$');
+    }
+    // A signed-in BDI employee — the baseline for any access.
+    function signedIn() {
+      return request.auth != null && isBdi();
     }
     // The app treats this address as the admin (ADMINS in index.html).
     function isAdmin() {
