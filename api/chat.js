@@ -47,9 +47,10 @@ module.exports = async (req, res) => {
       res.status(401).json({ error: "Please sign in to use the assistant." });
       return;
     }
-    // Only BDI employees: the account's email must be on the bdico.com domain.
-    if (!/@bdico\.com$/i.test(String(account.email))) {
-      res.status(403).json({ error: "Access is limited to BDI (@bdico.com) accounts." });
+    // Only BDI employees: a verified @bdico.com mailbox (verification proves the
+    // person actually controls the address, not just that it ends in @bdico.com).
+    if (!/@bdico\.com$/i.test(String(account.email)) || account.emailVerified !== true) {
+      res.status(403).json({ error: "Access is limited to verified BDI (@bdico.com) accounts." });
       return;
     }
 

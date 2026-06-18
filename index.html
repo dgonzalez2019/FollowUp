@@ -2296,6 +2296,7 @@ function FollowUpDesk() {
   const [calMonth, setCalMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
   const [calSelected, setCalSelected] = useState(null);
   const [authReady, setAuthReady] = useState(!cloudOn);
+  const [, setVerifyPing] = useState(0);
   const [user, setUser] = useState(null);
   const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const appVisible = (!cloudOn || (authReady && !!user));
@@ -2624,11 +2625,25 @@ function FollowUpDesk() {
     setAuthErr(""); setAuthBusy(true);
     lastSyncedRef.current = ""; cloudLoadedRef.current = false;
     const p = authMode === "signup"
-      ? fbAuth.createUserWithEmailAndPassword(email, authPass)
+      ? fbAuth.createUserWithEmailAndPassword(email, authPass).then((cred) => { if (cred && cred.user) return cred.user.sendEmailVerification().catch(() => {}); })
       : fbAuth.signInWithEmailAndPassword(email, authPass);
     p.then(() => { setAuthPass(""); })
       .catch((e) => setAuthErr(friendlyAuthError(e)))
       .finally(() => setAuthBusy(false));
+  };
+  const resendVerify = () => {
+    const u = fbAuth && fbAuth.currentUser;
+    if (!u) return;
+    u.sendEmailVerification()
+      .then(() => flash("Verification email sent to " + (u.email || "your address")))
+      .catch((e) => flash(friendlyAuthError(e)));
+  };
+  const refreshVerify = () => {
+    const u = fbAuth && fbAuth.currentUser;
+    if (!u) return;
+    u.reload()
+      .then(() => { if (fbAuth.currentUser && fbAuth.currentUser.emailVerified) setVerifyPing((n) => n + 1); else flash("Not verified yet — check your inbox, then try again."); })
+      .catch(() => flash("Couldn't refresh — try again in a moment."));
   };
   const signOut = () => {
     if (!fbAuth) return;
@@ -3411,6 +3426,24 @@ function FollowUpDesk() {
             <button className="fd-auth-toggle" onClick={() => { setAuthErr(""); setAuthMode(authMode === "signup" ? "signin" : "signup"); }}>
               {authMode === "signup" ? "Already have an account? Sign in" : "Need an account? Create one"}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (cloudOn && user && !user.emailVerified) {
+    return (
+      <div className="fd-root">
+        <CityScape />
+        <div className="fd-auth">
+          <div className="fd-auth-box">
+            <img src={LOGO_SRC} alt="BDI Construction" style={{ height: 56, width: "auto", display: "block", marginBottom: 20 }} />
+            <div className="fd-kicker">BDI UNIVERSITY</div>
+            <h1 className="fd-title" style={{ fontSize: 28, margin: "0 0 6px" }}>Confirm your email</h1>
+            <p className="fd-sub" style={{ marginBottom: 18 }}>We sent a verification link to <strong>{user.email}</strong>. Open it from that inbox to confirm you own this BDI address, then come back and continue. This keeps the portal limited to real BDI mailboxes.</p>
+            <button className="fd-btn primary" style={{ width: "100%", justifyContent: "center" }} onClick={refreshVerify}>I've verified — continue</button>
+            <button className="fd-auth-toggle" onClick={resendVerify}>Resend the verification email</button>
+            <button className="fd-auth-toggle" onClick={signOut}>Sign out</button>
           </div>
         </div>
       </div>

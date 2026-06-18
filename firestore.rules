@@ -27,13 +27,19 @@ service cloud.firestore {
     function isBdi() {
       return emailLc().matches('^[^@]+@bdico[.]com$');
     }
-    // A signed-in BDI employee — the baseline for any access.
+    // The mailbox must be verified — proves the person actually controls the
+    // address (so random@bdico.com that nobody owns can never confirm and is
+    // locked out at the data layer too).
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    // A signed-in, verified BDI employee — the baseline for any access.
     function signedIn() {
-      return request.auth != null && isBdi();
+      return request.auth != null && isBdi() && verified();
     }
     // The app treats this address as the admin (ADMINS in index.html).
     function isAdmin() {
-      return emailLc() == "dgonzalez@bdico.com";
+      return emailLc() == "dgonzalez@bdico.com" && verified();
     }
     // Access lists are stored as lowercased emails on shared/appConfig.
     function cfg() {
@@ -48,10 +54,10 @@ service cloud.firestore {
       return field in d && d[field] is list && d[field].hasAny([emailLc()]);
     }
     function acctAllowed() {
-      return isAdmin() || listHas(cfg(), "acctAccessList") || listHas(cfg(), "acctManagers");
+      return isBdi() && verified() && (isAdmin() || listHas(cfg(), "acctAccessList") || listHas(cfg(), "acctManagers"));
     }
     function uspsAllowed() {
-      return isAdmin() || listHas(cfg(), "uspsAccessList") || listHas(cfg(), "uspsManagers");
+      return isBdi() && verified() && (isAdmin() || listHas(cfg(), "uspsAccessList") || listHas(cfg(), "uspsManagers"));
     }
 
     // Shared app config (tab visibility + access lists). Everyone signed in may
