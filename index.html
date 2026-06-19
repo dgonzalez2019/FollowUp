@@ -402,6 +402,14 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-ins-flag:last-child{border-bottom:none;}
 .fd-ins-flag:hover{background:var(--surface-3);}
 .fd-ins-flag-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.fd-m3d-wrap{position:relative; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#0a0c0f; margin-bottom:14px;}
+.fd-m3d-canvas{width:100%; min-height:300px; display:block; cursor:grab;}
+.fd-m3d-canvas:active{cursor:grabbing;}
+.fd-m3d-canvas canvas{display:block; width:100%;}
+.fd-m3d-hud{position:absolute; top:10px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:14px; background:rgba(4,5,7,.62); border:1px solid var(--line); border-radius:12px; padding:8px 14px; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);}
+.fd-m3d-team{display:flex; align-items:center; gap:7px; font-weight:600; font-size:14px; color:#fff;}
+.fd-m3d-score{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:20px; color:#fff; min-width:64px; text-align:center; font-variant-numeric:tabular-nums;}
+.fd-m3d-status{position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#fff; background:rgba(4,5,7,.62); border:1px solid var(--line); border-radius:999px; padding:5px 12px;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2258,6 +2266,115 @@ const insStatus = (sub, defaultDays) => {
   const state = daysLeft < 0 ? "expired" : daysLeft <= threshold ? "soon" : "ok";
   return { state, daysLeft, threshold };
 };
+
+function MatchView3D({ games }) {
+  const list = (games || []).filter((g) => g && g.hc && g.ac);
+  const [selId, setSelId] = useState("");
+  const sel = list.find((g) => g.id === selId) || list.find((g) => g.status === "live") || list[0] || null;
+  const selKey = sel ? sel.id : "";
+  const wrapRef = useRef(null);
+  const stRef = useRef({});
+  const [ready, setReady] = useState(typeof window !== "undefined" && !!window.THREE);
+  const [err, setErr] = useState(false);
+  const nm = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][0] : c);
+  useEffect(() => { stRef.current.game = sel; }, [sel]);
+  useEffect(() => {
+    if (window.THREE) { setReady(true); return; }
+    let alive = true;
+    planLoadScript(["https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js", "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"])
+      .then(() => { if (alive) setReady(!!window.THREE); })
+      .catch(() => { if (alive) setErr(true); });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (!ready || !window.THREE || !wrapRef.current || !selKey) return;
+    const THREE = window.THREE, host = wrapRef.current;
+    const width = host.clientWidth || 320, height = Math.max(300, Math.round((host.clientWidth || 320) * 0.56));
+    let renderer;
+    try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { setErr(true); return; }
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0c0f);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    renderer.setSize(width, height); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    host.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(20, 40, 20); scene.add(dir);
+    const FW = 68, FH = 44;
+    const grass = new THREE.Mesh(new THREE.PlaneGeometry(FW, FH), new THREE.MeshLambertMaterial({ color: 0x1f7a3f }));
+    grass.rotation.x = -Math.PI / 2; scene.add(grass);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    const grp = new THREE.Group();
+    const rect = (w, h, cx) => { const hw = w / 2, hh = h / 2; const p = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh], [-hw, -hh]].map((a) => new THREE.Vector3(cx + a[0], 0.02, a[1])); grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(p), lineMat)); };
+    rect(FW, FH, 0);
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.02, -FH / 2), new THREE.Vector3(0, 0.02, FH / 2)]), lineMat));
+    const circ = []; for (let a = 0; a <= 64; a++) { const t = a / 64 * Math.PI * 2; circ.push(new THREE.Vector3(Math.cos(t) * 7, 0.02, Math.sin(t) * 7)); }
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(circ), lineMat));
+    rect(14, 26, -FW / 2 + 7); rect(14, 26, FW / 2 - 7);
+    scene.add(grp);
+    const goalMat = new THREE.MeshLambertMaterial({ color: 0xeceef0 });
+    [-FW / 2 - 0.3, FW / 2 + 0.3].forEach((x) => { const g = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4, 9), goalMat); g.position.set(x, 2, 0); scene.add(g); });
+    const endMat = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.12 });
+    const eH = new THREE.Mesh(new THREE.PlaneGeometry(14, FH), endMat(0x2f9be0)); eH.rotation.x = -Math.PI / 2; eH.position.set(-FW / 2 + 7, 0.01, 0); scene.add(eH);
+    const eA = new THREE.Mesh(new THREE.PlaneGeometry(14, FH), endMat(0xe06149)); eA.rotation.x = -Math.PI / 2; eA.position.set(FW / 2 - 7, 0.01, 0); scene.add(eA);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
+    ball.position.set(0, 0.9, 0); scene.add(ball);
+    let theta = 0.9, phi = 0.78, radius = 74, auto = true; const target = new THREE.Vector3(0, 0, 0);
+    const apply = () => { camera.position.set(target.x + radius * Math.sin(phi) * Math.cos(theta), target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi) * Math.sin(theta)); camera.lookAt(target); };
+    apply();
+    let dragging = false, lx = 0, ly = 0, pinch = 0; const dpt = (e) => e.touches ? e.touches[0] : e;
+    const down = (e) => { dragging = true; auto = false; const p = dpt(e); lx = p.clientX; ly = p.clientY; if (e.touches && e.touches.length === 2) pinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); };
+    const move = (e) => { if (e.touches && e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); if (pinch) { radius = Math.max(30, Math.min(140, radius * (pinch / d))); apply(); } pinch = d; return; } if (!dragging) return; const p = dpt(e); theta += (p.clientX - lx) * 0.01; phi = Math.max(0.2, Math.min(1.4, phi - (p.clientY - ly) * 0.01)); lx = p.clientX; ly = p.clientY; apply(); };
+    const up = () => { dragging = false; pinch = 0; };
+    const wheel = (e) => { e.preventDefault(); radius = Math.max(30, Math.min(140, radius + e.deltaY * 0.05)); apply(); };
+    const el = renderer.domElement;
+    el.addEventListener("mousedown", down); el.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+    el.addEventListener("touchstart", down, { passive: true }); el.addEventListener("touchmove", move, { passive: true }); el.addEventListener("touchend", up);
+    el.addEventListener("wheel", wheel, { passive: false });
+    const onResize = () => { const w = host.clientWidth || width, h = Math.max(300, Math.round((host.clientWidth || width) * 0.56)); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+    window.addEventListener("resize", onResize);
+    const st = stRef.current; st.lastH = null; st.lastA = null;
+    let raf, t0 = performance.now(), pulse = 0;
+    const loop = () => {
+      const now = performance.now(), dt = (now - t0) / 1000; t0 = now;
+      if (auto) { theta += dt * 0.15; apply(); }
+      const g = st.game;
+      if (g && g.status === "live") { ball.position.x = Math.sin(now / 1300) * 18; ball.position.z = Math.cos(now / 900) * 10; ball.position.y = 0.9 + Math.abs(Math.sin(now / 500)) * 0.6; }
+      else { ball.position.set(0, 0.9, 0); }
+      if (g) { const h = g.hs || 0, a = g.as || 0; if (st.lastH != null && (h > st.lastH || a > st.lastA)) pulse = 1; st.lastH = h; st.lastA = a; }
+      ball.scale.setScalar(pulse > 0 ? 1 + pulse * 2 : 1); if (pulse > 0) pulse = Math.max(0, pulse - dt * 1.2);
+      renderer.render(scene, camera); raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => {
+      cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); window.removeEventListener("mouseup", up);
+      el.removeEventListener("mousedown", down); el.removeEventListener("mousemove", move); el.removeEventListener("touchstart", down); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", up); el.removeEventListener("wheel", wheel);
+      renderer.dispose(); if (el.parentNode) el.parentNode.removeChild(el);
+    };
+  }, [ready, selKey]);
+  return (
+    <>
+      <div className="fd-panel">
+        <div className="fd-panel-head">Live 3D match <span className="fd-count">interactive</span></div>
+        <p className="fd-hint" style={{ fontSize: 12.5, margin: "0 0 10px" }}>A 3D match view driven by the live feed — drag to look around, scroll/pinch to zoom, score &amp; goals update in real time. (Player positions aren't in the public feed, so this animates the match state, not exact tracking.)</p>
+        <select className="fd-select" value={selKey} onChange={(e) => setSelId(e.target.value)}>
+          {list.length === 0 ? <option value="">No World Cup matches available</option> :
+            list.map((g) => <option key={g.id} value={g.id}>{nm(g.hc) + " v " + nm(g.ac) + (g.date ? " · " + new Date(g.date).toLocaleDateString([], { month: "short", day: "numeric" }) : "") + (g.status === "live" ? " · LIVE" : g.status === "final" ? " · FT" : "")}</option>)}
+        </select>
+      </div>
+      {err ? <div className="fd-empty"><span>The 3D viewer couldn't load. Check your connection and reload.</span></div> :
+        !ready ? <div className="fd-empty"><span>Loading 3D…</span></div> :
+          !sel ? <div className="fd-empty"><span>No World Cup match to show yet.</span></div> :
+            <div className="fd-m3d-wrap">
+              <div ref={wrapRef} className="fd-m3d-canvas" />
+              <div className="fd-m3d-hud">
+                <span className="fd-m3d-team">{wcLabel(sel.hc)}</span>
+                <span className="fd-m3d-score">{sel.status === "pre" ? "vs" : (sel.hs == null ? 0 : sel.hs) + " – " + (sel.as == null ? 0 : sel.as)}</span>
+                <span className="fd-m3d-team">{wcLabel(sel.ac)}</span>
+              </div>
+              <div className="fd-m3d-status">{sel.status === "live" ? <><span className="fd-live-dot"></span>{sel.clock || "LIVE"}</> : sel.status === "final" ? "Full time" : (sel.date ? new Date(sel.date).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Scheduled")}</div>
+            </div>}
+    </>
+  );
+}
 
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
@@ -5140,7 +5257,7 @@ function FollowUpDesk() {
         {section === "bracket" && (
         <>
           <div className="fd-subnav">
-            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
+            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"], ["live3d", "Live 3D"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
             ))}
           </div>
@@ -5608,6 +5725,8 @@ function FollowUpDesk() {
             </details>
           </>
           )}
+
+          {bracketView === "live3d" && <MatchView3D games={espnGames} />}
 
           {bracketView === "manage" && isAdmin && (
           <>
