@@ -2758,11 +2758,17 @@ function FollowUpDesk() {
     const names = {}; insSelectedCos.forEach((c) => (names[c] = true));
     const n = Object.keys(names).length;
     if (!n) return;
-    if (typeof window !== "undefined" && window.confirm && !window.confirm("Delete " + n + " subcontractor" + (n === 1 ? "" : "s") + " and all of their insurance policies? This can't be undone.")) return;
-    const removed = (insData.subs || []).filter((s) => names[insCoKey(s)]).length;
-    insSet({ ...insData, subs: (insData.subs || []).filter((s) => !names[insCoKey(s)]) }, true);
+    // Only the policies CURRENTLY SHOWN for the selected companies — so if a job
+    // filter is on, this removes them from that job only, not every job.
+    const ids = {};
+    insGroups.forEach((g) => { if (names[g.company]) g.items.forEach((s) => { ids[s.id] = true; }); });
+    const removed = Object.keys(ids).length;
+    if (!removed) return;
+    const scope = insJobFilter ? (" on " + insJobFilter) : (insCompanyFilter || insFilter !== "all" || insSearch.trim() ? " (matching the current filters)" : " across ALL jobs");
+    if (typeof window !== "undefined" && window.confirm && !window.confirm("Remove " + removed + " insurance " + (removed === 1 ? "policy" : "policies") + " for " + n + " subcontractor" + (n === 1 ? "" : "s") + scope + "? This can't be undone.")) return;
+    insSet({ ...insData, subs: (insData.subs || []).filter((s) => !ids[s.id]) }, true);
     insExitSelect();
-    setToast("Removed " + n + " subcontractor" + (n === 1 ? "" : "s") + " (" + removed + " policies)");
+    setToast("Removed " + removed + " " + (removed === 1 ? "policy" : "policies"));
   };
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
@@ -6274,7 +6280,7 @@ function FollowUpDesk() {
             <div className="fd-panel" style={{ padding: 0, overflow: "hidden" }}>
               <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>Subcontractors <span className="fd-count">{insCompanies.length} cos · {(insData.subs || []).length} policies</span>
                 <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                  {isAcctManager && (insData.subs || []).length > 0 && <button className={"fd-btn ghost sm" + (insSelMode ? " active" : "")} onClick={() => (insSelMode ? insExitSelect() : setInsSelMode(true))}>{insSelMode ? "Cancel" : "Select"}</button>}
+                  {(insData.subs || []).length > 0 && <button className={"fd-btn ghost sm" + (insSelMode ? " active" : "")} onClick={() => (insSelMode ? insExitSelect() : setInsSelMode(true))}>{insSelMode ? "Cancel" : "Select"}</button>}
                   {isAcctManager && <><input ref={insImportRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={insImportFile} /><button className="fd-btn ghost sm" onClick={() => insImportRef.current && insImportRef.current.click()}><FileText size={14} /> Import log (.xlsx)</button></>}
                   <button className="fd-btn ghost sm" onClick={insAddSub}><Plus size={14} /> Add</button>
                 </span>
@@ -6287,6 +6293,7 @@ function FollowUpDesk() {
                   <button className="fd-btn sm" style={{ marginLeft: "auto", color: "var(--danger)", borderColor: "var(--danger-line)" }} disabled={insSelectedCos.length === 0} onClick={insDeleteSelected}><Trash2 size={14} /> Delete selected</button>
                 </div>
               )}
+              {insSelMode && <p className="fd-hint" style={{ fontSize: 11.5, margin: 0, padding: "0 14px 10px" }}>{insJobFilter ? "Removes the selected subcontractors from " + insJobFilter + " only — their policies on other jobs stay." : "No job filter — this removes selected subcontractors from every job. Filter by a job first to remove them from just that one (e.g., when a contract is paid off)."}</p>}
               {(insData.subs || []).length === 0 ? (
                 <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet.{isAcctManager ? " Import the insurance log (.xlsx) above, or add one." : " Add one to start tracking."}</span></div>
               ) : (
