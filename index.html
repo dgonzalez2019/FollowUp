@@ -434,6 +434,12 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-ins-co-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .fd-ins-co-body{padding:4px 10px 10px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line);}
 .fd-ins-bulkbar{display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--surface-3); font-size:13px; font-weight:600; color:var(--ink);}
+.fd-tdnotes{display:flex; flex-direction:column; gap:8px; margin-bottom:4px;}
+.fd-tdnote{border:1px solid var(--line); border-radius:9px; background:var(--surface-2); padding:8px 11px;}
+.fd-tdnote-meta{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--faint); font-family:'IBM Plex Mono',monospace; margin-bottom:4px;}
+.fd-tdnote-x{margin-left:auto; background:none; border:none; color:var(--faint); cursor:pointer; display:inline-flex; padding:1px; border-radius:4px;}
+.fd-tdnote-x:hover{color:var(--danger); background:var(--danger-soft);}
+.fd-tdnote-text{font-size:13.5px; color:var(--ink); white-space:pre-wrap; word-break:break-word;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2571,6 +2577,7 @@ function FollowUpDesk() {
   const [insOpenCo, setInsOpenCo] = useState({});
   const [insSelMode, setInsSelMode] = useState(false);
   const [insSel, setInsSel] = useState({});
+  const [insNoteDraft, setInsNoteDraft] = useState("");
   const insImportRef = useRef(null);
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
@@ -2772,6 +2779,13 @@ function FollowUpDesk() {
   };
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
+  const insAddNote = () => {
+    const t = insNoteDraft.trim(); if (!t) return;
+    const entry = { id: "n" + Date.now() + Math.random().toString(36).slice(2, 5), text: t, by: (user && user.email) || "", at: Date.now() };
+    insSet({ ...insData, tonyNotes: [...(insData.tonyNotes || []), entry] }, true);
+    setInsNoteDraft("");
+  };
+  const insDelNote = (id) => insSet({ ...insData, tonyNotes: (insData.tonyNotes || []).filter((x) => x.id !== id) }, true);
   // distinct jobs (project) and companies for the filters
   const insJobs = Array.from(new Set((insData.subs || []).map((s) => [s.projNum, s.projName].filter(Boolean).join(" ")).filter(Boolean))).sort();
   const insCompanies = Array.from(new Set((insData.subs || []).map((s) => (s.name || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -6221,6 +6235,30 @@ function FollowUpDesk() {
             <div className="fd-panel">
               <div className="fd-panel-head">Subcontractor insurance <span className="fd-count">{(insData.subs || []).length} on file</span></div>
               <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Every subcontractor on site must carry current insurance. Add each one with their Certificate of Insurance (COI) expiration date — the people below get an email reminder before it lapses.</p>
+            </div>
+            <div className="fd-panel">
+              <div className="fd-panel-head">Tony_Dark Notes <span className="fd-count">{isAcctManager ? "manager only" : "view only"}</span></div>
+              {(insData.tonyNotes || []).length === 0 ? (
+                <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>No notes yet.{isAcctManager ? "" : " Only the insurance manager can add notes here."}</p>
+              ) : (
+                <div className="fd-tdnotes">
+                  {[...(insData.tonyNotes || [])].sort((a, b) => b.at - a.at).map((nte) => (
+                    <div className="fd-tdnote" key={nte.id}>
+                      <div className="fd-tdnote-meta">
+                        <span>{nte.by ? String(nte.by).split("@")[0] : "manager"} · {new Date(nte.at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
+                        {isAcctManager && <button className="fd-tdnote-x" title="Delete note" onClick={() => insDelNote(nte.id)}><X size={12} /></button>}
+                      </div>
+                      <div className="fd-tdnote-text">{nte.text}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isAcctManager && (
+                <div style={{ marginTop: 10 }}>
+                  <textarea className="fd-input" rows={2} placeholder="Add a note…" value={insNoteDraft} onChange={(e) => setInsNoteDraft(e.target.value)} />
+                  <button className="fd-btn primary sm" style={{ marginTop: 8 }} disabled={!insNoteDraft.trim()} onClick={insAddNote}><Plus size={14} /> Add note</button>
+                </div>
+              )}
             </div>
             {(() => {
               const flagged = (insData.subs || []).map((s) => ({ s: s, st: insStatus(s, insData.notifyDays) })).filter((x) => x.st.state === "expired" || x.st.state === "soon");
