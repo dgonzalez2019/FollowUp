@@ -10,6 +10,7 @@ rules_version = '2';
 //  - Signed-in BDI users share some docs (bracket, app config) read-only.
 //  - Accounting + Insurance are private to access lists kept in shared/appConfig
 //    (acctAccessList/acctManagers, uspsAccessList/uspsManagers); only the admin edits the lists.
+//  - acctInsManagers is a distinct role that reaches the insurance log only (not requisitions).
 //  - Per-user data under users/{uid} is private to that user.
 //
 // IMPORTANT: match blocks are OR-combined, so the sensitive shared docs are
@@ -49,6 +50,11 @@ service cloud.firestore {
     function acctAllowed() {
       return isAdmin() || listHas(cfg(), "acctAccessList") || listHas(cfg(), "acctManagers");
     }
+    // Insurance-tab managers are a distinct role: they reach the insurance log
+    // (shared/insurance) but NOT the requisitions workbook (shared/accounting).
+    function insAllowed() {
+      return acctAllowed() || listHas(cfg(), "acctInsManagers");
+    }
     function uspsAllowed() {
       return isAdmin() || listHas(cfg(), "uspsAccessList") || listHas(cfg(), "uspsManagers");
     }
@@ -67,11 +73,12 @@ service cloud.firestore {
       allow read, write: if acctAllowed();
     }
 
-    // Subcontractor insurance tracking — same access list as Accounting.
+    // Subcontractor insurance tracking — Accounting access OR the distinct
+    // insurance-manager role (acctInsManagers). Requisitions stay separate.
     // (shared/insuranceLog is written only by the cron via the service account,
     //  which bypasses rules, so it is intentionally NOT readable by clients.)
     match /shared/insurance {
-      allow read, write: if acctAllowed();
+      allow read, write: if insAllowed();
     }
 
     // USPS shared job list: only people with USPS access.

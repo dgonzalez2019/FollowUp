@@ -440,6 +440,7 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-tdnote-x{margin-left:auto; background:none; border:none; color:var(--faint); cursor:pointer; display:inline-flex; padding:1px; border-radius:4px;}
 .fd-tdnote-x:hover{color:var(--danger); background:var(--danger-soft);}
 .fd-tdnote-text{font-size:13.5px; color:var(--ink); white-space:pre-wrap; word-break:break-word;}
+.fd-td-block{margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2601,7 +2602,7 @@ function FollowUpDesk() {
   const [insOpenCo, setInsOpenCo] = useState({});
   const [insSelMode, setInsSelMode] = useState(false);
   const [insSel, setInsSel] = useState({});
-  const [insNoteDraft, setInsNoteDraft] = useState("");
+  const [insNoteDraft, setInsNoteDraft] = useState({});
   const insImportRef = useRef(null);
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
@@ -2613,13 +2614,14 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, acct: { access: [], managers: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
   const [adminNewMgr, setAdminNewMgr] = useState("");
   const [adminNewAcct, setAdminNewAcct] = useState("");
   const [adminNewAcctMgr, setAdminNewAcctMgr] = useState("");
+  const [adminNewAcctInsMgr, setAdminNewAcctInsMgr] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
   const [uspsItems, setUspsItems] = useState([]);
   const [uspsForm, setUspsForm] = useState(blankUspsForm());
@@ -2803,13 +2805,15 @@ function FollowUpDesk() {
   };
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
-  const insAddNote = () => {
-    const t = insNoteDraft.trim(); if (!t) return;
+  // Tony_Dark Notes live on each policy (sub.tdNotes). Drafts are kept per-policy
+  // in a map keyed by the policy id so several can be open at once.
+  const insAddNote = (subId) => {
+    const t = (insNoteDraft[subId] || "").trim(); if (!t) return;
     const entry = { id: "n" + Date.now() + Math.random().toString(36).slice(2, 5), text: t, by: (user && user.email) || "", at: Date.now() };
-    insSet({ ...insData, tonyNotes: [...(insData.tonyNotes || []), entry] }, true);
-    setInsNoteDraft("");
+    insSet({ ...insData, subs: (insData.subs || []).map((s) => (s.id === subId ? { ...s, tdNotes: [...(s.tdNotes || []), entry] } : s)) }, true);
+    setInsNoteDraft((d) => ({ ...d, [subId]: "" }));
   };
-  const insDelNote = (id) => insSet({ ...insData, tonyNotes: (insData.tonyNotes || []).filter((x) => x.id !== id) }, true);
+  const insDelNote = (subId, noteId) => insSet({ ...insData, subs: (insData.subs || []).map((s) => (s.id === subId ? { ...s, tdNotes: (s.tdNotes || []).filter((x) => x.id !== noteId) } : s)) }, true);
   // distinct jobs (project) and companies for the filters
   const insJobs = Array.from(new Set((insData.subs || []).map((s) => [s.projNum, s.projName].filter(Boolean).join(" ")).filter(Boolean))).sort();
   const insCompanies = Array.from(new Set((insData.subs || []).map((s) => (s.name || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -3086,7 +3090,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -3956,7 +3960,8 @@ function FollowUpDesk() {
     const uspsManagers = ((next.usps && next.usps.managers) || []).map((e) => String(e).toLowerCase());
     const acctAccessList = ((next.acct && next.acct.access) || []).map((e) => String(e).toLowerCase());
     const acctManagers = ((next.acct && next.acct.managers) || []).map((e) => String(e).toLowerCase());
-    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, acctAccessList, acctManagers, updatedAt: Date.now() })
+    const acctInsManagers = ((next.acct && next.acct.insManagers) || []).map((e) => String(e).toLowerCase());
+    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, acctAccessList, acctManagers, acctInsManagers, updatedAt: Date.now() })
       .then(() => flash("Saved for everyone"))
       .catch((e) => { console.error(e); flash("Couldn't save — make sure the admin rule is published"); });
   };
@@ -4173,27 +4178,34 @@ function FollowUpDesk() {
     const em = adminNewAcct.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
     const cur = ((sharedConfig.acct && sharedConfig.acct.access) || []).filter((x) => x !== em);
-    const mgrs = (sharedConfig.acct && sharedConfig.acct.managers) || [];
-    saveSharedConfig({ ...sharedConfig, acct: { access: [...cur, em], managers: mgrs } });
+    saveSharedConfig({ ...sharedConfig, acct: { ...sharedConfig.acct, access: [...cur, em] } });
     setAdminNewAcct("");
   };
   const revokeAcct = (em) => {
     const cur = ((sharedConfig.acct && sharedConfig.acct.access) || []).filter((x) => x !== em);
-    const mgrs = (sharedConfig.acct && sharedConfig.acct.managers) || [];
-    saveSharedConfig({ ...sharedConfig, acct: { access: cur, managers: mgrs } });
+    saveSharedConfig({ ...sharedConfig, acct: { ...sharedConfig.acct, access: cur } });
   };
   const addAcctManager = () => {
     const em = adminNewAcctMgr.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
-    const access = (sharedConfig.acct && sharedConfig.acct.access) || [];
     const cur = ((sharedConfig.acct && sharedConfig.acct.managers) || []).filter((x) => x !== em);
-    saveSharedConfig({ ...sharedConfig, acct: { access, managers: [...cur, em] } });
+    saveSharedConfig({ ...sharedConfig, acct: { ...sharedConfig.acct, managers: [...cur, em] } });
     setAdminNewAcctMgr("");
   };
   const removeAcctManager = (em) => {
-    const access = (sharedConfig.acct && sharedConfig.acct.access) || [];
     const cur = ((sharedConfig.acct && sharedConfig.acct.managers) || []).filter((x) => x !== em);
-    saveSharedConfig({ ...sharedConfig, acct: { access, managers: cur } });
+    saveSharedConfig({ ...sharedConfig, acct: { ...sharedConfig.acct, managers: cur } });
+  };
+  const addAcctInsManager = () => {
+    const em = adminNewAcctInsMgr.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const cur = ((sharedConfig.acct && sharedConfig.acct.insManagers) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, acct: { ...sharedConfig.acct, insManagers: [...cur, em] } });
+    setAdminNewAcctInsMgr("");
+  };
+  const removeAcctInsManager = (em) => {
+    const cur = ((sharedConfig.acct && sharedConfig.acct.insManagers) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, acct: { ...sharedConfig.acct, insManagers: cur } });
   };
   const toggleTab = (key) => {
     const tabs = { ...sharedConfig.tabs, [key]: sharedConfig.tabs[key] === false ? true : false };
@@ -4266,7 +4278,10 @@ function FollowUpDesk() {
   const isUspsManager = isAdmin || ((sharedConfig.usps && sharedConfig.usps.managers) || []).indexOf(myEmailLc) >= 0;
   const uspsHasAccess = isUspsManager || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(myEmailLc) >= 0;
   const isAcctManager = isAdmin || ((sharedConfig.acct && sharedConfig.acct.managers) || []).indexOf(myEmailLc) >= 0;
-  const acctHasAccess = isAcctManager || ((sharedConfig.acct && sharedConfig.acct.access) || []).indexOf(myEmailLc) >= 0;
+  // The insurance tab manager is its own role — the only person (besides the admin)
+  // who can write Tony_Dark Notes. It does NOT imply accounting-manager rights.
+  const isInsManager = isAdmin || ((sharedConfig.acct && sharedConfig.acct.insManagers) || []).indexOf(myEmailLc) >= 0;
+  const acctHasAccess = isAcctManager || isInsManager || ((sharedConfig.acct && sharedConfig.acct.access) || []).indexOf(myEmailLc) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
 
   const tabVisible = (key) => {
@@ -5480,6 +5495,23 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={addAcctManager}>Add manager</button>
             </div>
           </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Insurance tab managers</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>A separate role just for the insurance log. An insurance manager can see the insurance tracking log and is the only person (besides you) who can write or remove <strong>Tony_Dark Notes</strong> on a policy. They do <em>not</em> get to see the monthly requisitions workbook or any other accounting-manager rights — this role is scoped to insurance only.</p>
+            {((sharedConfig.acct && sharedConfig.acct.insManagers) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No insurance managers yet.</p>
+            ) : ((sharedConfig.acct && sharedConfig.acct.insManagers) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove insurance manager" onClick={() => removeAcctInsManager(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to make an Insurance manager" value={adminNewAcctInsMgr}
+                onChange={(e) => setAdminNewAcctInsMgr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAcctInsManager(); }} />
+              <button className="fd-btn primary" onClick={addAcctInsManager}>Add manager</button>
+            </div>
+          </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
         </>
         )}
@@ -6260,30 +6292,6 @@ function FollowUpDesk() {
               <div className="fd-panel-head">Subcontractor insurance <span className="fd-count">{(insData.subs || []).length} on file</span></div>
               <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>Every subcontractor on site must carry current insurance. Add each one with their Certificate of Insurance (COI) expiration date — the people below get an email reminder before it lapses.</p>
             </div>
-            <div className="fd-panel">
-              <div className="fd-panel-head">Tony_Dark Notes <span className="fd-count">{isAcctManager ? "manager only" : "view only"}</span></div>
-              {(insData.tonyNotes || []).length === 0 ? (
-                <p className="fd-hint" style={{ fontSize: 12.5, margin: 0 }}>No notes yet.{isAcctManager ? "" : " Only the insurance manager can add notes here."}</p>
-              ) : (
-                <div className="fd-tdnotes">
-                  {[...(insData.tonyNotes || [])].sort((a, b) => b.at - a.at).map((nte) => (
-                    <div className="fd-tdnote" key={nte.id}>
-                      <div className="fd-tdnote-meta">
-                        <span>{nte.by ? String(nte.by).split("@")[0] : "manager"} · {new Date(nte.at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
-                        {isAcctManager && <button className="fd-tdnote-x" title="Delete note" onClick={() => insDelNote(nte.id)}><X size={12} /></button>}
-                      </div>
-                      <div className="fd-tdnote-text">{nte.text}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {isAcctManager && (
-                <div style={{ marginTop: 10 }}>
-                  <textarea className="fd-input" rows={2} placeholder="Add a note…" value={insNoteDraft} onChange={(e) => setInsNoteDraft(e.target.value)} />
-                  <button className="fd-btn primary sm" style={{ marginTop: 8 }} disabled={!insNoteDraft.trim()} onClick={insAddNote}><Plus size={14} /> Add note</button>
-                </div>
-              )}
-            </div>
             {(() => {
               const flagged = (insData.subs || []).map((s) => ({ s: s, st: insStatus(s, insData.notifyDays) })).filter((x) => x.st.state === "expired" || x.st.state === "soon");
               if (!flagged.length) return null;
@@ -6432,6 +6440,30 @@ function FollowUpDesk() {
                                               <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></div>
                                               <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></div>
                                               <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></div>
+                                            </div>
+                                            <div className="fd-td-block">
+                                              <div className="fd-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Tony_Dark Notes <span className="fd-count">{isInsManager ? "manager only" : "view only"}</span></div>
+                                              {(s.tdNotes || []).length === 0 ? (
+                                                <p className="fd-hint" style={{ fontSize: 12, margin: "4px 0 0" }}>No notes on this policy yet.{isInsManager ? "" : " Only the insurance manager can add notes."}</p>
+                                              ) : (
+                                                <div className="fd-tdnotes" style={{ marginTop: 6 }}>
+                                                  {[...(s.tdNotes || [])].sort((a, b) => b.at - a.at).map((nte) => (
+                                                    <div className="fd-tdnote" key={nte.id}>
+                                                      <div className="fd-tdnote-meta">
+                                                        <span>{nte.by ? String(nte.by).split("@")[0] : "manager"} · {new Date(nte.at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
+                                                        {isInsManager && <button className="fd-tdnote-x" title="Delete note" onClick={() => insDelNote(s.id, nte.id)}><X size={12} /></button>}
+                                                      </div>
+                                                      <div className="fd-tdnote-text">{nte.text}</div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {isInsManager && (
+                                                <div style={{ marginTop: 8 }}>
+                                                  <textarea className="fd-input" rows={2} placeholder="Add a note to this policy…" value={insNoteDraft[s.id] || ""} onChange={(e) => { const v = e.target.value; setInsNoteDraft((d) => ({ ...d, [s.id]: v })); }} />
+                                                  <button className="fd-btn primary sm" style={{ marginTop: 8 }} disabled={!(insNoteDraft[s.id] || "").trim()} onClick={() => insAddNote(s.id)}><Plus size={14} /> Add note</button>
+                                                </div>
+                                              )}
                                             </div>
                                             <div style={{ marginTop: 10 }}><button className="fd-link-danger" onClick={() => insDelSub(s.id)}><Trash2 size={14} /> Remove this policy</button></div>
                                           </div>
