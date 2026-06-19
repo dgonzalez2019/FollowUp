@@ -425,11 +425,15 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-lineup-nm{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .fd-lineup-pos{margin-left:auto; font-size:10.5px; font-weight:600; color:var(--faint); text-transform:uppercase;}
 .fd-ins-co{border:1px solid var(--line); border-radius:11px; background:var(--surface-2); overflow:hidden;}
-.fd-ins-co-head{display:flex; align-items:center; gap:9px; width:100%; background:none; border:none; padding:11px 13px; cursor:pointer; font-family:inherit; color:var(--ink); font-size:14px; font-weight:600; text-align:left;}
-.fd-ins-co-head:hover{background:var(--surface-3);}
-.fd-ins-co-head .fd-count{flex-shrink:0;}
+.fd-ins-co.sel{border-color:var(--accent); box-shadow:inset 0 0 0 1px rgba(47,155,224,.4);}
+.fd-ins-co-head{display:flex; align-items:center; gap:8px;}
+.fd-ins-co-check{margin-left:13px; flex-shrink:0; width:17px; height:17px; cursor:pointer;}
+.fd-ins-co-toggle{flex:1; min-width:0; display:flex; align-items:center; gap:9px; background:none; border:none; padding:11px 13px; cursor:pointer; font-family:inherit; color:var(--ink); font-size:14px; font-weight:600; text-align:left;}
+.fd-ins-co-toggle:hover{background:var(--surface-3);}
+.fd-ins-co-toggle .fd-count{flex-shrink:0;}
 .fd-ins-co-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .fd-ins-co-body{padding:4px 10px 10px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line);}
+.fd-ins-bulkbar{display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--surface-3); font-size:13px; font-weight:600; color:var(--ink);}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2565,6 +2569,8 @@ function FollowUpDesk() {
   const [insJobFilter, setInsJobFilter] = useState("");
   const [insCompanyFilter, setInsCompanyFilter] = useState("");
   const [insOpenCo, setInsOpenCo] = useState({});
+  const [insSelMode, setInsSelMode] = useState(false);
+  const [insSel, setInsSel] = useState({});
   const insImportRef = useRef(null);
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
@@ -2744,6 +2750,20 @@ function FollowUpDesk() {
     setInsOpen((o) => ({ ...o, [id]: true }));
   };
   const insDelSub = (id) => insSet({ ...insData, subs: (insData.subs || []).filter((s) => s.id !== id) }, true);
+  const insCoKey = (s) => (s.name || "").trim() || "(unnamed)";
+  const insToggleSel = (co) => setInsSel((m) => { const n = { ...m }; if (n[co]) delete n[co]; else n[co] = true; return n; });
+  const insSelectedCos = Object.keys(insSel).filter((k) => insSel[k]);
+  const insExitSelect = () => { setInsSelMode(false); setInsSel({}); };
+  const insDeleteSelected = () => {
+    const names = {}; insSelectedCos.forEach((c) => (names[c] = true));
+    const n = Object.keys(names).length;
+    if (!n) return;
+    if (typeof window !== "undefined" && window.confirm && !window.confirm("Delete " + n + " subcontractor" + (n === 1 ? "" : "s") + " and all of their insurance policies? This can't be undone.")) return;
+    const removed = (insData.subs || []).filter((s) => names[insCoKey(s)]).length;
+    insSet({ ...insData, subs: (insData.subs || []).filter((s) => !names[insCoKey(s)]) }, true);
+    insExitSelect();
+    setToast("Removed " + n + " subcontractor" + (n === 1 ? "" : "s") + " (" + removed + " policies)");
+  };
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
   // distinct jobs (project) and companies for the filters
@@ -6254,10 +6274,19 @@ function FollowUpDesk() {
             <div className="fd-panel" style={{ padding: 0, overflow: "hidden" }}>
               <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>Subcontractors <span className="fd-count">{insCompanies.length} cos · {(insData.subs || []).length} policies</span>
                 <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                  {isAcctManager && (insData.subs || []).length > 0 && <button className={"fd-btn ghost sm" + (insSelMode ? " active" : "")} onClick={() => (insSelMode ? insExitSelect() : setInsSelMode(true))}>{insSelMode ? "Cancel" : "Select"}</button>}
                   {isAcctManager && <><input ref={insImportRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={insImportFile} /><button className="fd-btn ghost sm" onClick={() => insImportRef.current && insImportRef.current.click()}><FileText size={14} /> Import log (.xlsx)</button></>}
                   <button className="fd-btn ghost sm" onClick={insAddSub}><Plus size={14} /> Add</button>
                 </span>
               </div>
+              {insSelMode && (
+                <div className="fd-ins-bulkbar">
+                  <span>{insSelectedCos.length} selected</span>
+                  <button className="fd-btn ghost sm" onClick={() => setInsSel(Object.fromEntries(insGroups.map((g) => [g.company, true])))}>Select all shown</button>
+                  {insSelectedCos.length > 0 && <button className="fd-btn ghost sm" onClick={() => setInsSel({})}>Clear</button>}
+                  <button className="fd-btn sm" style={{ marginLeft: "auto", color: "var(--danger)", borderColor: "var(--danger-line)" }} disabled={insSelectedCos.length === 0} onClick={insDeleteSelected}><Trash2 size={14} /> Delete selected</button>
+                </div>
+              )}
               {(insData.subs || []).length === 0 ? (
                 <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet.{isAcctManager ? " Import the insurance log (.xlsx) above, or add one." : " Add one to start tracking."}</span></div>
               ) : (
@@ -6294,13 +6323,16 @@ function FollowUpDesk() {
                           const open = autoOpen || !!insOpenCo[co];
                           const wlbl = grp.worst === "expired" ? "Expired" : grp.worst === "soon" ? "Expiring" : grp.worst === "ok" ? "Current" : "No date";
                           return (
-                            <div className="fd-ins-co" key={co}>
-                              <button className="fd-ins-co-head" onClick={() => setInsOpenCo((o) => ({ ...o, [co]: !open }))}>
-                                <span className="fd-usps-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}><ChevronRight size={16} /></span>
-                                <span className="fd-ins-co-name">{co}</span>
-                                <span className={"fd-ins-badge " + grp.worst} style={{ marginLeft: "auto" }}>{wlbl}</span>
-                                <span className="fd-count">{grp.items.length}</span>
-                              </button>
+                            <div className={"fd-ins-co" + (insSelMode && insSel[co] ? " sel" : "")} key={co}>
+                              <div className="fd-ins-co-head">
+                                {insSelMode && <input type="checkbox" className="fd-ins-co-check" checked={!!insSel[co]} onClick={(e) => e.stopPropagation()} onChange={() => insToggleSel(co)} />}
+                                <button className="fd-ins-co-toggle" onClick={() => (insSelMode ? insToggleSel(co) : setInsOpenCo((o) => ({ ...o, [co]: !open })))}>
+                                  {!insSelMode && <span className="fd-usps-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}><ChevronRight size={16} /></span>}
+                                  <span className="fd-ins-co-name">{co}</span>
+                                  <span className={"fd-ins-badge " + grp.worst} style={{ marginLeft: "auto" }}>{wlbl}</span>
+                                  <span className="fd-count">{grp.items.length}</span>
+                                </button>
+                              </div>
                               {open && (
                                 <div className="fd-ins-co-body">
                                   {grp.items.map((s) => {
