@@ -2305,21 +2305,41 @@ function wcClassifyPos(ab) {
   if (s.charAt(0) === "F" || ["ST", "CF", "LW", "RW", "SS"].indexOf(s) >= 0 || s.indexOf("FORWARD") >= 0 || s.indexOf("STRIK") >= 0 || s.indexOf("WING") >= 0) return 3;
   return 2;
 }
+// Common outfield shapes keyed by number of outfield players, so a team still
+// reads as a real formation even when ESPN's position tags are sparse/odd.
+const WC_SHAPES = { 11: [4, 4, 3], 10: [4, 3, 3], 9: [4, 3, 2], 8: [4, 3, 1], 7: [3, 3, 1], 6: [3, 2, 1], 5: [2, 2, 1] };
 function wcParseTeamRoster(entry) {
   if (!entry) return null;
   const starters = (entry.roster || []).filter((p) => p && p.starter);
   if (starters.length < 7) return null;
-  const buckets = [[], [], [], []];
-  starters.forEach((p) => {
-    buckets[wcClassifyPos((p.position && (p.position.abbreviation || p.position.name)) || "")].push({
-      num: p.jersey != null ? String(p.jersey) : "",
-      name: (p.athlete && (p.athlete.shortName || p.athlete.displayName)) || "",
-      pos: (p.position && p.position.abbreviation) || "",
-      place: Number(p.formationPlace) || 999,
-    });
-  });
-  buckets.forEach((b) => b.sort((x, y) => (x.place - y.place) || (Number(x.num) - Number(y.num))));
-  return { buckets: buckets, formation: buckets.slice(1).map((b) => b.length).filter((n) => n > 0).join("-") };
+  const players = starters.map((p) => ({
+    num: p.jersey != null ? String(p.jersey) : "",
+    name: (p.athlete && (p.athlete.shortName || p.athlete.displayName)) || "",
+    pos: (p.position && (p.position.abbreviation || p.position.name)) || "",
+    place: Number(p.formationPlace) || 999,
+    cls: wcClassifyPos((p.position && (p.position.abbreviation || p.position.name)) || ""),
+  }));
+  // Order every player up the pitch: ESPN's formationPlace runs GK(1) -> forwards,
+  // so this gives a reliable back-to-front sequence even if tags are generic.
+  players.sort((x, y) => (x.place - y.place) || (x.cls - y.cls) || (Number(x.num) - Number(y.num)));
+  // Keeper = the one tagged GK (else the lowest formationPlace), everyone else outfield.
+  let gk = players.filter((p) => p.cls === 0).slice(0, 1);
+  if (!gk.length) gk = [players[0]];
+  const outfield = players.filter((p) => p !== gk[0]);
+  const N = outfield.length;
+  // Use the position tags when they form a sane shape, otherwise a canonical one.
+  const d = outfield.filter((p) => p.cls === 1).length;
+  const m = outfield.filter((p) => p.cls === 2).length;
+  const f = outfield.filter((p) => p.cls === 3).length;
+  let sizes;
+  if (d + m + f === N && d >= 3 && d <= 5 && m >= 2 && f >= 1 && f <= 4) sizes = [d, m, f];
+  else if (WC_SHAPES[N]) sizes = WC_SHAPES[N].slice();
+  else { const dd = Math.max(3, Math.round(N * 0.4)), ff = Math.max(1, Math.round(N * 0.3)); sizes = [dd, Math.max(0, N - dd - ff), ff]; }
+  const rows = [gk];
+  let i = 0;
+  sizes.forEach((s) => { rows.push(outfield.slice(i, i + s)); i += s; });
+  if (i < N) rows[rows.length - 1] = rows[rows.length - 1].concat(outfield.slice(i)); // sweep up any remainder
+  return { buckets: rows, formation: rows.slice(1).map((b) => b.length).filter((n) => n > 0).join("-") };
 }
 function wcParseLineups(summary) {
   try {
@@ -2399,7 +2419,11 @@ function MatchView3D({ game }) {
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true })); sp.scale.set(4, 4, 1); return sp;
       } catch (e) { return null; }
     };
-    const XROW = [32, 22, 10, 1]; // GK, DEF, MID, FWD depth from own goal toward centre
+    // Distance of each row from the centre line. The four rows sit clearly apart
+    // and the forward line stays a few units inside its own half, so the two
+    // teams (mirrored across centre) don't pile up over the ball at midfield.
+    const XROW = [31, 21, 11, 4]; // GK, DEF, MID, FWD — distance from centre toward own goal
+    const ZSPAN = FH / 2 - 4;     // spread each row across (almost) the full pitch width
     const addPlayer = (x, z, color, num) => {
       const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.75 });
       const body = new THREE.Mesh(pGeo, mat); body.position.set(x, 1.3, z); scene.add(body);
@@ -2410,9 +2434,9 @@ function MatchView3D({ game }) {
       if (!team) return;
       team.buckets.forEach((bucket, r) => {
         const n = bucket.length; if (!n) return;
+        const x = XROW[Math.min(r, XROW.length - 1)] * sign * -1; // home(sign +1) on -x, away(-1) on +x
         bucket.forEach((pl, i) => {
-          const x = XROW[r] * sign * -1;                         // home(sign +1) on -x, away(-1) on +x
-          const z = (n === 1 ? 0 : (-1 + (2 * i) / (n - 1)) * (FH / 2 - 4)) * sign;
+          const z = (n === 1 ? 0 : (-1 + (2 * i) / (n - 1)) * ZSPAN) * sign;
           addPlayer(x, z, color, pl.num);
         });
       });
