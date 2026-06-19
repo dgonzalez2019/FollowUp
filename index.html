@@ -424,6 +424,12 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-lineup-num{flex-shrink:0; width:24px; text-align:center; font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700; color:var(--muted); background:var(--surface-3); border-radius:5px; padding:2px 0;}
 .fd-lineup-nm{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .fd-lineup-pos{margin-left:auto; font-size:10.5px; font-weight:600; color:var(--faint); text-transform:uppercase;}
+.fd-ins-co{border:1px solid var(--line); border-radius:11px; background:var(--surface-2); overflow:hidden;}
+.fd-ins-co-head{display:flex; align-items:center; gap:9px; width:100%; background:none; border:none; padding:11px 13px; cursor:pointer; font-family:inherit; color:var(--ink); font-size:14px; font-weight:600; text-align:left;}
+.fd-ins-co-head:hover{background:var(--surface-3);}
+.fd-ins-co-head .fd-count{flex-shrink:0;}
+.fd-ins-co-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.fd-ins-co-body{padding:4px 10px 10px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line);}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2556,6 +2562,10 @@ function FollowUpDesk() {
   const [insFilter, setInsFilter] = useState("all");
   const [insSort, setInsSort] = useState("expires");
   const [insOpen, setInsOpen] = useState({});
+  const [insJobFilter, setInsJobFilter] = useState("");
+  const [insCompanyFilter, setInsCompanyFilter] = useState("");
+  const [insOpenCo, setInsOpenCo] = useState({});
+  const insImportRef = useRef(null);
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
@@ -2736,13 +2746,18 @@ function FollowUpDesk() {
   const insDelSub = (id) => insSet({ ...insData, subs: (insData.subs || []).filter((s) => s.id !== id) }, true);
   const insAddRecipient = () => { const em = insNewRecipient.trim().toLowerCase(); if (!em || em.indexOf("@") < 0) { setToast("Enter a valid email"); return; } const cur = (insData.recipients || []).filter((x) => x !== em); insSet({ ...insData, recipients: [...cur, em] }, true); setInsNewRecipient(""); };
   const insDelRecipient = (em) => insSet({ ...insData, recipients: (insData.recipients || []).filter((x) => x !== em) }, true);
-  // search + filter + sort for the subcontractor list
+  // distinct jobs (project) and companies for the filters
+  const insJobs = Array.from(new Set((insData.subs || []).map((s) => [s.projNum, s.projName].filter(Boolean).join(" ")).filter(Boolean))).sort();
+  const insCompanies = Array.from(new Set((insData.subs || []).map((s) => (s.name || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  // search + status + job + company filters, then sort
   const insSubsView = (() => {
     const ORDER = { expired: 0, soon: 1, ok: 2, none: 3 };
     let arr = [...(insData.subs || [])];
     const q = insSearch.trim().toLowerCase();
     if (q) arr = arr.filter((s) => [s.name, s.projNum, s.projName, s.coverage, s.notes].join(" ").toLowerCase().indexOf(q) >= 0);
     if (insFilter !== "all") arr = arr.filter((s) => insStatus(s, insData.notifyDays).state === insFilter);
+    if (insJobFilter) arr = arr.filter((s) => [s.projNum, s.projName].filter(Boolean).join(" ") === insJobFilter);
+    if (insCompanyFilter) arr = arr.filter((s) => (s.name || "").trim() === insCompanyFilter);
     const exp = (s) => s.expires || "9999-99-99";
     arr.sort((a, b) => {
       if (insSort === "name") return (a.name || "~").localeCompare(b.name || "~");
@@ -2752,6 +2767,75 @@ function FollowUpDesk() {
     });
     return arr;
   })();
+  // group the filtered items by subcontractor (company)
+  const insGroups = (() => {
+    const m = {};
+    insSubsView.forEach((s) => { const k = (s.name || "").trim() || "(unnamed)"; (m[k] = m[k] || []).push(s); });
+    const rank = { expired: 0, soon: 1, ok: 2, none: 3 };
+    return Object.keys(m).sort((a, b) => a.localeCompare(b)).map((co) => {
+      const items = m[co];
+      let worst = "none";
+      items.forEach((s) => { const st = insStatus(s, insData.notifyDays).state; if (rank[st] < rank[worst]) worst = st; });
+      return { company: co, items: items, worst: worst };
+    });
+  })();
+  // Import the subcontractor insurance log (.xlsx): one sheet per project, columns
+  // per coverage type. Parses entirely in the browser; each (company × coverage)
+  // expiration becomes its own item, replacing the current list.
+  const insImportFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!window.XLSX) { setToast("Spreadsheet reader didn't load — check your connection and retry"); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = window.XLSX.read(ev.target.result, { type: "array", cellDates: true });
+        const X = window.XLSX.utils;
+        const norm = (s) => String(s == null ? "" : s).replace(/\s+/g, " ").trim();
+        const pad = (n) => String(n).padStart(2, "0");
+        const toDate = (v) => {
+          if (v instanceof Date && !isNaN(v)) return v.getFullYear() + "-" + pad(v.getMonth() + 1) + "-" + pad(v.getDate());
+          const s = norm(v); const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+          if (m) { let y = +m[3]; if (y < 100) y += 2000; return y + "-" + pad(+m[1]) + "-" + pad(+m[2]); }
+          return null;
+        };
+        const items = [];
+        wb.SheetNames.forEach((nm) => {
+          const ws = wb.Sheets[nm]; if (!ws || !ws["!ref"]) return;
+          const rng = X.decode_range(ws["!ref"]);
+          const at = (r, c) => { const cell = ws[X.encode_cell({ r: r, c: c })]; return cell ? cell.v : undefined; };
+          // headers: row 0 has coverage names in cols 2..N; project no in B1, name in B2
+          let projNum = norm(at(0, 1)) || norm(nm).split(" ")[0];
+          let projName = norm(at(1, 1)); if (!projName) projName = norm(nm).replace(/^\S+\s*/, "");
+          const covCols = []; let notesCol = -1;
+          for (let c = 2; c <= rng.e.c; c++) {
+            const h = norm(at(0, c)); if (!h) continue;
+            if (/note/i.test(h)) { notesCol = c; continue; }
+            covCols.push({ c: c, label: h });
+          }
+          for (let r = 2; r <= rng.e.r; r++) {
+            const company = norm(at(r, 0)); if (!company || /^project (no|name)/i.test(company)) continue;
+            const rowNote = notesCol >= 0 ? norm(at(r, notesCol)) : "";
+            covCols.forEach((cv) => {
+              const raw = at(r, cv.c); const d = toDate(raw); const txt = norm(raw);
+              if (!d && !/missing/i.test(txt)) return;            // skip "-" / blank / N-A
+              items.push({
+                id: "i-" + norm(projNum) + "-" + company.toLowerCase().replace(/[^a-z0-9]/g, "") + "-" + cv.label.toLowerCase().replace(/[^a-z0-9]/g, ""),
+                projNum: projNum, projName: projName, name: company, coverage: cv.label,
+                expires: d || "", days: "", notes: [d ? "" : "missing", rowNote].filter(Boolean).join(" · "),
+              });
+            });
+          }
+        });
+        if (!items.length) { setToast("No insurance rows found in that workbook"); return; }
+        const companies = new Set(items.map((i) => i.name)); const jobs = new Set(items.map((i) => i.projNum));
+        insSet({ ...insData, subs: items }, true);
+        setToast("Imported " + items.length + " policies · " + companies.size + " subcontractors · " + jobs.size + " jobs");
+      } catch (err) { console.error(err); setToast("Couldn't read that workbook"); }
+    };
+    reader.readAsArrayBuffer(file);
+  };
   // Import the Monthly Requisitions workbook (.xlsx) entirely in the browser and write
   // the parsed months straight to Firestore. The data never ships in the page bundle —
   // it only ever lives in the access-gated shared/accounting doc.
@@ -6119,7 +6203,7 @@ function FollowUpDesk() {
               const soon = flagged.filter((x) => x.st.state === "soon");
               const hot = expired.length > 0;
               flagged.sort((a, b) => (a.s.expires || "9999") < (b.s.expires || "9999") ? -1 : 1);
-              const open = (id) => { setInsFilter("all"); setInsSearch(""); setInsOpen((o) => ({ ...o, [id]: true })); };
+              const open = (s) => { setInsFilter("all"); setInsSearch(""); setInsJobFilter(""); setInsCompanyFilter(""); setInsOpenCo((o) => ({ ...o, [(s.name || "").trim() || "(unnamed)"]: true })); setInsOpen((o) => ({ ...o, [s.id]: true })); };
               return (
                 <details className="fd-disclose" open style={{ borderColor: hot ? "var(--danger)" : "#d99b2b" }}>
                   <summary>
@@ -6132,7 +6216,7 @@ function FollowUpDesk() {
                   <div className="fd-disclose-body">
                     <p className="fd-hint" style={{ fontSize: 12, margin: "0 0 8px" }}>Expired or lapsing subcontractors should not be on site until renewed. Tap one to open it.</p>
                     {flagged.map(({ s, st }) => (
-                      <button className="fd-ins-flag" key={s.id} onClick={() => open(s.id)}>
+                      <button className="fd-ins-flag" key={s.id} onClick={() => open(s)}>
                         <span className={"fd-ins-badge " + st.state}>{st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d" : st.daysLeft + "d left"}</span>
                         <span className="fd-ins-flag-name">{s.name || "(unnamed)"}{(s.projNum || s.projName) ? " — " + [s.projNum, s.projName].filter(Boolean).join(" ") : ""}</span>
                         <span className="fd-hint" style={{ marginLeft: "auto", fontSize: 12, whiteSpace: "nowrap" }}>{s.expires || "no date"}</span>
@@ -6168,20 +6252,30 @@ function FollowUpDesk() {
               </div>
             </div>
             <div className="fd-panel" style={{ padding: 0, overflow: "hidden" }}>
-              <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center" }}>Subcontractors <span className="fd-count">{(insData.subs || []).length}</span>
-                <button className="fd-btn ghost sm" style={{ marginLeft: "auto" }} onClick={insAddSub}><Plus size={14} /> Add subcontractor</button>
+              <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>Subcontractors <span className="fd-count">{insCompanies.length} cos · {(insData.subs || []).length} policies</span>
+                <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                  {isAcctManager && <><input ref={insImportRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={insImportFile} /><button className="fd-btn ghost sm" onClick={() => insImportRef.current && insImportRef.current.click()}><FileText size={14} /> Import log (.xlsx)</button></>}
+                  <button className="fd-btn ghost sm" onClick={insAddSub}><Plus size={14} /> Add</button>
+                </span>
               </div>
               {(insData.subs || []).length === 0 ? (
-                <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet. Add one to start tracking their insurance.</span></div>
+                <div className="fd-empty" style={{ padding: 26 }}><Shield size={26} /><span>No subcontractors yet.{isAcctManager ? " Import the insurance log (.xlsx) above, or add one." : " Add one to start tracking."}</span></div>
               ) : (
                 <div style={{ padding: "12px 14px" }}>
                   <div className="fd-usps-controls">
-                    <input className="fd-input" placeholder="Search subcontractor, project, coverage…" value={insSearch} onChange={(e) => setInsSearch(e.target.value)} />
+                    <input className="fd-input" placeholder="Search company, project, coverage…" value={insSearch} onChange={(e) => setInsSearch(e.target.value)} />
+                    <select className="fd-input" value={insJobFilter} onChange={(e) => setInsJobFilter(e.target.value)}>
+                      <option value="">All jobs</option>
+                      {insJobs.map((j) => <option key={j} value={j}>{j}</option>)}
+                    </select>
+                    <select className="fd-input" value={insCompanyFilter} onChange={(e) => setInsCompanyFilter(e.target.value)}>
+                      <option value="">All companies</option>
+                      {insCompanies.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
                     <select className="fd-input" value={insSort} onChange={(e) => setInsSort(e.target.value)}>
-                      <option value="expires">Expiration — soonest first</option>
+                      <option value="expires">Expiration — soonest</option>
                       <option value="status">Status — expired first</option>
-                      <option value="name">Subcontractor — A to Z</option>
-                      <option value="project">Project # — A to Z</option>
+                      <option value="project">Project #</option>
                     </select>
                   </div>
                   <div className="fd-subnav" style={{ marginTop: 0, marginBottom: 10 }}>
@@ -6189,47 +6283,69 @@ function FollowUpDesk() {
                       <button key={k} className={"fd-subnav-btn" + (insFilter === k ? " active" : "")} onClick={() => setInsFilter(k)}>{lbl}</button>
                     ))}
                   </div>
-                  {insSubsView.length === 0 ? (
+                  {insGroups.length === 0 ? (
                     <div className="fd-empty" style={{ padding: 24 }}><p>No subcontractors match your search or filter.</p></div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {insSubsView.map((s) => {
-                        const st = insStatus(s, insData.notifyDays);
-                        const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
-                        const color = st.state === "expired" ? "var(--danger)" : st.state === "soon" ? "#d99b2b" : st.state === "ok" ? "var(--ok)" : "var(--line-strong)";
-                        const open = !!insOpen[s.id];
-                        const proj = [s.projNum, s.projName].filter(Boolean).join(" ");
-                        return (
-                          <div className="fd-usps-card" key={s.id} style={{ borderLeft: "4px solid " + color }}>
-                            <div className="fd-usps-row" onClick={() => insToggleOpen(s.id)}>
-                              <span className="fd-usps-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}><ChevronRight size={16} /></span>
-                              <div className="fd-usps-rowmain">
-                                <div className="fd-usps-call">{s.name || "(unnamed subcontractor)"}</div>
-                                {(proj || s.coverage) ? <div className="fd-usps-rowfac">{proj}{proj && s.coverage ? "  ·  " : ""}{s.coverage || ""}</div> : null}
-                              </div>
-                              <span className="fd-hint" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{s.expires || "no date"}</span>
-                              <span className={"fd-ins-badge " + st.state}>{label}</span>
-                            </div>
-                            {open && (
-                              <div className="fd-usps-detail">
-                                <div className="fd-ins-grid">
-                                  <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></div>
-                                  <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></div>
-                                  <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></div>
-                                  <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></div>
-                                  <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></div>
-                                  <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></div>
-                                  <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></div>
-                                  <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></div>
+                  ) : (() => {
+                    const autoOpen = !!(insSearch.trim() || insJobFilter || insCompanyFilter || insFilter !== "all");
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {insGroups.map((grp) => {
+                          const co = grp.company;
+                          const open = autoOpen || !!insOpenCo[co];
+                          const wlbl = grp.worst === "expired" ? "Expired" : grp.worst === "soon" ? "Expiring" : grp.worst === "ok" ? "Current" : "No date";
+                          return (
+                            <div className="fd-ins-co" key={co}>
+                              <button className="fd-ins-co-head" onClick={() => setInsOpenCo((o) => ({ ...o, [co]: !open }))}>
+                                <span className="fd-usps-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}><ChevronRight size={16} /></span>
+                                <span className="fd-ins-co-name">{co}</span>
+                                <span className={"fd-ins-badge " + grp.worst} style={{ marginLeft: "auto" }}>{wlbl}</span>
+                                <span className="fd-count">{grp.items.length}</span>
+                              </button>
+                              {open && (
+                                <div className="fd-ins-co-body">
+                                  {grp.items.map((s) => {
+                                    const st = insStatus(s, insData.notifyDays);
+                                    const label = st.state === "none" ? "No date" : st.state === "expired" ? "Expired " + Math.abs(st.daysLeft) + "d ago" : st.daysLeft + "d left";
+                                    const color = st.state === "expired" ? "var(--danger)" : st.state === "soon" ? "#d99b2b" : st.state === "ok" ? "var(--ok)" : "var(--line-strong)";
+                                    const iopen = !!insOpen[s.id];
+                                    const proj = [s.projNum, s.projName].filter(Boolean).join(" ");
+                                    return (
+                                      <div className="fd-usps-card" key={s.id} style={{ borderLeft: "4px solid " + color }}>
+                                        <div className="fd-usps-row" onClick={() => insToggleOpen(s.id)}>
+                                          <span className="fd-usps-chev" style={{ transform: iopen ? "rotate(90deg)" : "none" }}><ChevronRight size={16} /></span>
+                                          <div className="fd-usps-rowmain">
+                                            <div className="fd-usps-call">{s.coverage || "Insurance"}</div>
+                                            {proj ? <div className="fd-usps-rowfac">{proj}</div> : null}
+                                          </div>
+                                          <span className="fd-hint" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{s.expires || "no date"}</span>
+                                          <span className={"fd-ins-badge " + st.state}>{label}</span>
+                                        </div>
+                                        {iopen && (
+                                          <div className="fd-usps-detail">
+                                            <div className="fd-ins-grid">
+                                              <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></div>
+                                              <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></div>
+                                              <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></div>
+                                              <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></div>
+                                              <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></div>
+                                              <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></div>
+                                              <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></div>
+                                              <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></div>
+                                            </div>
+                                            <div style={{ marginTop: 10 }}><button className="fd-link-danger" onClick={() => insDelSub(s.id)}><Trash2 size={14} /> Remove this policy</button></div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                                <div style={{ marginTop: 10 }}><button className="fd-link-danger" onClick={() => insDelSub(s.id)}><Trash2 size={14} /> Remove subcontractor</button></div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
