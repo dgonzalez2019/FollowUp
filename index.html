@@ -2319,6 +2319,21 @@ function MatchView3D({ game }) {
     const eA = new THREE.Mesh(new THREE.PlaneGeometry(14, FH), endMat(0xe06149)); eA.rotation.x = -Math.PI / 2; eA.position.set(FW / 2 - 7, 0.01, 0); scene.add(eA);
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
     ball.position.set(0, 0.9, 0); scene.add(ball);
+    // Representative players in a 4-3-3 per side (not live tracking — positional
+    // data isn't in the public feed; these idle in formation so it reads as a match).
+    const FORM = [[-32, 0], [-24, -15], [-24, -5], [-24, 5], [-24, 15], [-14, -12], [-14, 0], [-14, 12], [-5, -10], [-5, 0], [-5, 10]];
+    const pGeo = new THREE.CylinderGeometry(0.85, 0.85, 2.6, 12);
+    const headGeo = new THREE.SphereGeometry(0.75, 12, 10);
+    const players = [];
+    [{ c: 0x2f9be0, fx: (x) => x }, { c: 0xe06149, fx: (x) => -x }].forEach((side) => {
+      const mat = new THREE.MeshStandardMaterial({ color: side.c, roughness: 0.75 });
+      FORM.forEach((pos) => {
+        const px = side.fx(pos[0]), pz = pos[1];
+        const body = new THREE.Mesh(pGeo, mat); body.position.set(px, 1.3, pz); scene.add(body);
+        const head = new THREE.Mesh(headGeo, mat); head.position.set(px, 3.0, pz); scene.add(head);
+        players.push({ body: body, head: head, bx: px, bz: pz, ph: Math.random() * Math.PI * 2 });
+      });
+    });
     let theta = 0.9, phi = 0.78, radius = 74, auto = true; const target = new THREE.Vector3(0, 0, 0);
     const apply = () => { camera.position.set(target.x + radius * Math.sin(phi) * Math.cos(theta), target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi) * Math.sin(theta)); camera.lookAt(target); };
     apply();
@@ -2341,6 +2356,8 @@ function MatchView3D({ game }) {
       const g = st.game;
       if (g && g.status === "live") { ball.position.x = Math.sin(now / 1300) * 18; ball.position.z = Math.cos(now / 900) * 10; ball.position.y = 0.9 + Math.abs(Math.sin(now / 500)) * 0.6; }
       else { ball.position.set(0, 0.9, 0); }
+      const amp = (g && g.status === "live") ? 1.1 : 0.4;
+      for (let i = 0; i < players.length; i++) { const p = players[i]; const dx = Math.sin(now / 760 + p.ph) * amp, dz = Math.cos(now / 880 + p.ph) * amp; p.body.position.x = p.bx + dx; p.body.position.z = p.bz + dz; p.head.position.x = p.bx + dx; p.head.position.z = p.bz + dz; }
       if (g) { const h = g.hs || 0, a = g.as || 0; if (st.lastH != null && (h > st.lastH || a > st.lastA)) pulse = 1; st.lastH = h; st.lastA = a; }
       ball.scale.setScalar(pulse > 0 ? 1 + pulse * 2 : 1); if (pulse > 0) pulse = Math.max(0, pulse - dt * 1.2);
       renderer.render(scene, camera); raf = requestAnimationFrame(loop);
@@ -2376,7 +2393,10 @@ function OddsPanel({ game }) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let alive = true; setLoading(true);
-    fetch("/api/odds").then((r) => r.json()).then((j) => { if (alive) { setRes(j); setLoading(false); } }).catch(() => { if (alive) { setRes({ error: "fetch" }); setLoading(false); } });
+    const pull = () => fetch("/api/odds").then((r) => r.json()).then((j) => { if (alive) { setRes(j); setLoading(false); } }).catch(() => { if (alive) { setRes({ error: "fetch" }); setLoading(false); } });
+    pull();
+    const iv = setInterval(pull, 5 * 60 * 1000); // re-check every 5 min (server caches ~30 min)
+    return () => { alive = false; clearInterval(iv); };
   }, []);
   if (!game) return null;
   const amer = (n) => (n == null ? "—" : (n > 0 ? "+" + n : "" + n));
