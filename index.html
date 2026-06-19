@@ -410,6 +410,11 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-m3d-team{display:flex; align-items:center; gap:7px; font-weight:600; font-size:14px; color:#fff;}
 .fd-m3d-score{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:20px; color:#fff; min-width:64px; text-align:center; font-variant-numeric:tabular-nums;}
 .fd-m3d-status{position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#fff; background:rgba(4,5,7,.62); border:1px solid var(--line); border-radius:999px; padding:5px 12px;}
+.fd-res-row.sel{background:var(--accent-soft); border-radius:8px; box-shadow:inset 0 0 0 1px rgba(47,155,224,.45);}
+.fd-odds-row{display:flex; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px solid var(--line);}
+.fd-odds-row:last-of-type{border-bottom:none;}
+.fd-odds-team{display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--ink);}
+.fd-odds-price{margin-left:auto; font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:16px; color:var(--lime); font-variant-numeric:tabular-nums;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2267,16 +2272,13 @@ const insStatus = (sub, defaultDays) => {
   return { state, daysLeft, threshold };
 };
 
-function MatchView3D({ games }) {
-  const list = (games || []).filter((g) => g && g.hc && g.ac);
-  const [selId, setSelId] = useState("");
-  const sel = list.find((g) => g.id === selId) || list.find((g) => g.status === "live") || list[0] || null;
+function MatchView3D({ game }) {
+  const sel = game || null;
   const selKey = sel ? sel.id : "";
   const wrapRef = useRef(null);
   const stRef = useRef({});
   const [ready, setReady] = useState(typeof window !== "undefined" && !!window.THREE);
   const [err, setErr] = useState(false);
-  const nm = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][0] : c);
   useEffect(() => { stRef.current.game = sel; }, [sel]);
   useEffect(() => {
     if (window.THREE) { setReady(true); return; }
@@ -2350,29 +2352,70 @@ function MatchView3D({ games }) {
       renderer.dispose(); if (el.parentNode) el.parentNode.removeChild(el);
     };
   }, [ready, selKey]);
+  if (!sel) return null;
   return (
-    <>
-      <div className="fd-panel">
-        <div className="fd-panel-head">Live 3D match <span className="fd-count">interactive</span></div>
-        <p className="fd-hint" style={{ fontSize: 12.5, margin: "0 0 10px" }}>A 3D match view driven by the live feed — drag to look around, scroll/pinch to zoom, score &amp; goals update in real time. (Player positions aren't in the public feed, so this animates the match state, not exact tracking.)</p>
-        <select className="fd-select" value={selKey} onChange={(e) => setSelId(e.target.value)}>
-          {list.length === 0 ? <option value="">No World Cup matches available</option> :
-            list.map((g) => <option key={g.id} value={g.id}>{nm(g.hc) + " v " + nm(g.ac) + (g.date ? " · " + new Date(g.date).toLocaleDateString([], { month: "short", day: "numeric" }) : "") + (g.status === "live" ? " · LIVE" : g.status === "final" ? " · FT" : "")}</option>)}
-        </select>
-      </div>
-      {err ? <div className="fd-empty"><span>The 3D viewer couldn't load. Check your connection and reload.</span></div> :
-        !ready ? <div className="fd-empty"><span>Loading 3D…</span></div> :
-          !sel ? <div className="fd-empty"><span>No World Cup match to show yet.</span></div> :
-            <div className="fd-m3d-wrap">
-              <div ref={wrapRef} className="fd-m3d-canvas" />
-              <div className="fd-m3d-hud">
-                <span className="fd-m3d-team">{wcLabel(sel.hc)}</span>
-                <span className="fd-m3d-score">{sel.status === "pre" ? "vs" : (sel.hs == null ? 0 : sel.hs) + " – " + (sel.as == null ? 0 : sel.as)}</span>
-                <span className="fd-m3d-team">{wcLabel(sel.ac)}</span>
-              </div>
-              <div className="fd-m3d-status">{sel.status === "live" ? <><span className="fd-live-dot"></span>{sel.clock || "LIVE"}</> : sel.status === "final" ? "Full time" : (sel.date ? new Date(sel.date).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Scheduled")}</div>
-            </div>}
-    </>
+    err ? <div className="fd-empty"><span>The 3D viewer couldn't load. Check your connection and reload.</span></div> :
+      !ready ? <div className="fd-empty"><span>Loading 3D…</span></div> :
+        <div className="fd-m3d-wrap">
+          <div ref={wrapRef} className="fd-m3d-canvas" />
+          <div className="fd-m3d-hud">
+            <span className="fd-m3d-team">{wcLabel(sel.hc)}</span>
+            <span className="fd-m3d-score">{sel.status === "pre" ? "vs" : (sel.hs == null ? 0 : sel.hs) + " – " + (sel.as == null ? 0 : sel.as)}</span>
+            <span className="fd-m3d-team">{wcLabel(sel.ac)}</span>
+          </div>
+          <div className="fd-m3d-status">{sel.status === "live" ? <><span className="fd-live-dot"></span>{sel.clock || "LIVE"}</> : sel.status === "final" ? "Full time" : (sel.date ? new Date(sel.date).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Scheduled")}</div>
+        </div>
+  );
+}
+
+// Live moneyline odds for the selected match, via /api/odds (The Odds API proxy).
+// Prefers Hard Rock Bet when that book is offered, otherwise shows the first
+// available US book and labels it.
+function OddsPanel({ game }) {
+  const [res, setRes] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true; setLoading(true);
+    fetch("/api/odds").then((r) => r.json()).then((j) => { if (alive) { setRes(j); setLoading(false); } }).catch(() => { if (alive) { setRes({ error: "fetch" }); setLoading(false); } });
+  }, []);
+  if (!game) return null;
+  const amer = (n) => (n == null ? "—" : (n > 0 ? "+" + n : "" + n));
+  const codeOf = (name) => WC_ALIAS.map[WC_ALIAS.norm(name)] || null;
+  const body = (() => {
+    if (loading) return <p className="fd-hint" style={{ margin: 0 }}>Loading odds…</p>;
+    if (!res || res.error) return <p className="fd-hint" style={{ margin: 0 }}>Odds are unavailable right now.</p>;
+    if (!res.configured) return <p className="fd-hint" style={{ margin: 0 }}>Live odds aren't set up yet. An admin can add a free The Odds API key (THE_ODDS_API_KEY) on the server to enable them.</p>;
+    const ev = (res.events || []).find((e) => { const h = codeOf(e.home), a = codeOf(e.away); return (h === game.hc && a === game.ac) || (h === game.ac && a === game.hc); });
+    if (!ev) return <p className="fd-hint" style={{ margin: 0 }}>No odds posted for this match yet.</p>;
+    const books = ev.books || [];
+    const hr = books.find((b) => b.key === "hardrockbet" || /hard rock/i.test(b.title || ""));
+    const book = hr || books[0];
+    if (!book) return <p className="fd-hint" style={{ margin: 0 }}>No bookmaker has posted this match yet.</p>;
+    const priceFor = (code) => { const o = (book.h2h || []).find((x) => codeOf(x.name) === code); return o ? o.price : null; };
+    const drawPrice = (book.h2h || []).find((x) => x.name && x.name.toLowerCase() === "draw");
+    return (
+      <>
+        <div className="fd-odds-row">
+          <span className="fd-odds-team">{wcLabel(game.hc)}</span>
+          <span className="fd-odds-price">{amer(priceFor(game.hc))}</span>
+        </div>
+        <div className="fd-odds-row">
+          <span className="fd-odds-team">Draw</span>
+          <span className="fd-odds-price">{amer(drawPrice ? drawPrice.price : null)}</span>
+        </div>
+        <div className="fd-odds-row">
+          <span className="fd-odds-team">{wcLabel(game.ac)}</span>
+          <span className="fd-odds-price">{amer(priceFor(game.ac))}</span>
+        </div>
+        <p className="fd-hint" style={{ fontSize: 11, margin: "8px 0 0" }}>Moneyline · {hr ? "Hard Rock Bet" : (book.title || "book") + " (Hard Rock Bet not offered for this match)"}{res.at ? " · updated " + new Date(res.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}. For information only.</p>
+      </>
+    );
+  })();
+  return (
+    <div className="fd-panel">
+      <div className="fd-panel-head">Live odds <span className="fd-count">Hard Rock Bet</span></div>
+      {body}
+    </div>
   );
 }
 
@@ -3437,6 +3480,7 @@ function FollowUpDesk() {
     return () => clearInterval(iv);
   }, [section]);
   const [resDay, setResDay] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
+  const [resSel, setResSel] = useState("");
   const [lbView, setLbView] = useState(null);
   useEffect(() => {
     if (!lbView) return;
@@ -5257,7 +5301,7 @@ function FollowUpDesk() {
         {section === "bracket" && (
         <>
           <div className="fd-subnav">
-            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"], ["live3d", "Live 3D"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
+            {[["board", "Leaderboard"], ["picks", "Group picks"], ["knockout", "Knockout"], ["results", "Results"]].concat(isAdmin ? [["manage", "Manage"]] : []).map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
             ))}
           </div>
@@ -5668,8 +5712,9 @@ function FollowUpDesk() {
                       </div>
                     )}
                     {todays.length === 0 && <div className="fd-empty">No World Cup matches on this day.</div>}
+                    {todays.length > 0 && <p className="fd-hint" style={{ fontSize: 11.5, textAlign: "center", margin: "0 0 6px" }}>Tap a match for the live 3D view and odds.</p>}
                     {todays.map((g) => (
-                      <div className="fd-res-row" key={g.id}>
+                      <div className={"fd-res-row" + (resSel === g.id ? " sel" : "")} key={g.id} style={{ cursor: "pointer" }} title="View 3D + live odds" onClick={() => setResSel(resSel === g.id ? "" : g.id)}>
                         <span className="fd-res-team">{wcLabel(g.hc)}</span>
                         <span className={"fd-res-score" + (g.status === "live" ? " live" : g.status === "pre" ? " pre" : "")}>
                           {g.status === "pre"
@@ -5685,6 +5730,11 @@ function FollowUpDesk() {
                 );
               })()}
             </div>
+            {(() => {
+              const selGame = espnGames.find((g) => g.id === resSel);
+              if (!selGame) return null;
+              return (<><MatchView3D game={selGame} /><OddsPanel game={selGame} /></>);
+            })()}
             <details className="fd-disclose">
               <summary><ChevronRight size={14} className="fd-disclose-chev" /> Group standings <span className="fd-count">{feedAt ? "updated " + agoLabel(feedAt) : "live"}</span></summary>
               <div className="fd-disclose-body">
@@ -5725,8 +5775,6 @@ function FollowUpDesk() {
             </details>
           </>
           )}
-
-          {bracketView === "live3d" && <MatchView3D games={espnGames} />}
 
           {bracketView === "manage" && isAdmin && (
           <>
