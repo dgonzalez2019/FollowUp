@@ -441,6 +441,9 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-tdnote-x:hover{color:var(--danger); background:var(--danger-soft);}
 .fd-tdnote-text{font-size:13.5px; color:var(--ink); white-space:pre-wrap; word-break:break-word;}
 .fd-td-block{margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
+.fd-ins-addbody{padding:14px; border-bottom:1px solid var(--line); background:var(--surface-2);}
+.fd-ins-cov-row{display:flex; align-items:center; gap:16px; padding:6px 0; border-bottom:1px solid var(--line-soft);}
+.fd-ins-cov-lbl{display:flex; align-items:center; gap:8px; min-width:160px; font-size:13.5px; cursor:pointer; user-select:none;}
 .fd-plan-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;}
 .fd-plan-floors{display:inline-flex; align-items:center; gap:6px; margin-left:auto;}
 .fd-plan-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 0 12px; border-top:1px solid var(--line);}
@@ -2591,7 +2594,7 @@ function InsSubForm({ sub, projMap, onSave, onDelete, isInsManager, noteDraft, o
         <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={d.projNum || ""} onChange={(e) => handleProjNum(e.target.value)} onBlur={commit} /></div>
         <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={d.projName || ""} onChange={(e) => set("projName", e.target.value)} onBlur={commit} /></div>
         <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={d.name || ""} onChange={(e) => set("name", e.target.value)} onBlur={commit} /></div>
-        <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={d.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => set("coverage", e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Coverage</label><select className="fd-acct-in" value={d.coverage || ""} onChange={(e) => { set("coverage", e.target.value); }} onBlur={commit}><option value="">— select —</option>{["General Liability","Automobile","Umbrella","Worker's Comp"].map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
         <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={d.initialDate || ""} onChange={(e) => { set("initialDate", e.target.value); }} onBlur={commit} /></div>
         <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={d.expires || ""} onChange={(e) => { set("expires", e.target.value); }} onBlur={commit} /></div>
         <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(d.days === "" || d.days == null) ? "" : d.days} placeholder="30" onChange={(e) => set("days", e.target.value === "" ? "" : +e.target.value)} onBlur={commit} /></div>
@@ -2662,6 +2665,10 @@ function FollowUpDesk() {
   const [insSel, setInsSel] = useState({});
   const [insNoteDraft, setInsNoteDraft] = useState({});
   const insImportRef = useRef(null);
+  const INS_COVERAGES = ["General Liability", "Automobile", "Umbrella", "Worker's Comp"];
+  const blankInsAdd = () => ({ projNum: "", projName: "", name: "", initialDate: "", days: "", notes: "", covs: {} });
+  const [insShowAdd, setInsShowAdd] = useState(false);
+  const [insAddDraft, setInsAddDraft] = useState(blankInsAdd());
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
@@ -2835,10 +2842,24 @@ function FollowUpDesk() {
   const insUpdateSub = (id, patch) => insSet({ ...insData, subs: (insData.subs || []).map((s) => (s.id === id ? { ...s, ...patch } : s)) }, false);
   const insCommit = () => insWrite(insData);
   const insToggleOpen = (id) => setInsOpen((o) => ({ ...o, [id]: !o[id] }));
-  const insAddSub = () => {
-    const id = "s" + Date.now() + Math.random().toString(36).slice(2, 6);
-    insSet({ ...insData, subs: [...(insData.subs || []), { id: id, projNum: "", projName: "", name: "", coverage: "", initialDate: "", expires: "", days: "", notes: "" }] }, true);
-    setInsOpen((o) => ({ ...o, [id]: true }));
+  const insAddSub = () => { setInsAddDraft(blankInsAdd()); setInsShowAdd(true); };
+  const insSubmitAdd = () => {
+    const d = insAddDraft;
+    const checked = INS_COVERAGES.filter((c) => d.covs[c] && d.covs[c].checked);
+    if (!checked.length) { setToast("Select at least one coverage type"); return; }
+    const now = Date.now();
+    const newItems = checked.map((cov, i) => ({
+      id: "s" + (now + i) + Math.random().toString(36).slice(2, 6),
+      projNum: d.projNum, projName: d.projName, name: d.name,
+      coverage: cov, initialDate: d.initialDate,
+      expires: (d.covs[cov] && d.covs[cov].expires) || "",
+      days: d.days === "" ? "" : +d.days, notes: d.notes,
+    }));
+    insSet({ ...insData, subs: [...(insData.subs || []), ...newItems] }, true);
+    setInsShowAdd(false);
+    // open the company group so the new items are visible
+    if (d.name.trim()) setInsOpenCo((o) => ({ ...o, [d.name.trim()]: true }));
+    setToast("Added " + newItems.length + " " + (newItems.length === 1 ? "policy" : "policies"));
   };
   const insDelSub = (id) => insSet({ ...insData, subs: (insData.subs || []).filter((s) => s.id !== id) }, true);
   const insCoKey = (s) => (s.name || "").trim() || "(unnamed)";
@@ -6415,6 +6436,44 @@ function FollowUpDesk() {
                   <button className="fd-btn ghost sm" onClick={insAddSub}><Plus size={14} /> Add</button>
                 </span>
               </div>
+              {insShowAdd && (
+                <div className="fd-ins-addbody">
+                  <div className="fd-ins-grid">
+                    <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={insAddDraft.projNum} placeholder="e.g. 2024-01" onChange={(e) => { const v=e.target.value; const nm=insProjMap[v.trim()]||insAddDraft.projName; setInsAddDraft((d)=>({...d,projNum:v,projName:nm})); }} /></div>
+                    <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={insAddDraft.projName} placeholder="Project name" onChange={(e) => setInsAddDraft((d)=>({...d,projName:e.target.value}))} /></div>
+                    <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={insAddDraft.name} placeholder="Company name" onChange={(e) => setInsAddDraft((d)=>({...d,name:e.target.value}))} /></div>
+                    <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={insAddDraft.initialDate} onChange={(e) => setInsAddDraft((d)=>({...d,initialDate:e.target.value}))} /></div>
+                    <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={insAddDraft.days} placeholder={String(insData.notifyDays||30)} onChange={(e) => setInsAddDraft((d)=>({...d,days:e.target.value}))} /></div>
+                    <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={insAddDraft.notes} placeholder="Optional" onChange={(e) => setInsAddDraft((d)=>({...d,notes:e.target.value}))} /></div>
+                  </div>
+                  <div className="fd-label" style={{ marginTop: 12 }}>Coverage types &amp; expiration dates</div>
+                  <p className="fd-hint" style={{ fontSize: 12, margin: "2px 0 8px" }}>Select every coverage this subcontractor carries — each one becomes its own tracked policy.</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {INS_COVERAGES.map((cov) => {
+                      const chk = !!(insAddDraft.covs[cov] && insAddDraft.covs[cov].checked);
+                      const exp = (insAddDraft.covs[cov] && insAddDraft.covs[cov].expires) || "";
+                      return (
+                        <div key={cov} className="fd-ins-cov-row">
+                          <label className="fd-ins-cov-lbl">
+                            <input type="checkbox" checked={chk} onChange={(e) => setInsAddDraft((d) => ({ ...d, covs: { ...d.covs, [cov]: { checked: e.target.checked, expires: exp } } }))} />
+                            <span>{cov}</span>
+                          </label>
+                          {chk && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <label className="fd-label" style={{ margin: 0, whiteSpace: "nowrap" }}>Expires</label>
+                              <input className="fd-acct-in" type="date" value={exp} onChange={(e) => setInsAddDraft((d) => ({ ...d, covs: { ...d.covs, [cov]: { checked: true, expires: e.target.value } } }))} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                    <button className="fd-btn primary" onClick={insSubmitAdd}><Plus size={14} /> Add {INS_COVERAGES.filter((c)=>insAddDraft.covs[c]&&insAddDraft.covs[c].checked).length||""} {INS_COVERAGES.filter((c)=>insAddDraft.covs[c]&&insAddDraft.covs[c].checked).length===1?"policy":"policies"}</button>
+                    <button className="fd-btn ghost" onClick={() => setInsShowAdd(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
               {insSelMode && (
                 <div className="fd-ins-bulkbar">
                   <span>{insSelectedCos.length} selected</span>
