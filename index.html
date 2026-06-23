@@ -2568,6 +2568,64 @@ function OddsPanel({ game }) {
   );
 }
 
+// Per-policy form with LOCAL state so typing into any field doesn't cause the
+// parent to re-group and collapse the card mid-keystroke. Only flushes to the
+// shared insData tree on blur (or when the project-# lookup fills the name).
+function InsSubForm({ sub, projMap, onSave, onDelete, isInsManager, noteDraft, onNoteDraftChange, onAddNote, onDelNote }) {
+  const [d, setD] = React.useState({ ...sub });
+  // If another field on this same card is saved by the parent (e.g. a blur on
+  // a different input), sync any fields that haven't been touched locally.
+  const subRef = React.useRef(sub);
+  React.useEffect(() => {
+    if (sub !== subRef.current) { subRef.current = sub; setD((prev) => ({ ...sub, ...prev, name: prev.name, projNum: prev.projNum, projName: prev.projName })); }
+  }, [sub]);
+  const set = (k, v) => setD((prev) => ({ ...prev, [k]: v }));
+  const commit = () => onSave(d);
+  const handleProjNum = (v) => {
+    const name = projMap[v.trim()] || d.projName;
+    setD((prev) => ({ ...prev, projNum: v, projName: name }));
+  };
+  return (
+    <>
+      <div className="fd-ins-grid">
+        <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={d.projNum || ""} onChange={(e) => handleProjNum(e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={d.projName || ""} onChange={(e) => set("projName", e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={d.name || ""} onChange={(e) => set("name", e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={d.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => set("coverage", e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={d.initialDate || ""} onChange={(e) => { set("initialDate", e.target.value); }} onBlur={commit} /></div>
+        <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={d.expires || ""} onChange={(e) => { set("expires", e.target.value); }} onBlur={commit} /></div>
+        <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(d.days === "" || d.days == null) ? "" : d.days} placeholder="30" onChange={(e) => set("days", e.target.value === "" ? "" : +e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={d.notes || ""} onChange={(e) => set("notes", e.target.value)} onBlur={commit} /></div>
+      </div>
+      <div className="fd-td-block">
+        <div className="fd-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Tony_Dark Notes <span className="fd-count">{isInsManager ? "manager only" : "view only"}</span></div>
+        {(sub.tdNotes || []).length === 0 ? (
+          <p className="fd-hint" style={{ fontSize: 12, margin: "4px 0 0" }}>No notes on this policy yet.{isInsManager ? "" : " Only the insurance manager can add notes."}</p>
+        ) : (
+          <div className="fd-tdnotes" style={{ marginTop: 6 }}>
+            {[...(sub.tdNotes || [])].sort((a, b) => b.at - a.at).map((nte) => (
+              <div className="fd-tdnote" key={nte.id}>
+                <div className="fd-tdnote-meta">
+                  <span>{nte.by ? String(nte.by).split("@")[0] : "manager"} · {new Date(nte.at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
+                  {isInsManager && <button className="fd-tdnote-x" title="Delete note" onClick={() => onDelNote(nte.id)}><X size={12} /></button>}
+                </div>
+                <div className="fd-tdnote-text">{nte.text}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {isInsManager && (
+          <div style={{ marginTop: 8 }}>
+            <textarea className="fd-input" rows={2} placeholder="Add a note to this policy…" value={noteDraft || ""} onChange={(e) => onNoteDraftChange(e.target.value)} />
+            <button className="fd-btn primary sm" style={{ marginTop: 8 }} disabled={!(noteDraft || "").trim()} onClick={onAddNote}><Plus size={14} /> Add note</button>
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 10 }}><button className="fd-link-danger" onClick={onDelete}><Trash2 size={14} /> Remove this policy</button></div>
+    </>
+  );
+}
+
 function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -2817,6 +2875,8 @@ function FollowUpDesk() {
   // distinct jobs (project) and companies for the filters
   const insJobs = Array.from(new Set((insData.subs || []).map((s) => [s.projNum, s.projName].filter(Boolean).join(" ")).filter(Boolean))).sort();
   const insCompanies = Array.from(new Set((insData.subs || []).map((s) => (s.name || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  // projNum → projName lookup used by InsSubForm to auto-populate the name field
+  const insProjMap = (() => { const m = {}; (insData.subs || []).forEach((s) => { if (s.projNum && s.projName) m[s.projNum.trim()] = s.projName; }); return m; })();
   // search + status + job + company filters, then sort
   const insSubsView = (() => {
     const ORDER = { expired: 0, soon: 1, ok: 2, none: 3 };
@@ -6431,41 +6491,17 @@ function FollowUpDesk() {
                                         </div>
                                         {iopen && (
                                           <div className="fd-usps-detail">
-                                            <div className="fd-ins-grid">
-                                              <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={s.projNum || ""} onChange={(e) => insUpdateSub(s.id, { projNum: e.target.value })} onBlur={insCommit} /></div>
-                                              <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={s.projName || ""} onChange={(e) => insUpdateSub(s.id, { projName: e.target.value })} onBlur={insCommit} /></div>
-                                              <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={s.name || ""} onChange={(e) => insUpdateSub(s.id, { name: e.target.value })} onBlur={insCommit} /></div>
-                                              <div><label className="fd-label">Coverage</label><input className="fd-acct-in" value={s.coverage || ""} placeholder="GL, WC, Auto" onChange={(e) => insUpdateSub(s.id, { coverage: e.target.value })} onBlur={insCommit} /></div>
-                                              <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={s.initialDate || ""} onChange={(e) => insUpdateSub(s.id, { initialDate: e.target.value })} onBlur={insCommit} /></div>
-                                              <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={s.expires || ""} onChange={(e) => insUpdateSub(s.id, { expires: e.target.value })} onBlur={insCommit} /></div>
-                                              <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={(s.days === "" || s.days == null) ? "" : s.days} placeholder={String(insData.notifyDays || 30)} onChange={(e) => insUpdateSub(s.id, { days: e.target.value === "" ? "" : +e.target.value })} onBlur={insCommit} /></div>
-                                              <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={s.notes || ""} onChange={(e) => insUpdateSub(s.id, { notes: e.target.value })} onBlur={insCommit} /></div>
-                                            </div>
-                                            <div className="fd-td-block">
-                                              <div className="fd-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Tony_Dark Notes <span className="fd-count">{isInsManager ? "manager only" : "view only"}</span></div>
-                                              {(s.tdNotes || []).length === 0 ? (
-                                                <p className="fd-hint" style={{ fontSize: 12, margin: "4px 0 0" }}>No notes on this policy yet.{isInsManager ? "" : " Only the insurance manager can add notes."}</p>
-                                              ) : (
-                                                <div className="fd-tdnotes" style={{ marginTop: 6 }}>
-                                                  {[...(s.tdNotes || [])].sort((a, b) => b.at - a.at).map((nte) => (
-                                                    <div className="fd-tdnote" key={nte.id}>
-                                                      <div className="fd-tdnote-meta">
-                                                        <span>{nte.by ? String(nte.by).split("@")[0] : "manager"} · {new Date(nte.at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
-                                                        {isInsManager && <button className="fd-tdnote-x" title="Delete note" onClick={() => insDelNote(s.id, nte.id)}><X size={12} /></button>}
-                                                      </div>
-                                                      <div className="fd-tdnote-text">{nte.text}</div>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              )}
-                                              {isInsManager && (
-                                                <div style={{ marginTop: 8 }}>
-                                                  <textarea className="fd-input" rows={2} placeholder="Add a note to this policy…" value={insNoteDraft[s.id] || ""} onChange={(e) => { const v = e.target.value; setInsNoteDraft((d) => ({ ...d, [s.id]: v })); }} />
-                                                  <button className="fd-btn primary sm" style={{ marginTop: 8 }} disabled={!(insNoteDraft[s.id] || "").trim()} onClick={() => insAddNote(s.id)}><Plus size={14} /> Add note</button>
-                                                </div>
-                                              )}
-                                            </div>
-                                            <div style={{ marginTop: 10 }}><button className="fd-link-danger" onClick={() => insDelSub(s.id)}><Trash2 size={14} /> Remove this policy</button></div>
+                                            <InsSubForm
+                                              sub={s}
+                                              projMap={insProjMap}
+                                              onSave={(patch) => { insUpdateSub(s.id, patch); insWrite({ ...insData, subs: (insData.subs || []).map((x) => (x.id === s.id ? { ...x, ...patch } : x)) }); }}
+                                              onDelete={() => insDelSub(s.id)}
+                                              isInsManager={isInsManager}
+                                              noteDraft={insNoteDraft[s.id] || ""}
+                                              onNoteDraftChange={(v) => setInsNoteDraft((d) => ({ ...d, [s.id]: v }))}
+                                              onAddNote={() => insAddNote(s.id)}
+                                              onDelNote={(noteId) => insDelNote(s.id, noteId)}
+                                            />
                                           </div>
                                         )}
                                       </div>
