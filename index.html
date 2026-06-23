@@ -2380,38 +2380,58 @@ function wcEventZone(kind, side, seed) {
   return { x: x, z: z, s: s };
 }
 
-// Approximate "live" play from ESPN's public commentary / key-events feed.
-// There is no per-player tracking in the free feed, so we map recent match events
-// (goal, shot, corner, free kick, save, …) to pitch zones and take a recency-
-// weighted average — a stable possession point reflecting sustained pressure
-// rather than one ping. Honest event-driven approximation, not GPS tracking.
+// Normalise one raw ESPN play/event into a common shape. Handles the field names
+// the full play-by-play (summary.plays), keyEvents, and commentary each use, and
+// captures field coordinates when ESPN attaches them to a play.
+function wcNormPlay(e, i, sideOf) {
+  const tp = (e.type && (e.type.text || e.type.name)) || "";
+  const body = e.text || e.shortText || (e.time ? "" : tp);
+  const clock = (e.clock && (e.clock.displayValue || (typeof e.clock === "string" ? e.clock : ""))) || (e.time && e.time.displayValue) || "";
+  const seed = Number(e.sequenceNumber != null ? e.sequenceNumber : (e.sequence != null ? e.sequence : (e.id != null ? e.id : i))) || i;
+  // best-effort field position if present (rare on free soccer feeds) — many shapes
+  let coord = null;
+  const c = e.fieldPosition || e.coordinate || e.coordinates || (e.fieldPositionX != null ? { x: e.fieldPositionX, y: e.fieldPositionY } : null);
+  if (c && c.x != null && c.y != null) { let nx = +c.x, ny = +c.y; if (isFinite(nx) && isFinite(ny)) { if (nx > 1 || ny > 1) { nx /= 100; ny /= 100; } if (nx >= 0 && nx <= 1 && ny >= 0 && ny <= 1) coord = { x: nx, y: ny }; } }
+  return { kind: ((body || "") + " " + tp).toLowerCase(), side: (e.team && sideOf[String(e.team.id)]) || 0,
+    seed: seed, text: (clock ? clock + "  " : "") + (body || tp), coord: coord };
+}
+
+// Zone for one normalised play — true coordinates when available, else the
+// keyword-based zone. Coordinates assume ESPN's normalised pitch: x 0→1 from the
+// home goal to the away goal, y 0→1 across the width.
+function wcZoneForPlay(ev) {
+  if (ev.coord) {
+    const FW = 68, FH = 44;
+    return { x: Math.max(-FW / 2, Math.min(FW / 2, (ev.coord.x - 0.5) * FW)), z: Math.max(-FH / 2, Math.min(FH / 2, (ev.coord.y - 0.5) * FH)), s: ev.side || 1 };
+  }
+  return wcEventZone(ev.kind, ev.side, ev.seed);
+}
+
+// Approximate "live" play from ESPN's public play-by-play. Prefers the FULL play
+// list (summary.plays — every play), falling back to keyEvents then commentary.
+// There is no per-player tracking in the free feed, so we map recent plays to
+// pitch positions (real coordinates if ESPN provides them, else keyword zones)
+// and take a recency-weighted average — a stable possession point reflecting
+// sustained pressure rather than one ping. Honest approximation, not GPS tracking.
 function wcParseLiveFeed(summary) {
   try {
     if (!summary) return null;
     const comps = ((((summary.header || {}).competitions || [])[0]) || {}).competitors || [];
     const sideOf = {};
     comps.forEach((c) => { if (c && c.team) sideOf[String(c.team.id)] = c.homeAway === "home" ? 1 : -1; });
-    const seq = (e, i) => Number(e.sequence != null ? e.sequence : (e.id != null ? e.id : i)) || i;
-    let list = [];
-    const evs = summary.keyEvents;
-    if (Array.isArray(evs) && evs.length) {
-      list = evs.map((e, i) => {
-        const tp = (e.type && (e.type.text || e.type.name)) || "";
-        return { kind: ((e.text || "") + " " + tp).toLowerCase(), side: (e.team && sideOf[String(e.team.id)]) || 0,
-          seed: seq(e, i), text: ((e.clock && e.clock.displayValue) ? e.clock.displayValue + "  " : "") + (e.text || tp) };
-      });
-    } else if (Array.isArray(summary.commentary) && summary.commentary.length) {
-      list = summary.commentary.map((c, i) => ({ kind: (c.text || "").toLowerCase(), side: 0,
-        seed: seq(c, i), text: ((c.time && c.time.displayValue) ? c.time.displayValue + "  " : "") + (c.text || "") }));
-    } else return null;
-    list.sort((a, b) => a.seed - b.seed);
-    const recent = list.slice(-4);
+    let src = null;
+    if (Array.isArray(summary.plays) && summary.plays.length) src = summary.plays;
+    else if (Array.isArray(summary.keyEvents) && summary.keyEvents.length) src = summary.keyEvents;
+    else if (Array.isArray(summary.commentary) && summary.commentary.length) src = summary.commentary;
+    if (!src) return null;
+    const list = src.map((e, i) => wcNormPlay(e, i, sideOf)).sort((a, b) => a.seed - b.seed);
+    const recent = list.slice(-5);
     if (!recent.length) return null;
     let wx = 0, wz = 0, wsum = 0;
-    recent.forEach((ev, i) => { const w = i + 1; const z = wcEventZone(ev.kind, ev.side, ev.seed); wx += z.x * w; wz += z.z * w; wsum += w; });
+    recent.forEach((ev, i) => { const w = i + 1; const z = wcZoneForPlay(ev); wx += z.x * w; wz += z.z * w; wsum += w; });
     const last = recent[recent.length - 1];
-    const lz = wcEventZone(last.kind, last.side, last.seed);
-    return { zone: { x: wx / wsum, z: wz / wsum }, side: lz.s, text: last.text };
+    const lz = wcZoneForPlay(last);
+    return { zone: { x: wx / wsum, z: wz / wsum }, side: last.side || lz.s, text: last.text };
   } catch (e) { return null; }
 }
 
