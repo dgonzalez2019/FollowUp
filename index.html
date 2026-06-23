@@ -6419,7 +6419,7 @@ function FollowUpDesk() {
               flagged.sort((a, b) => (a.s.expires || "9999") < (b.s.expires || "9999") ? -1 : 1);
               const open = (s) => { setInsFilter("all"); setInsSearch(""); setInsJobFilter(""); setInsCompanyFilter(""); setInsOpenCo((o) => ({ ...o, [(s.name || "").trim() || "(unnamed)"]: true })); setInsOpen((o) => ({ ...o, [s.id]: true })); };
               return (
-                <details className="fd-disclose" open style={{ borderColor: hot ? "var(--danger)" : "#d99b2b" }}>
+                <details className="fd-disclose" style={{ borderColor: hot ? "var(--danger)" : "#d99b2b" }}>
                   <summary>
                     <ChevronRight size={14} className="fd-disclose-chev" />
                     <span style={{ color: hot ? "var(--danger)" : "#d99b2b", fontWeight: 700 }}>
