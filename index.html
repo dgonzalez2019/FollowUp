@@ -441,6 +441,9 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-tdnote-x:hover{color:var(--danger); background:var(--danger-soft);}
 .fd-tdnote-text{font-size:13.5px; color:var(--ink); white-space:pre-wrap; word-break:break-word;}
 .fd-td-block{margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
+.fd-autosug{position:absolute; top:100%; left:0; right:0; z-index:200; background:var(--surface); border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.18); overflow:hidden; margin-top:2px;}
+.fd-autosug-item{display:block; width:100%; text-align:left; background:none; border:none; padding:7px 11px; font-size:13px; color:var(--ink); cursor:pointer;}
+.fd-autosug-item:hover{background:var(--surface-2);}
 .fd-ins-addbody{padding:14px; border-bottom:1px solid var(--line); background:var(--surface-2);}
 .fd-ins-cov-row{display:flex; align-items:center; gap:16px; padding:6px 0; border-bottom:1px solid var(--line-soft);}
 .fd-ins-cov-lbl{display:flex; align-items:center; gap:8px; min-width:160px; font-size:13.5px; cursor:pointer; user-select:none;}
@@ -2571,6 +2574,39 @@ function OddsPanel({ game }) {
   );
 }
 
+// Free-text input with optional suggestion dropdown — always allows typing anything,
+// suggestions are just a convenience and disappear when focus leaves the field.
+function AutoInput({ value, onChange, onBlur, suggestions, placeholder, className, id }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  const filtered = React.useMemo(() => {
+    const q = (value || "").toLowerCase();
+    if (!q) return (suggestions || []).slice(0, 8);
+    return (suggestions || []).filter((s) => s.toLowerCase().indexOf(q) >= 0).slice(0, 8);
+  }, [value, suggestions]);
+  React.useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input id={id} className={className} value={value || ""} placeholder={placeholder}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={(e) => { setTimeout(() => { setOpen(false); if (onBlur) onBlur(e); }, 150); }}
+        autoComplete="off" />
+      {open && filtered.length > 0 && (
+        <div className="fd-autosug">
+          {filtered.map((s) => (
+            <button key={s} className="fd-autosug-item" type="button" onMouseDown={(e) => { e.preventDefault(); onChange(s); setOpen(false); }}>{s}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Per-policy form with LOCAL state so typing into any field doesn't cause the
 // parent to re-group and collapse the card mid-keystroke. Only flushes to the
 // shared insData tree on blur (or when the project-# lookup fills the name).
@@ -2589,12 +2625,10 @@ function InsSubForm({ sub, projMap, companies, projNums, onSave, onDelete, isIns
   };
   return (
     <>
-      <datalist id={"isc-" + fid}>{(companies||[]).map((c) => <option key={c} value={c} />)}</datalist>
-      <datalist id={"isp-" + fid}>{(projNums||[]).map((n) => <option key={n} value={n} />)}</datalist>
       <div className="fd-ins-grid">
-        <div><label className="fd-label">Project #</label><input className="fd-acct-in" list={"isp-" + fid} value={d.projNum || ""} onChange={(e) => handleProjNum(e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Project #</label><AutoInput className="fd-acct-in" value={d.projNum || ""} suggestions={projNums} onChange={handleProjNum} onBlur={commit} /></div>
         <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={d.projName || ""} onChange={(e) => set("projName", e.target.value)} onBlur={commit} /></div>
-        <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" list={"isc-" + fid} value={d.name || ""} onChange={(e) => set("name", e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Subcontractor</label><AutoInput className="fd-acct-in" value={d.name || ""} suggestions={companies} onChange={(v) => set("name", v)} onBlur={commit} /></div>
         <div><label className="fd-label">Coverage</label><select className="fd-acct-in" value={d.coverage || ""} onChange={(e) => { set("coverage", e.target.value); }} onBlur={commit}><option value="">— select —</option>{["General Liability","Automobile","Umbrella","Worker's Comp"].map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
         <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={d.initialDate || ""} onChange={(e) => { set("initialDate", e.target.value); }} onBlur={commit} /></div>
         <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={d.expires || ""} onChange={(e) => { set("expires", e.target.value); }} onBlur={commit} /></div>
@@ -6441,13 +6475,10 @@ function FollowUpDesk() {
               </div>
               {insShowAdd && (
                 <div className="fd-ins-addbody">
-                  {/* datalists for autocomplete */}
-                  <datalist id="ins-sub-list">{insCompanies.map((c) => <option key={c} value={c} />)}</datalist>
-                  <datalist id="ins-proj-list">{insProjNums.map((n) => <option key={n} value={n} />)}</datalist>
                   <div className="fd-ins-grid">
-                    <div><label className="fd-label">Project #</label><input className="fd-acct-in" list="ins-proj-list" value={insAddDraft.projNum} placeholder="e.g. 2024-01" onChange={(e) => { const v=e.target.value; const nm=insProjMap[v.trim()]||insAddDraft.projName; setInsAddDraft((d)=>({...d,projNum:v,projName:nm})); }} /></div>
+                    <div><label className="fd-label">Project #</label><AutoInput className="fd-acct-in" value={insAddDraft.projNum} placeholder="e.g. 2024-01" suggestions={insProjNums} onChange={(v) => { const nm=insProjMap[v.trim()]||insAddDraft.projName; setInsAddDraft((d)=>({...d,projNum:v,projName:nm})); }} /></div>
                     <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={insAddDraft.projName} placeholder="Project name" onChange={(e) => setInsAddDraft((d)=>({...d,projName:e.target.value}))} /></div>
-                    <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" list="ins-sub-list" value={insAddDraft.name} placeholder="Company name" onChange={(e) => setInsAddDraft((d)=>({...d,name:e.target.value}))} /></div>
+                    <div><label className="fd-label">Subcontractor</label><AutoInput className="fd-acct-in" value={insAddDraft.name} placeholder="Company name" suggestions={insCompanies} onChange={(v) => setInsAddDraft((d)=>({...d,name:v}))} /></div>
                     <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={insAddDraft.days} placeholder={String(insData.notifyDays||30)} onChange={(e) => setInsAddDraft((d)=>({...d,days:e.target.value}))} /></div>
                     <div style={{ gridColumn: "span 2" }}><label className="fd-label">Notes</label><input className="fd-acct-in" value={insAddDraft.notes} placeholder="Optional" onChange={(e) => setInsAddDraft((d)=>({...d,notes:e.target.value}))} /></div>
                   </div>
