@@ -2704,6 +2704,7 @@ function FollowUpDesk() {
   const blankInsAdd = () => ({ projNum: "", projName: "", name: "", days: "", notes: "", covs: {} });
   const [insShowAdd, setInsShowAdd] = useState(false);
   const [insAddDraft, setInsAddDraft] = useState(blankInsAdd());
+  const [insShowReminderSettings, setInsShowReminderSettings] = useState(false);
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
   const zoomTimerRef = useRef(null);
   const introStartedRef = useRef(false);
@@ -6440,39 +6441,45 @@ function FollowUpDesk() {
                 </details>
               );
             })()}
-            <div className="fd-panel">
-              <div className="fd-panel-head">Reminder settings</div>
-              <label className="fd-label">Notify these people (by email)</label>
-              {(insData.recipients || []).length === 0 ? (
-                <p className="fd-hint" style={{ fontSize: 12.5, margin: "2px 0 0" }}>No one will be emailed yet{isAcctManager ? " — add at least one address below." : ". Ask an accounting manager to add recipients."}</p>
-              ) : (
-                <div className="fd-ins-chips">
-                  {(insData.recipients || []).map((em) => (
-                    <span className="fd-ins-chip" key={em}>{em}{isAcctManager ? <button title="Remove" onClick={() => insDelRecipient(em)}><X size={13} /></button> : null}</span>
-                  ))}
-                </div>
-              )}
-              {isAcctManager && (
-                <div className="fd-admin-addtab" style={{ marginTop: 10 }}>
-                  <input className="fd-input" placeholder="name@bdico.com" value={insNewRecipient} onChange={(e) => setInsNewRecipient(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") insAddRecipient(); }} />
-                  <button className="fd-btn primary" onClick={insAddRecipient}>Add</button>
-                </div>
-              )}
-              <label className="fd-label" style={{ marginTop: 14 }}>Default reminder lead time</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input className="fd-input short" style={{ maxWidth: 90 }} type="number" min="1" value={insData.notifyDays || 30} disabled={!isAcctManager}
-                  onChange={(e) => insSet({ ...insData, notifyDays: e.target.value === "" ? 30 : +e.target.value }, false)} onBlur={insCommit} />
-                <span className="fd-hint" style={{ fontSize: 12.5 }}>days before expiry (a subcontractor can override this below)</span>
-              </div>
-            </div>
             <div className="fd-panel" style={{ padding: 0, overflow: "hidden" }}>
               <div className="fd-panel-head" style={{ padding: "12px 14px", margin: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>Subcontractors <span className="fd-count">{insCompanies.length} cos · {(insData.subs || []).length} policies</span>
-                <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
                   {(insData.subs || []).length > 0 && <button className={"fd-btn ghost sm" + (insSelMode ? " active" : "")} onClick={() => (insSelMode ? insExitSelect() : setInsSelMode(true))}>{insSelMode ? "Cancel" : "Select"}</button>}
                   {isAcctManager && <><input ref={insImportRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={insImportFile} /><button className="fd-btn ghost sm" onClick={() => insImportRef.current && insImportRef.current.click()}><FileText size={14} /> Import log (.xlsx)</button></>}
                   <button className="fd-btn ghost sm" onClick={insAddSub}><Plus size={14} /> Add</button>
+                  <button className={"fd-icon-btn" + (insShowReminderSettings ? " active" : "")} title="Reminder settings" onClick={() => setInsShowReminderSettings((v) => !v)}><SettingsIcon size={16} /></button>
                 </span>
               </div>
+              {insShowReminderSettings && (
+                <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", background: "var(--surface-2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <span style={{ fontWeight: 600, fontSize: 13.5 }}>Reminder settings</span>
+                    <button className="fd-icon-btn sm" onClick={() => setInsShowReminderSettings(false)}><X size={15} /></button>
+                  </div>
+                  <label className="fd-label">Notify these people (by email)</label>
+                  {(insData.recipients || []).length === 0 ? (
+                    <p className="fd-hint" style={{ fontSize: 12.5, margin: "2px 0 0" }}>No one will be emailed yet{isAcctManager ? " — add at least one address below." : ". Ask an accounting manager to add recipients."}</p>
+                  ) : (
+                    <div className="fd-ins-chips">
+                      {(insData.recipients || []).map((em) => (
+                        <span className="fd-ins-chip" key={em}>{em}{isAcctManager ? <button title="Remove" onClick={() => insDelRecipient(em)}><X size={13} /></button> : null}</span>
+                      ))}
+                    </div>
+                  )}
+                  {isAcctManager && (
+                    <div className="fd-admin-addtab" style={{ marginTop: 10 }}>
+                      <input className="fd-input" placeholder="name@bdico.com" value={insNewRecipient} onChange={(e) => setInsNewRecipient(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") insAddRecipient(); }} />
+                      <button className="fd-btn primary" onClick={insAddRecipient}>Add</button>
+                    </div>
+                  )}
+                  <label className="fd-label" style={{ marginTop: 14 }}>Default reminder lead time</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input className="fd-input short" style={{ maxWidth: 90 }} type="number" min="1" value={insData.notifyDays || 30} disabled={!isAcctManager}
+                      onChange={(e) => insSet({ ...insData, notifyDays: e.target.value === "" ? 30 : +e.target.value }, false)} onBlur={insCommit} />
+                    <span className="fd-hint" style={{ fontSize: 12.5 }}>days before expiry (a subcontractor can override this per-policy)</span>
+                  </div>
+                </div>
+              )}
               {insShowAdd && (
                 <div className="fd-ins-addbody">
                   <div className="fd-ins-grid">
