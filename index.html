@@ -410,6 +410,7 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-m3d-team{display:flex; align-items:center; gap:7px; font-weight:600; font-size:14px; color:#fff;}
 .fd-m3d-score{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:20px; color:#fff; min-width:64px; text-align:center; font-variant-numeric:tabular-nums;}
 .fd-m3d-status{position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#fff; background:rgba(4,5,7,.62); border:1px solid var(--line); border-radius:999px; padding:5px 12px;}
+.fd-m3d-feed{position:absolute; bottom:42px; left:50%; transform:translateX(-50%); max-width:86%; text-align:center; font-size:11.5px; color:#dfe6ec; background:rgba(4,5,7,.55); border:1px solid var(--line); border-radius:9px; padding:4px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .fd-res-row.sel{background:var(--accent-soft); border-radius:8px; box-shadow:inset 0 0 0 1px rgba(47,155,224,.45);}
 .fd-odds-row{display:flex; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px solid var(--line);}
 .fd-odds-row:last-of-type{border-bottom:none;}
@@ -2359,6 +2360,47 @@ function wcParseLineups(summary) {
   } catch (e) { return null; }
 }
 
+// Approximate "live" play from ESPN's public commentary / key-events feed.
+// There is no per-player tracking in the free feed, so we map the most recent
+// match event (goal, shot, corner, free kick, save, …) to a zone on the pitch
+// and drift the ball there. It's an honest approximation driven by real events,
+// not GPS tracking. Home attacks +x (away goal), away attacks -x.
+function wcParseLiveFeed(summary) {
+  try {
+    if (!summary) return null;
+    const comps = ((((summary.header || {}).competitions || [])[0]) || {}).competitors || [];
+    const sideOf = {};
+    comps.forEach((c) => { if (c && c.team) sideOf[String(c.team.id)] = c.homeAway === "home" ? 1 : -1; });
+    let kind = "", side = 0, text = "";
+    const evs = summary.keyEvents;
+    if (Array.isArray(evs) && evs.length) {
+      const e = evs[evs.length - 1];
+      const tp = (e.type && (e.type.text || e.type.name)) || "";
+      kind = ((e.text || "") + " " + tp).toLowerCase();
+      side = (e.team && sideOf[String(e.team.id)]) || 0;
+      const clock = (e.clock && e.clock.displayValue) || "";
+      text = (clock ? clock + "  " : "") + (e.text || tp);
+    } else if (Array.isArray(summary.commentary) && summary.commentary.length) {
+      const c = summary.commentary[summary.commentary.length - 1];
+      kind = (c.text || "").toLowerCase();
+      const clock = (c.time && c.time.displayValue) || "";
+      text = (clock ? clock + "  " : "") + (c.text || "");
+    } else return null;
+    const FW = 68, FH = 44, gx = FW / 2 - 4; // ~30, just outside the box
+    const s = side || (Math.random() < 0.5 ? 1 : -1);
+    const lat = () => (Math.random() * 2 - 1) * (FH / 2 - 8);
+    const has = (w) => kind.indexOf(w) >= 0;
+    let x, z = lat();
+    if (has("goal kick") || has("save") || has("keeper") || has("punches")) { x = -s * gx; }
+    else if (has("corner")) { x = s * (gx + 1); z = (Math.random() < 0.5 ? -1 : 1) * (FH / 2 - 3); }
+    else if (has("goal") || has("shot") || has("penalt") || has("header") || has("attempt") || has("blocked")) { x = s * gx; z = (Math.random() * 2 - 1) * 9; }
+    else if (has("free kick") || has("foul") || has("offside") || has("card") || has("book") || has("throw")) { x = s * 10; }
+    else if (has("kick-off") || has("kick off") || has("kickoff") || has("half") || has("substitut") || has("whistle") || has("full time") || has("delay") || has("var")) { x = 0; z = (Math.random() * 2 - 1) * 4; }
+    else { x = s * 6; }
+    return { zone: { x: x, z: z }, text: text, side: s };
+  } catch (e) { return null; }
+}
+
 function MatchView3D({ game }) {
   const sel = game || null;
   const selKey = sel ? sel.id : "";
@@ -2367,6 +2409,8 @@ function MatchView3D({ game }) {
   const [ready, setReady] = useState(typeof window !== "undefined" && !!window.THREE);
   const [err, setErr] = useState(false);
   const [lineups, setLineups] = useState(null);
+  const [feedText, setFeedText] = useState("");
+  const status = sel ? sel.status : "";
   useEffect(() => { stRef.current.game = sel; }, [sel]);
   useEffect(() => {
     if (!selKey) { setLineups(null); return; }
@@ -2375,6 +2419,18 @@ function MatchView3D({ game }) {
       .then((r) => r.json()).then((j) => { if (alive) setLineups(wcParseLineups(j)); }).catch(() => { if (alive) setLineups(null); });
     return () => { alive = false; };
   }, [selKey]);
+  // Poll the public play-by-play feed and drift the ball to the latest event's
+  // zone — refreshes every 20s while the match is live (one fetch otherwise).
+  useEffect(() => {
+    stRef.current.feedZone = null; setFeedText("");
+    if (!selKey) return;
+    let alive = true;
+    const pull = () => fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=" + encodeURIComponent(selKey))
+      .then((r) => r.json()).then((j) => { if (!alive) return; const f = wcParseLiveFeed(j); if (f) { stRef.current.feedZone = f.zone; setFeedText(f.text || ""); } }).catch(() => {});
+    pull();
+    const timer = status === "live" ? setInterval(pull, 20000) : null;
+    return () => { alive = false; if (timer) clearInterval(timer); };
+  }, [selKey, status]);
   useEffect(() => {
     if (window.THREE) { setReady(true); return; }
     let alive = true;
@@ -2475,8 +2531,20 @@ function MatchView3D({ game }) {
       const now = performance.now(), dt = (now - t0) / 1000; t0 = now;
       if (auto) { theta += dt * 0.15; apply(); }
       const g = st.game;
-      if (g && g.status === "live") { ball.position.x = Math.sin(now / 1300) * 18; ball.position.z = Math.cos(now / 900) * 10; ball.position.y = 0.9 + Math.abs(Math.sin(now / 500)) * 0.6; }
-      else { ball.position.set(0, 0.9, 0); }
+      if (g && g.status === "live") {
+        // Ease toward the latest event's zone (from the play-by-play feed), with
+        // a little wobble so possession looks alive between updates.
+        const tz = st.feedZone || { x: 0, z: 0 };
+        const wob = now / 600;
+        const tx = tz.x + Math.sin(wob) * 2.5, tzz = tz.z + Math.cos(wob * 1.3) * 2.5;
+        const k = Math.min(1, dt * 1.4);
+        ball.position.x += (tx - ball.position.x) * k;
+        ball.position.z += (tzz - ball.position.z) * k;
+        ball.position.y = 0.9 + Math.abs(Math.sin(now / 500)) * 0.5;
+      } else {
+        const k = Math.min(1, dt * 2);
+        ball.position.x += (0 - ball.position.x) * k; ball.position.z += (0 - ball.position.z) * k; ball.position.y = 0.9;
+      }
       if (g) { const h = g.hs || 0, a = g.as || 0; if (st.lastH != null && (h > st.lastH || a > st.lastA)) pulse = 1; st.lastH = h; st.lastA = a; }
       ball.scale.setScalar(pulse > 0 ? 1 + pulse * 2 : 1); if (pulse > 0) pulse = Math.max(0, pulse - dt * 1.2);
       renderer.render(scene, camera); raf = requestAnimationFrame(loop);
@@ -2501,6 +2569,7 @@ function MatchView3D({ game }) {
           <span className="fd-m3d-team">{wcLabel(sel.ac)}</span>
         </div>
         <div className="fd-m3d-status">{sel.status === "live" ? <><span className="fd-live-dot"></span>{sel.clock || "LIVE"}</> : sel.status === "final" ? "Full time" : (sel.date ? new Date(sel.date).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Scheduled")}</div>
+        {sel.status === "live" && feedText ? <div className="fd-m3d-feed" title="Latest play (ESPN commentary)">{feedText}</div> : null}
       </div>
       {lineups && (lineups.home || lineups.away) ? (
         <div className="fd-lineups">
@@ -2515,6 +2584,9 @@ function MatchView3D({ game }) {
         </div>
       ) : sel.status === "pre" ? (
         <p className="fd-hint" style={{ fontSize: 12, margin: "0 0 14px", textAlign: "center" }}>Showing a generic formation — starting lineups usually post about an hour before kickoff, then players snap to their real positions.</p>
+      ) : null}
+      {sel.status === "live" ? (
+        <p className="fd-hint" style={{ fontSize: 11.5, margin: "0 0 14px", textAlign: "center" }}>Ball position follows the live play-by-play feed (goals, shots, corners, free kicks…), refreshed every 20s. Players stay in their lineup formation — true per-player tracking isn't available in a free public feed.</p>
       ) : null}
     </>
   );
