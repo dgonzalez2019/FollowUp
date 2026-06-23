@@ -2497,57 +2497,102 @@ function MatchView3D({ game }) {
     grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(circ), lineMat));
     rect(14, 26, -FW / 2 + 7); rect(14, 26, FW / 2 - 7);
     scene.add(grp);
-    const goalMat = new THREE.MeshLambertMaterial({ color: 0xeceef0 });
-    [-FW / 2 - 0.3, FW / 2 + 0.3].forEach((x) => { const g = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4, 9), goalMat); g.position.set(x, 2, 0); scene.add(g); });
+    // Goals with real depth: round posts + crossbar, slanted back stanchions, and
+    // a netted box (back / top / two sides) drawn from a generated net texture.
+    const postMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.35, metalness: 0.1 });
+    const netTex = (() => {
+      try {
+        const cv = document.createElement("canvas"); cv.width = 64; cv.height = 64; const c = cv.getContext("2d");
+        c.clearRect(0, 0, 64, 64); c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 1.4;
+        for (let i = 0; i <= 64; i += 8) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, 64); c.stroke(); c.beginPath(); c.moveTo(0, i); c.lineTo(64, i); c.stroke(); }
+        const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+      } catch (e) { return null; }
+    })();
+    const GW = 9, GH = 4, GD = 4.5, PR = 0.18; // goal width, height, depth, post radius
+    const makeGoal = (sign) => {
+      const gx = sign * (FW / 2), bx = gx + sign * GD; // goal line x, back x (away from pitch)
+      const post = (z, r, h, x, y) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 12), postMat); m.position.set(x, y, z); scene.add(m); };
+      post(-GW / 2, PR, GH, gx, GH / 2); post(GW / 2, PR, GH, gx, GH / 2);           // front posts
+      post(-GW / 2, PR * 0.7, GH * 0.6, bx, GH * 0.3); post(GW / 2, PR * 0.7, GH * 0.6, bx, GH * 0.3); // back stanchions
+      const cb = new THREE.Mesh(new THREE.CylinderGeometry(PR, PR, GW + PR * 2, 12), postMat); cb.rotation.x = Math.PI / 2; cb.position.set(gx, GH, 0); scene.add(cb); // crossbar
+      if (netTex) {
+        const nm = () => new THREE.MeshBasicMaterial({ map: netTex.clone(), transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+        const back = new THREE.Mesh(new THREE.PlaneGeometry(GW, GH), nm()); back.rotation.y = Math.PI / 2; back.position.set(bx, GH / 2, 0); scene.add(back);
+        const top = new THREE.Mesh(new THREE.PlaneGeometry(GD, GW), nm()); top.rotation.x = -Math.PI / 2; top.position.set(gx + sign * GD / 2, GH, 0); scene.add(top);
+        [-GW / 2, GW / 2].forEach((z) => { const side = new THREE.Mesh(new THREE.PlaneGeometry(GD, GH), nm()); side.position.set(gx + sign * GD / 2, GH / 2, z); scene.add(side); });
+      }
+    };
+    makeGoal(-1); makeGoal(1);
     const endMat = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.12 });
     const eH = new THREE.Mesh(new THREE.PlaneGeometry(14, FH), endMat(0x2f9be0)); eH.rotation.x = -Math.PI / 2; eH.position.set(-FW / 2 + 7, 0.01, 0); scene.add(eH);
     const eA = new THREE.Mesh(new THREE.PlaneGeometry(14, FH), endMat(0xe06149)); eA.rotation.x = -Math.PI / 2; eA.position.set(FW / 2 - 7, 0.01, 0); scene.add(eA);
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
     ball.position.set(0, 0.9, 0); scene.add(ball);
-    // Players placed in their real lineup/formation from the ESPN match summary
-    // (static — actual on-pitch tracking isn't in the feed). Falls back to a generic
-    // 4-3-3 only when lineups haven't been posted yet.
-    const pGeo = new THREE.CylinderGeometry(0.85, 0.85, 2.6, 12);
-    const headGeo = new THREE.SphereGeometry(0.75, 12, 10);
-    const makeNum = (txt) => {
-      try {
-        const cv = document.createElement("canvas"); cv.width = 64; cv.height = 64; const c2 = cv.getContext("2d");
-        c2.fillStyle = "#fff"; c2.font = "bold 42px sans-serif"; c2.textAlign = "center"; c2.textBaseline = "middle"; c2.fillText(String(txt), 32, 34);
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true })); sp.scale.set(4, 4, 1); return sp;
-      } catch (e) { return null; }
+    // Each player is a little round "button": their country flag clipped into a
+    // disc with the shirt number on top, standing on a small team-coloured base.
+    // The flag image (flagcdn, same source as the 2D flags) loads async and the
+    // button redraws when it arrives; until then it shows a team-colour disc.
+    const baseGeo = new THREE.CylinderGeometry(1.05, 1.2, 0.16, 20);
+    const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.9, 8);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0xcdd4da, roughness: 0.6 });
+    const hex = (c) => "#" + c.toString(16).padStart(6, "0");
+    const drawButton = (ctx, size, num, color, img) => {
+      const r = size / 2, ring = Math.max(3, size * 0.07);
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(r, r, r - ring, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+      if (img) { const sc = Math.max(size / img.width, size / img.height), dw = img.width * sc, dh = img.height * sc; ctx.drawImage(img, (size - dw) / 2, (size - dh) / 2, dw, dh); }
+      else { ctx.fillStyle = hex(color); ctx.fillRect(0, 0, size, size); }
+      ctx.fillStyle = "rgba(0,0,0,0.30)"; ctx.fillRect(0, 0, size, size); // dim for number contrast
+      ctx.restore();
+      ctx.lineWidth = ring; ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(r, r, r - ring / 2 - 1, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = Math.max(1.5, size * 0.02); ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.beginPath(); ctx.arc(r, r, r - ring, 0, Math.PI * 2); ctx.stroke();
+      if (num) {
+        ctx.font = "bold " + Math.round(size * 0.5) + "px Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.lineWidth = Math.max(3, size * 0.07); ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.strokeText(String(num), r, r + size * 0.02);
+        ctx.fillStyle = "#fff"; ctx.fillText(String(num), r, r + size * 0.02);
+      }
+    };
+    const makeFlagButton = (iso, num, color) => {
+      const size = 128, cv = document.createElement("canvas"); cv.width = cv.height = size; const ctx = cv.getContext("2d");
+      drawButton(ctx, size, num, color, null);
+      const tex = new THREE.CanvasTexture(cv);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true })); sp.scale.set(4.4, 4.4, 1);
+      if (iso) { const img = new Image(); img.crossOrigin = "anonymous"; img.onload = () => { try { drawButton(ctx, size, num, color, img); tex.needsUpdate = true; } catch (e) {} }; img.src = "https://flagcdn.com/w160/" + iso + ".png"; }
+      return sp;
+    };
+    const addPlayer = (grp, x, z, iso, color, num) => {
+      const base = new THREE.Mesh(baseGeo, new THREE.MeshStandardMaterial({ color: color, roughness: 0.55 })); base.position.set(x, 0.08, z); grp.add(base);
+      const pole = new THREE.Mesh(poleGeo, poleMat); pole.position.set(x, 1.05, z); grp.add(pole);
+      const btn = makeFlagButton(iso, num, color); btn.position.set(x, 2.7, z); grp.add(btn);
     };
     // Distance of each row from the centre line. The four rows sit clearly apart
     // and the forward line stays a few units inside its own half, so the two
     // teams (mirrored across centre) don't pile up over the ball at midfield.
     const XROW = [31, 21, 11, 4]; // GK, DEF, MID, FWD — distance from centre toward own goal
     const ZSPAN = FH / 2 - 4;     // spread each row across (almost) the full pitch width
+    const homeISO = (sel && WC_ISO[sel.hc]) || "", awayISO = (sel && WC_ISO[sel.ac]) || "";
     // Each team is its own group so the whole block can slide with the ball
     // (compactness) without disturbing the formation shape inside it.
     const homeGroup = new THREE.Group(), awayGroup = new THREE.Group();
     scene.add(homeGroup); scene.add(awayGroup);
-    const addPlayer = (grp, x, z, color, num) => {
-      const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.75 });
-      const body = new THREE.Mesh(pGeo, mat); body.position.set(x, 1.3, z); grp.add(body);
-      const head = new THREE.Mesh(headGeo, mat); head.position.set(x, 3.0, z); grp.add(head);
-      if (num) { const lbl = makeNum(num); if (lbl) { lbl.position.set(x, 4.7, z); grp.add(lbl); } }
-    };
-    const placeTeam = (grp, team, sign, color) => {
+    const placeTeam = (grp, team, sign, color, iso) => {
       if (!team) return;
       team.buckets.forEach((bucket, r) => {
         const n = bucket.length; if (!n) return;
         const x = XROW[Math.min(r, XROW.length - 1)] * sign * -1; // home(sign +1) on -x, away(-1) on +x
         bucket.forEach((pl, i) => {
           const z = (n === 1 ? 0 : (-1 + (2 * i) / (n - 1)) * ZSPAN) * sign;
-          addPlayer(grp, x, z, color, pl.num);
+          addPlayer(grp, x, z, iso, color, pl.num);
         });
       });
     };
     if (lineups && (lineups.home || lineups.away)) {
-      placeTeam(homeGroup, lineups.home, 1, 0x2f9be0); placeTeam(awayGroup, lineups.away, -1, 0xe06149);
+      placeTeam(homeGroup, lineups.home, 1, 0x2f9be0, homeISO); placeTeam(awayGroup, lineups.away, -1, 0xe06149, awayISO);
     } else {
       const FORM = [[-32, 0], [-24, -15], [-24, -5], [-24, 5], [-24, 15], [-14, -12], [-14, 0], [-14, 12], [-5, -10], [-5, 0], [-5, 10]];
-      FORM.forEach((p) => addPlayer(homeGroup, p[0], p[1], 0x2f9be0, ""));
-      FORM.forEach((p) => addPlayer(awayGroup, -p[0], p[1], 0xe06149, ""));
+      FORM.forEach((p) => addPlayer(homeGroup, p[0], p[1], homeISO, 0x2f9be0, ""));
+      FORM.forEach((p) => addPlayer(awayGroup, -p[0], p[1], awayISO, 0xe06149, ""));
     }
     // Faint ball trail — a few shrinking ghosts that read the ball's recent path.
     const trail = [];
