@@ -2574,26 +2574,27 @@ function OddsPanel({ game }) {
 // Per-policy form with LOCAL state so typing into any field doesn't cause the
 // parent to re-group and collapse the card mid-keystroke. Only flushes to the
 // shared insData tree on blur (or when the project-# lookup fills the name).
-function InsSubForm({ sub, projMap, onSave, onDelete, isInsManager, noteDraft, onNoteDraftChange, onAddNote, onDelNote }) {
+function InsSubForm({ sub, projMap, companies, projNums, onSave, onDelete, isInsManager, noteDraft, onNoteDraftChange, onAddNote, onDelNote }) {
   const [d, setD] = React.useState({ ...sub });
-  // If another field on this same card is saved by the parent (e.g. a blur on
-  // a different input), sync any fields that haven't been touched locally.
   const subRef = React.useRef(sub);
   React.useEffect(() => {
     if (sub !== subRef.current) { subRef.current = sub; setD((prev) => ({ ...sub, ...prev, name: prev.name, projNum: prev.projNum, projName: prev.projName })); }
   }, [sub]);
   const set = (k, v) => setD((prev) => ({ ...prev, [k]: v }));
   const commit = () => onSave(d);
+  const fid = sub.id;
   const handleProjNum = (v) => {
-    const name = projMap[v.trim()] || d.projName;
+    const name = (projMap && projMap[v.trim()]) || d.projName;
     setD((prev) => ({ ...prev, projNum: v, projName: name }));
   };
   return (
     <>
+      <datalist id={"isc-" + fid}>{(companies||[]).map((c) => <option key={c} value={c} />)}</datalist>
+      <datalist id={"isp-" + fid}>{(projNums||[]).map((n) => <option key={n} value={n} />)}</datalist>
       <div className="fd-ins-grid">
-        <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={d.projNum || ""} onChange={(e) => handleProjNum(e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Project #</label><input className="fd-acct-in" list={"isp-" + fid} value={d.projNum || ""} onChange={(e) => handleProjNum(e.target.value)} onBlur={commit} /></div>
         <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={d.projName || ""} onChange={(e) => set("projName", e.target.value)} onBlur={commit} /></div>
-        <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={d.name || ""} onChange={(e) => set("name", e.target.value)} onBlur={commit} /></div>
+        <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" list={"isc-" + fid} value={d.name || ""} onChange={(e) => set("name", e.target.value)} onBlur={commit} /></div>
         <div><label className="fd-label">Coverage</label><select className="fd-acct-in" value={d.coverage || ""} onChange={(e) => { set("coverage", e.target.value); }} onBlur={commit}><option value="">— select —</option>{["General Liability","Automobile","Umbrella","Worker's Comp"].map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
         <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={d.initialDate || ""} onChange={(e) => { set("initialDate", e.target.value); }} onBlur={commit} /></div>
         <div><label className="fd-label">Expires</label><input className="fd-acct-in" type="date" value={d.expires || ""} onChange={(e) => { set("expires", e.target.value); }} onBlur={commit} /></div>
@@ -2666,7 +2667,7 @@ function FollowUpDesk() {
   const [insNoteDraft, setInsNoteDraft] = useState({});
   const insImportRef = useRef(null);
   const INS_COVERAGES = ["General Liability", "Automobile", "Umbrella", "Worker's Comp"];
-  const blankInsAdd = () => ({ projNum: "", projName: "", name: "", initialDate: "", days: "", notes: "", covs: {} });
+  const blankInsAdd = () => ({ projNum: "", projName: "", name: "", days: "", notes: "", covs: {} });
   const [insShowAdd, setInsShowAdd] = useState(false);
   const [insAddDraft, setInsAddDraft] = useState(blankInsAdd());
   const [brKO, setBrKO] = useState({ stage: "R32", home: "", away: "", kick: "" });
@@ -2851,7 +2852,8 @@ function FollowUpDesk() {
     const newItems = checked.map((cov, i) => ({
       id: "s" + (now + i) + Math.random().toString(36).slice(2, 6),
       projNum: d.projNum, projName: d.projName, name: d.name,
-      coverage: cov, initialDate: d.initialDate,
+      coverage: cov,
+      initialDate: (d.covs[cov] && d.covs[cov].initialDate) || "",
       expires: (d.covs[cov] && d.covs[cov].expires) || "",
       days: d.days === "" ? "" : +d.days, notes: d.notes,
     }));
@@ -2896,6 +2898,7 @@ function FollowUpDesk() {
   // distinct jobs (project) and companies for the filters
   const insJobs = Array.from(new Set((insData.subs || []).map((s) => [s.projNum, s.projName].filter(Boolean).join(" ")).filter(Boolean))).sort();
   const insCompanies = Array.from(new Set((insData.subs || []).map((s) => (s.name || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const insProjNums = Array.from(new Set((insData.subs || []).map((s) => (s.projNum || "").trim()).filter(Boolean))).sort();
   // projNum → projName lookup used by InsSubForm to auto-populate the name field
   const insProjMap = (() => { const m = {}; (insData.subs || []).forEach((s) => { if (s.projNum && s.projName) m[s.projNum.trim()] = s.projName; }); return m; })();
   // search + status + job + company filters, then sort
@@ -6438,30 +6441,39 @@ function FollowUpDesk() {
               </div>
               {insShowAdd && (
                 <div className="fd-ins-addbody">
+                  {/* datalists for autocomplete */}
+                  <datalist id="ins-sub-list">{insCompanies.map((c) => <option key={c} value={c} />)}</datalist>
+                  <datalist id="ins-proj-list">{insProjNums.map((n) => <option key={n} value={n} />)}</datalist>
                   <div className="fd-ins-grid">
-                    <div><label className="fd-label">Project #</label><input className="fd-acct-in" value={insAddDraft.projNum} placeholder="e.g. 2024-01" onChange={(e) => { const v=e.target.value; const nm=insProjMap[v.trim()]||insAddDraft.projName; setInsAddDraft((d)=>({...d,projNum:v,projName:nm})); }} /></div>
+                    <div><label className="fd-label">Project #</label><input className="fd-acct-in" list="ins-proj-list" value={insAddDraft.projNum} placeholder="e.g. 2024-01" onChange={(e) => { const v=e.target.value; const nm=insProjMap[v.trim()]||insAddDraft.projName; setInsAddDraft((d)=>({...d,projNum:v,projName:nm})); }} /></div>
                     <div><label className="fd-label">Project name</label><input className="fd-acct-in" value={insAddDraft.projName} placeholder="Project name" onChange={(e) => setInsAddDraft((d)=>({...d,projName:e.target.value}))} /></div>
-                    <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" value={insAddDraft.name} placeholder="Company name" onChange={(e) => setInsAddDraft((d)=>({...d,name:e.target.value}))} /></div>
-                    <div><label className="fd-label">Initial date</label><input className="fd-acct-in" type="date" value={insAddDraft.initialDate} onChange={(e) => setInsAddDraft((d)=>({...d,initialDate:e.target.value}))} /></div>
+                    <div><label className="fd-label">Subcontractor</label><input className="fd-acct-in" list="ins-sub-list" value={insAddDraft.name} placeholder="Company name" onChange={(e) => setInsAddDraft((d)=>({...d,name:e.target.value}))} /></div>
                     <div><label className="fd-label">Notice (days)</label><input className="fd-acct-in fd-acct-num" type="number" min="1" value={insAddDraft.days} placeholder={String(insData.notifyDays||30)} onChange={(e) => setInsAddDraft((d)=>({...d,days:e.target.value}))} /></div>
-                    <div><label className="fd-label">Notes</label><input className="fd-acct-in" value={insAddDraft.notes} placeholder="Optional" onChange={(e) => setInsAddDraft((d)=>({...d,notes:e.target.value}))} /></div>
+                    <div style={{ gridColumn: "span 2" }}><label className="fd-label">Notes</label><input className="fd-acct-in" value={insAddDraft.notes} placeholder="Optional" onChange={(e) => setInsAddDraft((d)=>({...d,notes:e.target.value}))} /></div>
                   </div>
-                  <div className="fd-label" style={{ marginTop: 12 }}>Coverage types &amp; expiration dates</div>
-                  <p className="fd-hint" style={{ fontSize: 12, margin: "2px 0 8px" }}>Select every coverage this subcontractor carries — each one becomes its own tracked policy.</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div className="fd-label" style={{ marginTop: 12 }}>Coverage types, initial &amp; expiration dates</div>
+                  <p className="fd-hint" style={{ fontSize: 12, margin: "2px 0 8px" }}>Check each coverage this subcontractor carries — each gets its own initial and expiration date and becomes its own tracked policy.</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                     {INS_COVERAGES.map((cov) => {
-                      const chk = !!(insAddDraft.covs[cov] && insAddDraft.covs[cov].checked);
-                      const exp = (insAddDraft.covs[cov] && insAddDraft.covs[cov].expires) || "";
+                      const cv = insAddDraft.covs[cov] || {};
+                      const chk = !!cv.checked;
+                      const setCov = (patch) => setInsAddDraft((d) => ({ ...d, covs: { ...d.covs, [cov]: { ...cv, ...patch } } }));
                       return (
                         <div key={cov} className="fd-ins-cov-row">
                           <label className="fd-ins-cov-lbl">
-                            <input type="checkbox" checked={chk} onChange={(e) => setInsAddDraft((d) => ({ ...d, covs: { ...d.covs, [cov]: { checked: e.target.checked, expires: exp } } }))} />
+                            <input type="checkbox" checked={chk} onChange={(e) => setCov({ checked: e.target.checked })} />
                             <span>{cov}</span>
                           </label>
                           {chk && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <label className="fd-label" style={{ margin: 0, whiteSpace: "nowrap" }}>Expires</label>
-                              <input className="fd-acct-in" type="date" value={exp} onChange={(e) => setInsAddDraft((d) => ({ ...d, covs: { ...d.covs, [cov]: { checked: true, expires: e.target.value } } }))} />
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                <label className="fd-label" style={{ margin: 0, whiteSpace: "nowrap" }}>Initial</label>
+                                <input className="fd-acct-in" type="date" value={cv.initialDate || ""} onChange={(e) => setCov({ initialDate: e.target.value })} />
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                <label className="fd-label" style={{ margin: 0, whiteSpace: "nowrap" }}>Expires</label>
+                                <input className="fd-acct-in" type="date" value={cv.expires || ""} onChange={(e) => setCov({ expires: e.target.value })} />
+                              </div>
                             </div>
                           )}
                         </div>
@@ -6469,7 +6481,7 @@ function FollowUpDesk() {
                     })}
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                    <button className="fd-btn primary" onClick={insSubmitAdd}><Plus size={14} /> Add {INS_COVERAGES.filter((c)=>insAddDraft.covs[c]&&insAddDraft.covs[c].checked).length||""} {INS_COVERAGES.filter((c)=>insAddDraft.covs[c]&&insAddDraft.covs[c].checked).length===1?"policy":"policies"}</button>
+                    {(() => { const n=INS_COVERAGES.filter((c)=>insAddDraft.covs[c]&&insAddDraft.covs[c].checked).length; return <button className="fd-btn primary" onClick={insSubmitAdd}><Plus size={14} /> Add {n||""} {n===1?"policy":"policies"}</button>; })()}
                     <button className="fd-btn ghost" onClick={() => setInsShowAdd(false)}>Cancel</button>
                   </div>
                 </div>
@@ -6553,6 +6565,8 @@ function FollowUpDesk() {
                                             <InsSubForm
                                               sub={s}
                                               projMap={insProjMap}
+                                              companies={insCompanies}
+                                              projNums={insProjNums}
                                               onSave={(patch) => { insUpdateSub(s.id, patch); insWrite({ ...insData, subs: (insData.subs || []).map((x) => (x.id === s.id ? { ...x, ...patch } : x)) }); }}
                                               onDelete={() => insDelSub(s.id)}
                                               isInsManager={isInsManager}
