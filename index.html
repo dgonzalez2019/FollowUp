@@ -2360,44 +2360,58 @@ function wcParseLineups(summary) {
   } catch (e) { return null; }
 }
 
+// Map one match event to a pitch zone. Deterministic (seeded jitter, no Math.random)
+// so the same event always lands in the same spot and the recency-weighted average
+// below stays stable. Home attacks +x (away goal), away attacks -x.
+function wcEventZone(kind, side, seed) {
+  const FW = 68, FH = 44, gx = FW / 2 - 4; // ~30, just outside the box
+  const s = side || ((seed % 2) ? 1 : -1);
+  const j = ((Math.abs(seed * 2654435761) % 1000) / 1000) * 2 - 1; // stable -1..1
+  const has = (w) => kind.indexOf(w) >= 0;
+  let x, z = j * (FH / 2 - 8);
+  if (has("goal kick") || has("punches") || has("claimed") || has("clearance")) { x = -s * gx; }
+  else if (has("corner")) { x = s * (gx + 1); z = (j < 0 ? -1 : 1) * (FH / 2 - 3); }
+  // A "save"/"attempt saved" is credited to the attacking team, so it belongs near
+  // the opponent goal alongside shots — not at the shooter's own end.
+  else if (has("save") || has("shot") || has("goal") || has("penalt") || has("header") || has("attempt") || has("blocked") || has("post") || has("crossbar")) { x = s * gx; z = j * 9; }
+  else if (has("free kick") || has("foul") || has("offside") || has("card") || has("book") || has("throw") || has("hand ball") || has("handball")) { x = s * 10; }
+  else if (has("kick-off") || has("kick off") || has("kickoff") || has("half") || has("substitut") || has("whistle") || has("full time") || has("full-time") || has("delay") || has("var") || has("injury")) { x = 0; z = j * 4; }
+  else { x = s * 6; }
+  return { x: x, z: z, s: s };
+}
+
 // Approximate "live" play from ESPN's public commentary / key-events feed.
-// There is no per-player tracking in the free feed, so we map the most recent
-// match event (goal, shot, corner, free kick, save, …) to a zone on the pitch
-// and drift the ball there. It's an honest approximation driven by real events,
-// not GPS tracking. Home attacks +x (away goal), away attacks -x.
+// There is no per-player tracking in the free feed, so we map recent match events
+// (goal, shot, corner, free kick, save, …) to pitch zones and take a recency-
+// weighted average — a stable possession point reflecting sustained pressure
+// rather than one ping. Honest event-driven approximation, not GPS tracking.
 function wcParseLiveFeed(summary) {
   try {
     if (!summary) return null;
     const comps = ((((summary.header || {}).competitions || [])[0]) || {}).competitors || [];
     const sideOf = {};
     comps.forEach((c) => { if (c && c.team) sideOf[String(c.team.id)] = c.homeAway === "home" ? 1 : -1; });
-    let kind = "", side = 0, text = "";
+    const seq = (e, i) => Number(e.sequence != null ? e.sequence : (e.id != null ? e.id : i)) || i;
+    let list = [];
     const evs = summary.keyEvents;
     if (Array.isArray(evs) && evs.length) {
-      const e = evs[evs.length - 1];
-      const tp = (e.type && (e.type.text || e.type.name)) || "";
-      kind = ((e.text || "") + " " + tp).toLowerCase();
-      side = (e.team && sideOf[String(e.team.id)]) || 0;
-      const clock = (e.clock && e.clock.displayValue) || "";
-      text = (clock ? clock + "  " : "") + (e.text || tp);
+      list = evs.map((e, i) => {
+        const tp = (e.type && (e.type.text || e.type.name)) || "";
+        return { kind: ((e.text || "") + " " + tp).toLowerCase(), side: (e.team && sideOf[String(e.team.id)]) || 0,
+          seed: seq(e, i), text: ((e.clock && e.clock.displayValue) ? e.clock.displayValue + "  " : "") + (e.text || tp) };
+      });
     } else if (Array.isArray(summary.commentary) && summary.commentary.length) {
-      const c = summary.commentary[summary.commentary.length - 1];
-      kind = (c.text || "").toLowerCase();
-      const clock = (c.time && c.time.displayValue) || "";
-      text = (clock ? clock + "  " : "") + (c.text || "");
+      list = summary.commentary.map((c, i) => ({ kind: (c.text || "").toLowerCase(), side: 0,
+        seed: seq(c, i), text: ((c.time && c.time.displayValue) ? c.time.displayValue + "  " : "") + (c.text || "") }));
     } else return null;
-    const FW = 68, FH = 44, gx = FW / 2 - 4; // ~30, just outside the box
-    const s = side || (Math.random() < 0.5 ? 1 : -1);
-    const lat = () => (Math.random() * 2 - 1) * (FH / 2 - 8);
-    const has = (w) => kind.indexOf(w) >= 0;
-    let x, z = lat();
-    if (has("goal kick") || has("save") || has("keeper") || has("punches")) { x = -s * gx; }
-    else if (has("corner")) { x = s * (gx + 1); z = (Math.random() < 0.5 ? -1 : 1) * (FH / 2 - 3); }
-    else if (has("goal") || has("shot") || has("penalt") || has("header") || has("attempt") || has("blocked")) { x = s * gx; z = (Math.random() * 2 - 1) * 9; }
-    else if (has("free kick") || has("foul") || has("offside") || has("card") || has("book") || has("throw")) { x = s * 10; }
-    else if (has("kick-off") || has("kick off") || has("kickoff") || has("half") || has("substitut") || has("whistle") || has("full time") || has("delay") || has("var")) { x = 0; z = (Math.random() * 2 - 1) * 4; }
-    else { x = s * 6; }
-    return { zone: { x: x, z: z }, text: text, side: s };
+    list.sort((a, b) => a.seed - b.seed);
+    const recent = list.slice(-4);
+    if (!recent.length) return null;
+    let wx = 0, wz = 0, wsum = 0;
+    recent.forEach((ev, i) => { const w = i + 1; const z = wcEventZone(ev.kind, ev.side, ev.seed); wx += z.x * w; wz += z.z * w; wsum += w; });
+    const last = recent[recent.length - 1];
+    const lz = wcEventZone(last.kind, last.side, last.seed);
+    return { zone: { x: wx / wsum, z: wz / wsum }, side: lz.s, text: last.text };
   } catch (e) { return null; }
 }
 
@@ -2426,7 +2440,7 @@ function MatchView3D({ game }) {
     if (!selKey) return;
     let alive = true;
     const pull = () => fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=" + encodeURIComponent(selKey))
-      .then((r) => r.json()).then((j) => { if (!alive) return; const f = wcParseLiveFeed(j); if (f) { stRef.current.feedZone = f.zone; setFeedText(f.text || ""); } }).catch(() => {});
+      .then((r) => r.json()).then((j) => { if (!alive) return; const f = wcParseLiveFeed(j); if (f) { stRef.current.feedZone = f.zone; stRef.current.possSide = f.side; setFeedText(f.text || ""); } }).catch(() => {});
     pull();
     const timer = status === "live" ? setInterval(pull, 20000) : null;
     return () => { alive = false; if (timer) clearInterval(timer); };
@@ -2487,30 +2501,38 @@ function MatchView3D({ game }) {
     // teams (mirrored across centre) don't pile up over the ball at midfield.
     const XROW = [31, 21, 11, 4]; // GK, DEF, MID, FWD — distance from centre toward own goal
     const ZSPAN = FH / 2 - 4;     // spread each row across (almost) the full pitch width
-    const addPlayer = (x, z, color, num) => {
+    // Each team is its own group so the whole block can slide with the ball
+    // (compactness) without disturbing the formation shape inside it.
+    const homeGroup = new THREE.Group(), awayGroup = new THREE.Group();
+    scene.add(homeGroup); scene.add(awayGroup);
+    const addPlayer = (grp, x, z, color, num) => {
       const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.75 });
-      const body = new THREE.Mesh(pGeo, mat); body.position.set(x, 1.3, z); scene.add(body);
-      const head = new THREE.Mesh(headGeo, mat); head.position.set(x, 3.0, z); scene.add(head);
-      if (num) { const lbl = makeNum(num); if (lbl) { lbl.position.set(x, 4.7, z); scene.add(lbl); } }
+      const body = new THREE.Mesh(pGeo, mat); body.position.set(x, 1.3, z); grp.add(body);
+      const head = new THREE.Mesh(headGeo, mat); head.position.set(x, 3.0, z); grp.add(head);
+      if (num) { const lbl = makeNum(num); if (lbl) { lbl.position.set(x, 4.7, z); grp.add(lbl); } }
     };
-    const placeTeam = (team, sign, color) => {
+    const placeTeam = (grp, team, sign, color) => {
       if (!team) return;
       team.buckets.forEach((bucket, r) => {
         const n = bucket.length; if (!n) return;
         const x = XROW[Math.min(r, XROW.length - 1)] * sign * -1; // home(sign +1) on -x, away(-1) on +x
         bucket.forEach((pl, i) => {
           const z = (n === 1 ? 0 : (-1 + (2 * i) / (n - 1)) * ZSPAN) * sign;
-          addPlayer(x, z, color, pl.num);
+          addPlayer(grp, x, z, color, pl.num);
         });
       });
     };
     if (lineups && (lineups.home || lineups.away)) {
-      placeTeam(lineups.home, 1, 0x2f9be0); placeTeam(lineups.away, -1, 0xe06149);
+      placeTeam(homeGroup, lineups.home, 1, 0x2f9be0); placeTeam(awayGroup, lineups.away, -1, 0xe06149);
     } else {
       const FORM = [[-32, 0], [-24, -15], [-24, -5], [-24, 5], [-24, 15], [-14, -12], [-14, 0], [-14, 12], [-5, -10], [-5, 0], [-5, 10]];
-      FORM.forEach((p) => addPlayer(p[0], p[1], 0x2f9be0, ""));
-      FORM.forEach((p) => addPlayer(-p[0], p[1], 0xe06149, ""));
+      FORM.forEach((p) => addPlayer(homeGroup, p[0], p[1], 0x2f9be0, ""));
+      FORM.forEach((p) => addPlayer(awayGroup, -p[0], p[1], 0xe06149, ""));
     }
+    // Faint ball trail — a few shrinking ghosts that read the ball's recent path.
+    const trail = [];
+    for (let i = 0; i < 7; i++) { const t = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 * (1 - i / 8) })); t.visible = false; scene.add(t); trail.push(t); }
+    const trailBuf = []; let trailTick = 0;
     let theta = 0.9, phi = 0.78, radius = 74, auto = true; const target = new THREE.Vector3(0, 0, 0);
     const apply = () => { camera.position.set(target.x + radius * Math.sin(phi) * Math.cos(theta), target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi) * Math.sin(theta)); camera.lookAt(target); };
     apply();
@@ -2529,11 +2551,11 @@ function MatchView3D({ game }) {
     let raf, t0 = performance.now(), pulse = 0;
     const loop = () => {
       const now = performance.now(), dt = (now - t0) / 1000; t0 = now;
-      if (auto) { theta += dt * 0.15; apply(); }
       const g = st.game;
-      if (g && g.status === "live") {
-        // Ease toward the latest event's zone (from the play-by-play feed), with
-        // a little wobble so possession looks alive between updates.
+      const live = !!(g && g.status === "live");
+      if (live) {
+        // Ease the ball toward the recency-weighted possession point from the
+        // play-by-play feed, with a little wobble so it looks alive between updates.
         const tz = st.feedZone || { x: 0, z: 0 };
         const wob = now / 600;
         const tx = tz.x + Math.sin(wob) * 2.5, tzz = tz.z + Math.cos(wob * 1.3) * 2.5;
@@ -2541,10 +2563,32 @@ function MatchView3D({ game }) {
         ball.position.x += (tx - ball.position.x) * k;
         ball.position.z += (tzz - ball.position.z) * k;
         ball.position.y = 0.9 + Math.abs(Math.sin(now / 500)) * 0.5;
+        // Whole-team compactness: both blocks slide toward the ball; the side in
+        // possession pushes up a touch, the other drops a touch. Formation shape
+        // is preserved — this is an inferred tactical shift, not player tracking.
+        const ps = st.possSide || 0;
+        const sx = Math.max(-7, Math.min(7, ball.position.x * 0.18)), sz = Math.max(-6, Math.min(6, ball.position.z * 0.16));
+        const hx = sx + (ps === 1 ? 3 : ps === -1 ? -2 : 0), ax = sx + (ps === -1 ? -3 : ps === 1 ? 2 : 0);
+        const ek = Math.min(1, dt * 0.7);
+        homeGroup.position.x += (hx - homeGroup.position.x) * ek; homeGroup.position.z += (sz - homeGroup.position.z) * ek;
+        awayGroup.position.x += (ax - awayGroup.position.x) * ek; awayGroup.position.z += (sz - awayGroup.position.z) * ek;
       } else {
         const k = Math.min(1, dt * 2);
         ball.position.x += (0 - ball.position.x) * k; ball.position.z += (0 - ball.position.z) * k; ball.position.y = 0.9;
+        const ek = Math.min(1, dt * 1.5);
+        [homeGroup, awayGroup].forEach((gr) => { gr.position.x += (0 - gr.position.x) * ek; gr.position.z += (0 - gr.position.z) * ek; });
       }
+      // Camera gently tracks the action while live (broadcast feel); recentres otherwise.
+      const ctx = live ? ball.position.x * 0.45 : 0, ctz = live ? ball.position.z * 0.45 : 0;
+      const ck = Math.min(1, dt * 0.6);
+      target.x += (ctx - target.x) * ck; target.z += (ctz - target.z) * ck;
+      if (auto) theta += dt * 0.15;
+      apply();
+      // Ball trail: sample the path a few times a second and lay the ghosts along it.
+      if (live) {
+        if (++trailTick % 6 === 0) { trailBuf.unshift([ball.position.x, ball.position.z]); if (trailBuf.length > trail.length) trailBuf.pop(); }
+        trail.forEach((t, i) => { const p = trailBuf[i]; if (p) { t.visible = true; t.position.set(p[0], 0.7, p[1]); } else t.visible = false; });
+      } else { trailBuf.length = 0; trail.forEach((t) => { t.visible = false; }); }
       if (g) { const h = g.hs || 0, a = g.as || 0; if (st.lastH != null && (h > st.lastH || a > st.lastA)) pulse = 1; st.lastH = h; st.lastA = a; }
       ball.scale.setScalar(pulse > 0 ? 1 + pulse * 2 : 1); if (pulse > 0) pulse = Math.max(0, pulse - dt * 1.2);
       renderer.render(scene, camera); raf = requestAnimationFrame(loop);
