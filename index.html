@@ -431,6 +431,24 @@ button.fd-admin-chip:disabled{cursor:default;}
 .fd-usps-editbtn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
 .fd-usps-noteremove{margin-top:6px; background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; padding:2px 0; text-decoration:underline;}
 
+/* ===== Newsletter ===== */
+.fd-nl-controls{display:flex; flex-wrap:wrap; align-items:center; gap:12px;}
+.fd-nl-period{display:flex; gap:10px; flex:1; min-width:200px;}
+.fd-nl-select{flex:1; min-width:120px; cursor:pointer;}
+.fd-nl-dl{display:inline-flex; align-items:center; gap:7px; white-space:nowrap;}
+.fd-nl-paper{background:#fff; color:#1a1d21; border-radius:12px; padding:38px 40px; box-shadow:var(--shadow-md); max-width:760px; margin:0 auto; font-family:Georgia,'Times New Roman',serif;}
+.fd-nl-letterhead{display:flex; align-items:center; gap:18px; border-bottom:3px solid #1f7fc0; padding-bottom:16px;}
+.fd-nl-letterhead img{height:58px; width:auto;}
+.fd-nl-org{font-family:'Archivo',Arial,sans-serif; font-size:11.5px; letter-spacing:.18em; text-transform:uppercase; color:#5a6470;}
+.fd-nl-title{font-family:'Archivo',Arial,sans-serif; font-size:25px; font-weight:800; color:#0e1014; margin-top:2px;}
+.fd-nl-when{font-family:'Archivo',Arial,sans-serif; font-size:14px; font-weight:700; color:#1f7fc0; margin-top:4px;}
+.fd-nl-section{margin-top:28px;}
+.fd-nl-section h3{font-family:'Archivo',Arial,sans-serif; font-size:15px; text-transform:uppercase; letter-spacing:.08em; color:#1f7fc0; border-bottom:1px solid #d6dbe1; padding-bottom:6px; margin:0 0 10px;}
+.fd-nl-line{display:flex; gap:10px; align-items:flex-start; font-size:15px; line-height:1.65; padding:6px 0; border-bottom:1px solid #eef1f4;}
+.fd-nl-line .fd-dotmark{margin-top:7px; flex-shrink:0;}
+.fd-nl-line strong{font-weight:700;}
+.fd-nl-empty{font-size:14px; color:#7a828b; font-style:italic; margin:4px 0;}
+
 /* ===== Accessibility & motion ===== */
 .fd-root button:focus-visible, .fd-root a:focus-visible, .fd-root input:focus-visible, .fd-root select:focus-visible, .fd-root textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 .fd-root .fd-input:focus-visible, .fd-root .fd-select:focus-visible{outline:none;}
@@ -816,6 +834,8 @@ const ChevronRight = (p) => <Svg {...p}><polyline points="9 18 15 12 9 6"/></Svg
 const Box = (p) => <Svg {...p}><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></Svg>;
 const Trophy = (p) => <Svg {...p}><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a3 3 0 0 0 3 4"/><path d="M17 6h3a3 3 0 0 1-3 4"/></Svg>;
 const Home = (p) => <Svg {...p}><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v11h14V10"/><path d="M9 21v-6h6v6"/></Svg>;
+const Newspaper = (p) => <Svg {...p}><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8z"/></Svg>;
+const Download = (p) => <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Svg>;
 
 // ---------- date helpers ----------
 const MS_DAY = 86400000;
@@ -947,6 +967,32 @@ const CAL_COLORS = { followup: "#4caf7d", deadline: "#2f9be0", pending: "#d99b2b
 const BIRTHDAYS = [{"n": "Yamile Dominguez", "m": 1, "d": 12}, {"n": "Daniel Gonzalez", "m": 1, "d": 19}, {"n": "Yolanda Cue Gonzalez", "m": 1, "d": 20}, {"n": "David Galdeano", "m": 1, "d": 20}, {"n": "Victor Ringgaard", "m": 1, "d": 22}, {"n": "Maggy Cangas", "m": 1, "d": 24}, {"n": "Horacio Sotolongo", "m": 2, "d": 8}, {"n": "Ricky Reyes", "m": 2, "d": 12}, {"n": "Mel Rosario", "m": 2, "d": 27}, {"n": "Sr. Teobaldo", "m": 3, "d": 11}, {"n": "Lazaro Villar", "m": 3, "d": 14}, {"n": "Marileidy Gonzalez Hernandez", "m": 3, "d": 19}, {"n": "Adrian Felipe", "m": 4, "d": 2}, {"n": "Sofia Espaillat", "m": 4, "d": 10}, {"n": "Hernan Gallardo Gonzalez", "m": 4, "d": 17}, {"n": "Nez Teimouri", "m": 4, "d": 18}, {"n": "Mariazell Arias", "m": 4, "d": 25}, {"n": "Orestes Hervis", "m": 4, "d": 28}, {"n": "Richie Sobalvarro", "m": 5, "d": 11}, {"n": "Jessica Terman", "m": 5, "d": 11}, {"n": "Mark Popp", "m": 5, "d": 11}, {"n": "Ismael Alonso Ramos", "m": 5, "d": 21}, {"n": "Gonzalo Lopez de Ayala", "m": 5, "d": 22}, {"n": "Agustina Matarazo", "m": 5, "d": 27}, {"n": "Lourdes Escandon", "m": 6, "d": 5}, {"n": "Carlos Rosell", "m": 6, "d": 19}, {"n": "Isaiah Hernandez", "m": 6, "d": 19}, {"n": "Adelso Rodriguez", "m": 6, "d": 22}, {"n": "Glenn Domchick", "m": 7, "d": 7}, {"n": "Andrea Loguzzo", "m": 7, "d": 9}, {"n": "Valentino Loguzzo", "m": 7, "d": 11}, {"n": "Joseph Natale", "m": 7, "d": 11}, {"n": "Dayana Colmenares", "m": 7, "d": 12}, {"n": "Shawn Lowrance", "m": 7, "d": 15}, {"n": "Scott Lowrance", "m": 7, "d": 23}, {"n": "Sheldon Vilsiant", "m": 7, "d": 23}, {"n": "Jocelyn Guillen", "m": 7, "d": 24}, {"n": "Stephen Green", "m": 7, "d": 26}, {"n": "Chris Reid", "m": 8, "d": 12}, {"n": "Juan Carlos Gonzalez Villafuerte", "m": 8, "d": 25}, {"n": "Rolando Rojas Pomar", "m": 8, "d": 27}, {"n": "Brenda Cedeno Rijo", "m": 8, "d": 27}, {"n": "Wail Elghergiani", "m": 8, "d": 28}, {"n": "Gerry Gonzalez", "m": 9, "d": 17}, {"n": "Noemi Rovirosa", "m": 9, "d": 25}, {"n": "Luis Delgado", "m": 10, "d": 9}, {"n": "Andrea Nestor", "m": 10, "d": 9}, {"n": "Estela Cachú-Yakeen", "m": 10, "d": 13}, {"n": "Anthony Arroyo", "m": 10, "d": 29}, {"n": "Diego Abreu", "m": 11, "d": 2}, {"n": "Katrin Nunez", "m": 11, "d": 4}, {"n": "Michael Austin Sheffield", "m": 11, "d": 13}, {"n": "Michael Harrison", "m": 11, "d": 27}, {"n": "Giraldo Figueroa", "m": 12, "d": 5}, {"n": "Chris Alvarez", "m": 12, "d": 10}, {"n": "Teo Rosell", "m": 12, "d": 28}, {"n": "Charlie Morejon", "m": 12, "d": 29}, {"n": "Fernando Lopez de Ayala", "m": 12, "d": 29}];
 const OFFICE_DIR = [{"g": "Office Staff", "name": "Reception Desk", "ext": "300", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "Agustina Matarazzo", "ext": "327", "cell": "754-210-1414", "email": "Amatarazzo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Andrea Loguzzo", "ext": "321", "cell": "(305) 778-1352", "email": "Aloguzzo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Andrea Nestor", "ext": "329", "cell": "617-831-3199", "email": "Anestor@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Anthony Arroyo", "ext": "317", "cell": "954-853-0254", "email": "Arroyo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Brenda Cedeno Rijo", "ext": "324", "cell": "786-491-9303", "email": "BCEDENORIJO@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Carlos Rosell", "ext": "319", "cell": "(305) 989-5464", "email": "Crosell@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Chris Alvarez", "ext": "303", "cell": "(786) 303-5154", "email": "Calvarez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Conference Room #1", "ext": "301", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "Conference Room #2", "ext": "301", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "David Galdeano", "ext": "307", "cell": "786-236-8680", "email": "dgaldeano@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Diego Abreu", "ext": "307", "cell": "786-236-6231", "email": "DAbreu@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Daniel Gonzalez", "ext": "330", "cell": "786-691-9651", "email": "Dgonzalez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Dayana Colmenares", "ext": "313", "cell": "786-793-4047", "email": "Dcolmenares@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Estela Yakeen", "ext": "318", "cell": "(305) 299-0777", "email": "Eyakeen@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Fernando Lopez de Ayala", "ext": "322", "cell": "757-816-8084", "email": "FLdeAyala@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Gonzalo Lopez de Ayla", "ext": "305", "cell": "(757) 289-9979", "email": "GLdeAyala@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Jessica Terman", "ext": "312", "cell": "305-479-0197", "email": "Jterman@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Jocelyn Guillen", "ext": "329", "cell": "(305) 302-5241", "email": "Jguillen@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Katy Nunez", "ext": "323", "cell": "(786) 372-4142", "email": "Knunez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Lazaro Villar", "ext": "", "cell": "954-734-4480", "email": "Lvillar@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Lourdes Escandon", "ext": "310", "cell": "(954) 328-6723", "email": "LEscandon@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Lunch Room", "ext": "300", "cell": "", "email": "", "role": ""}, {"g": "Office Staff", "name": "Margarita Cangas", "ext": "", "cell": "(786) 385-0998", "email": "mcangas@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Marileidy Gonzalez Hernandez", "ext": "328", "cell": "305-330-7675", "email": "Mgonzalezhernandez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Nez. Teimouri", "ext": "", "cell": "(818) 220-5771", "email": "Nteimouri@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Noemi Rovirosa", "ext": "304", "cell": "305-433-1728", "email": "Nrovirosa@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Sofia Espaillat", "ext": "", "cell": "(786) 282-8991", "email": "SEspaillat@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Teo Rosell", "ext": "320", "cell": "(305) 989-5463", "email": "trosell@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Valentino Loguzzo", "ext": "315", "cell": "305733-9656", "email": "Vloguzzo@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Wail Elgheriani", "ext": "329", "cell": "(305) 927-8608", "email": "welgheriani@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Yamile Dominguez", "ext": "308", "cell": "(305) 989-5510", "email": "ydominguez@bdico.com", "role": ""}, {"g": "Office Staff", "name": "Yolanda Cue Gonzalez", "ext": "316", "cell": "(786) 306-8292", "email": "ycue@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Adrian Felipe", "ext": "", "cell": "(305) 333-7314", "email": "AFelipe@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Christopher Reid", "ext": "", "cell": "754-423-4457", "email": "Creid@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Fernando Lopez de Ayala", "ext": "", "cell": "757-816-8084", "email": "FLdeAyala@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Gerry Gonzalez", "ext": "", "cell": "(305) 989-5465", "email": "GGonzalez@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Giraldo Figueroa", "ext": "", "cell": "(305) 989-5507", "email": "gfigueroa@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Ismael Alonso Ramos", "ext": "", "cell": "786-849-7220", "email": "ialonso@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Horacio Sotolongo", "ext": "", "cell": "(786) 287-8839", "email": "HSotolongo@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Juan Carlos Gonzalez-Villafuerte", "ext": "", "cell": "786-684-8960", "email": "Jgonzalez@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Luis Delgado", "ext": "", "cell": "(305) 216-8799", "email": "ldelgado@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Mel Rosario", "ext": "", "cell": "786-795-2662", "email": "Mrosario@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Orestes Hervis", "ext": "", "cell": "954-682-5252", "email": "Ohervis@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Richie Sobalvarro", "ext": "", "cell": "786-683-1249", "email": "RSobalvarro@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Ricky Reyes", "ext": "", "cell": "786-546-3361", "email": "Rreyes@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Rolando Rojas Pomare", "ext": "", "cell": "786-333-3984", "email": "Rrojaspomar@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Sheldon Vilsaint", "ext": "", "cell": "954-668-5290", "email": "Svilsaint@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Stephen Green", "ext": "", "cell": "305-934-9917", "email": "SGreen@bdico.com", "role": ""}, {"g": "Field Personnel / PMs & Superintendents", "name": "Victor Ringgaard", "ext": "", "cell": "786-316-6870", "email": "VRinggaard@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Scott Lowrance - Csntn. Director", "ext": "", "cell": "352-988-8564", "email": "Slowrance@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Charlie Morejon", "ext": "", "cell": "386-444-1318", "email": "Cmorejon@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Glenn Domchick", "ext": "", "cell": "352-251-8341", "email": "Gdomchick@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Hernan Gallardo Gonzalez", "ext": "", "cell": "689-288-4315", "email": "HGallardoGonzalez@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Isaiah Hernandez", "ext": "", "cell": "917-474-4476", "email": "Ihernandez@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Joseph Natale", "ext": "", "cell": "645-243-6677", "email": "Jnatale@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Mark Popp", "ext": "", "cell": "645-248-6455", "email": "Mpopp@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Michael Ray Harrison", "ext": "", "cell": "352-446-8762", "email": "Mharrison@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Michael Austin Sheffield", "ext": "", "cell": "352-205-9658", "email": "Msheffield@bdico.com", "role": ""}, {"g": "Orlando Area Projects", "name": "Shawn Lowrance", "ext": "", "cell": "352-410-3381", "email": "STLowrance@bdico.com", "role": ""}, {"g": "Departments & Vendors", "name": "Mariazell Arias", "role": "ADP Liaison / HR / Advisor to President", "ext": "", "cell": "(786) 325-4526", "email": "Marias@bdico.com"}, {"g": "Departments & Vendors", "name": "Dayana Colmenares", "role": "Marketing / Social Media", "ext": "313", "cell": "(786) 793-4047", "email": "dcolmenares@bdico.com"}, {"g": "Departments & Vendors", "name": "Bibiana Berardi", "role": "Graphic Designer", "ext": "", "cell": "(786) 368-0471", "email": "Bibi.Berardi@Gmail.com"}, {"g": "Departments & Vendors", "name": "ICG (IT) – Customer Service", "role": "IT Company", "ext": "", "cell": "1 (888) 809-4685", "email": "service@icgi.com"}];
 const DIR_GROUPS = ["Office Staff","Field Personnel / PMs & Superintendents","Orlando Area Projects","Departments & Vendors"];
+
+// ===== Company newsletter =====
+// Job titles for the newsletter, keyed by a loosely-normalized name so a single
+// place keeps the "Person — Title" lines accurate without touching the directory.
+const NEWSLETTER_TITLES = {
+  "mariazell arias": "ADP Liaison / HR / Advisor to President",
+  "dayana colmenares": "Marketing / Social Media",
+  "scott lowrance": "Construction Director",
+};
+// Work-start (hire) dates that drive the newsletter's anniversary section.
+// Format: { n: "Full Name", role: "Title", m: startMonth 1-12, d: startDay, y: startYear }.
+// Populate as hire dates become available — anyone listed here whose start month
+// matches the chosen newsletter month is celebrated automatically.
+const ANNIVERSARIES = [];
+// Loosely normalize a name so titles/anniversaries match regardless of accents,
+// punctuation, or extra spacing between the directory and the newsletter data.
+const normName = (s) => (s || "")
+  .toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+const titleFor = (name) => {
+  const key = normName(name);
+  if (NEWSLETTER_TITLES[key]) return NEWSLETTER_TITLES[key];
+  const hit = OFFICE_DIR.find((p) => p.role && normName(p.name) === key);
+  return hit ? hit.role : "";
+};
 const APPS = [
   { name: "Outlook", url: "https://outlook.office.com", domain: "outlook.com", abbr: "O", color: "#0072c6" },
   { name: "Microsoft 365", url: "https://www.office.com", domain: "office.com", abbr: "365", color: "#d83b01" },
@@ -2040,11 +2086,14 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, newsletter: { access: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
   const [adminNewMgr, setAdminNewMgr] = useState("");
+  const [adminNewNewsletter, setAdminNewNewsletter] = useState("");
+  const [newsletterMonth, setNewsletterMonth] = useState(new Date().getMonth());
+  const [newsletterYear, setNewsletterYear] = useState(new Date().getFullYear());
   const [linkDrafts, setLinkDrafts] = useState({});
   const [uspsItems, setUspsItems] = useState([]);
   const [uspsForm, setUspsForm] = useState(blankUspsForm());
@@ -2277,7 +2326,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -2780,6 +2829,79 @@ function FollowUpDesk() {
     } catch (e) { flash("Couldn't create the birthday file"); }
   };
 
+  // ---------- company newsletter ----------
+  const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const buildNewsletter = (mi, yr) => {
+    const month = mi + 1;
+    const birthdays = BIRTHDAYS
+      .filter((b) => b.m === month)
+      .sort((a, b) => a.d - b.d)
+      .map((b) => ({ name: b.n, title: titleFor(b.n), d: b.d }));
+    const anniversaries = ANNIVERSARIES
+      .filter((a) => a.m === month)
+      .sort((a, b) => a.d - b.d)
+      .map((a) => ({ name: a.n, title: a.role || titleFor(a.n), d: a.d, years: yr - a.y }))
+      .filter((a) => a.years > 0);
+    return { birthdays, anniversaries };
+  };
+  const buildNewsletterHtml = (mi, yr) => {
+    const { birthdays, anniversaries } = buildNewsletter(mi, yr);
+    const monthName = MONTHS[mi];
+    const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const who = (name, title) => esc(title ? name + " — " + title : name);
+    const annHtml = anniversaries.length
+      ? anniversaries.map((a) =>
+          '<li><strong>' + who(a.name, a.title) + '</strong> will have been with the company for ' +
+          esc(a.years) + ' year' + (a.years === 1 ? '' : 's') + ' on ' + esc(monthName + ' ' + ordinal(a.d) + ', ' + yr) + '.</li>'
+        ).join("")
+      : '<li class="nl-empty">No work anniversaries this month.</li>';
+    const bdayHtml = birthdays.length
+      ? birthdays.map((b) =>
+          '<li><strong>' + who(b.name, b.title) + "</strong>'s birthday is " + esc(monthName + ' ' + ordinal(b.d)) + '.</li>'
+        ).join("")
+      : '<li class="nl-empty">No birthdays this month.</li>';
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>BDI Newsletter — ' + esc(monthName + ' ' + yr) + '</title>' +
+      '<style>' +
+      '@page{margin:0.75in;}' +
+      '*{box-sizing:border-box;}' +
+      'body{font-family:Georgia,"Times New Roman",serif;color:#1a1d21;margin:0;padding:36px 44px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+      '.nl-head{display:flex;align-items:center;gap:18px;border-bottom:3px solid #1f7fc0;padding-bottom:16px;}' +
+      '.nl-head img{height:60px;width:auto;}' +
+      '.nl-head .nl-org{font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#5a6470;}' +
+      '.nl-head h1{font-family:Arial,Helvetica,sans-serif;font-size:26px;margin:2px 0 0;color:#0e1014;}' +
+      '.nl-head .nl-when{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f7fc0;font-weight:bold;margin-top:4px;}' +
+      '.nl-sec{margin-top:30px;}' +
+      '.nl-sec h2{font-family:Arial,Helvetica,sans-serif;font-size:16px;text-transform:uppercase;letter-spacing:.08em;color:#1f7fc0;border-bottom:1px solid #d6dbe1;padding-bottom:6px;margin:0 0 12px;}' +
+      '.nl-sec ul{list-style:none;margin:0;padding:0;}' +
+      '.nl-sec li{font-size:15px;line-height:1.7;padding:5px 0 5px 20px;position:relative;border-bottom:1px solid #eef1f4;}' +
+      '.nl-sec li:before{content:"\\2666";position:absolute;left:0;color:#1f7fc0;}' +
+      '.nl-sec li.nl-empty{color:#7a828b;font-style:italic;}' +
+      '.nl-sec li.nl-empty:before{content:"";}' +
+      '.nl-foot{margin-top:40px;border-top:1px solid #d6dbe1;padding-top:12px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#8a929b;text-align:center;}' +
+      '</style></head><body>' +
+      '<div class="nl-head"><img src="' + LOGO_SRC + '" alt="BDI Construction"/>' +
+      '<div><div class="nl-org">BDI Construction</div><h1>Company Newsletter</h1>' +
+      '<div class="nl-when">' + esc(monthName + ' ' + yr) + '</div></div></div>' +
+      '<div class="nl-sec"><h2>Work Anniversaries</h2><ul>' + annHtml + '</ul></div>' +
+      '<div class="nl-sec"><h2>Birthdays</h2><ul>' + bdayHtml + '</ul></div>' +
+      '<div class="nl-foot">BDI Construction &middot; Confidential &middot; Generated ' + esc(prettyDate(todayStr())) + '</div>' +
+      '</body></html>';
+  };
+  const downloadNewsletterPdf = () => {
+    try {
+      const html = buildNewsletterHtml(newsletterMonth, newsletterYear);
+      const w = window.open("", "_blank");
+      if (!w) { flash("Allow pop-ups to download the newsletter"); return; }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      // Give the logo a beat to load before the print dialog opens.
+      setTimeout(() => { try { w.print(); } catch (e) { /* user can print manually */ } }, 400);
+      flash("Choose “Save as PDF” in the print dialog");
+    } catch (e) { flash("Couldn't build the newsletter"); }
+  };
+
   const sortedDeadlines = [...deadlines].sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
   const deadlineCounts = useMemo(() => {
     let overdue = 0, soon = 0;
@@ -3084,7 +3206,8 @@ function FollowUpDesk() {
     sharedSyncedRef.current = json;
     const uspsAccessList = ((next.usps && next.usps.access) || []).map((e) => String(e).toLowerCase());
     const uspsManagers = ((next.usps && next.usps.managers) || []).map((e) => String(e).toLowerCase());
-    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, updatedAt: Date.now() })
+    const newsletterAccessList = ((next.newsletter && next.newsletter.access) || []).map((e) => String(e).toLowerCase());
+    fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, newsletterAccessList, updatedAt: Date.now() })
       .then(() => flash("Saved for everyone"))
       .catch((e) => { console.error(e); flash("Couldn't save — make sure the admin rule is published"); });
   };
@@ -3283,6 +3406,17 @@ function FollowUpDesk() {
     const mgrs = (sharedConfig.usps && sharedConfig.usps.managers) || [];
     saveSharedConfig({ ...sharedConfig, usps: { access: cur, managers: mgrs } });
   };
+  const grantNewsletter = () => {
+    const em = adminNewNewsletter.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const cur = ((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, newsletter: { access: [...cur, em] } });
+    setAdminNewNewsletter("");
+  };
+  const revokeNewsletter = (em) => {
+    const cur = ((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, newsletter: { access: cur } });
+  };
   const addUspsManager = () => {
     const em = adminNewMgr.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
@@ -3366,6 +3500,7 @@ function FollowUpDesk() {
   const myEmailLc = ((user && user.email) || "").toLowerCase();
   const isUspsManager = isAdmin || ((sharedConfig.usps && sharedConfig.usps.managers) || []).indexOf(myEmailLc) >= 0;
   const uspsHasAccess = isUspsManager || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(myEmailLc) >= 0;
+  const newsletterHasAccess = isAdmin || ((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).indexOf(myEmailLc) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
 
   const tabVisible = (key) => {
@@ -3455,8 +3590,8 @@ function FollowUpDesk() {
         <header className={"fd-head" + (section === "home" ? " hero" : "")}>
           <div>
             {section === "home" && <img ref={heroLogoRef} src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" style={{ opacity: intro ? 0 : undefined }} />}
-            {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ bracket: "WORLD CUP 2026", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST" }[section] || "CORRESPONDENCE LEDGER")}</div>}
-            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS" }[section] || "Follow-ups")}</h1>
+            {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ bracket: "WORLD CUP 2026", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST", newsletter: "MONTHLY EDITION" }[section] || "CORRESPONDENCE LEDGER")}</div>}
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS", newsletter: "Company Newsletter" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
                 bracket: "Order each group 1–4, pick your best thirds, then advance teams through your own bracket to the trophy. Scores update live.",
@@ -3469,6 +3604,7 @@ function FollowUpDesk() {
                 apps: "Quick links to the tools BDI uses — tap any one to jump straight in.",
                 admin: "Control what everyone sees and add company-wide tabs. Changes apply to all users.",
                 usps: "A shared list — visible to everyone you've given access, and kept in sync between you all.",
+                newsletter: "The monthly BDI newsletter — work anniversaries and birthdays on a company letterhead, ready to download as a PDF.",
               }[section] || "Track who still owes you documents — see exactly who's due, write the note, and open it in your mail app in one click.")}
             </p>
           </div>
@@ -3532,6 +3668,11 @@ function FollowUpDesk() {
           {uspsHasAccess && (
             <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
               <Inbox size={15} /> USPS
+            </button>
+          )}
+          {newsletterHasAccess && (
+            <button className={"fd-nav-btn" + (section === "newsletter" ? " active" : "")} onClick={() => setSection("newsletter")}>
+              <Newspaper size={15} /> Newsletter
             </button>
           )}
           {isAdmin && (
@@ -3649,6 +3790,14 @@ function FollowUpDesk() {
                 <span className="fd-launch-ico"><Inbox size={20} /></span>
                 <span className="fd-launch-name">USPS</span>
                 <span className="fd-launch-desc">The shared job list, kept in sync for everyone with access.</span>
+                <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
+              </button>
+            )}
+            {newsletterHasAccess && (
+              <button className="fd-launch" onClick={(e) => openTab("newsletter", e)}>
+                <span className="fd-launch-ico"><Newspaper size={20} /></span>
+                <span className="fd-launch-name">Newsletter</span>
+                <span className="fd-launch-desc">The monthly BDI newsletter — birthdays and work anniversaries, ready to download as a PDF.</span>
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
@@ -4434,6 +4583,70 @@ function FollowUpDesk() {
         </>
         )}
 
+        {section === "newsletter" && newsletterHasAccess && (
+        <>
+          {(() => {
+            const { birthdays, anniversaries } = buildNewsletter(newsletterMonth, newsletterYear);
+            const monthName = MONTHS[newsletterMonth];
+            const yearOpts = [];
+            for (let y = new Date().getFullYear() + 1; y >= 2015; y--) yearOpts.push(y);
+            return (
+              <>
+                <div className="fd-panel" style={{ marginBottom: 18 }}>
+                  <div className="fd-nl-controls">
+                    <div className="fd-nl-period">
+                      <select className="fd-input fd-nl-select" value={newsletterMonth} onChange={(e) => setNewsletterMonth(Number(e.target.value))}>
+                        {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                      </select>
+                      <select className="fd-input fd-nl-select" value={newsletterYear} onChange={(e) => setNewsletterYear(Number(e.target.value))}>
+                        {yearOpts.map((y) => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                    </div>
+                    <button className="fd-btn primary fd-nl-dl" onClick={downloadNewsletterPdf}><Download size={15} /> Download PDF</button>
+                  </div>
+                  <p className="fd-sub" style={{ fontSize: 12.5, margin: "10px 0 0" }}>Pick a month, review the edition below, then download it as a PDF on the BDI letterhead. Birthdays come from the Birthdays tab; work anniversaries come from each person's start date.</p>
+                </div>
+
+                <div className="fd-nl-paper">
+                  <div className="fd-nl-letterhead">
+                    <img src={LOGO_SRC} alt="BDI Construction" />
+                    <div>
+                      <div className="fd-nl-org">BDI Construction</div>
+                      <div className="fd-nl-title">Company Newsletter</div>
+                      <div className="fd-nl-when">{monthName} {newsletterYear}</div>
+                    </div>
+                  </div>
+
+                  <div className="fd-nl-section">
+                    <h3>Work Anniversaries</h3>
+                    {anniversaries.length === 0 ? (
+                      <p className="fd-nl-empty">No work anniversaries this month.</p>
+                    ) : anniversaries.map((a, i) => (
+                      <div className="fd-nl-line" key={"a" + i}>
+                        <span className="fd-dotmark" style={{ background: "#1f7fc0" }} />
+                        <span><strong>{a.title ? a.name + " — " + a.title : a.name}</strong> will have been with the company for {a.years} year{a.years === 1 ? "" : "s"} on {monthName} {ordinal(a.d)}, {newsletterYear}.</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="fd-nl-section">
+                    <h3>Birthdays</h3>
+                    {birthdays.length === 0 ? (
+                      <p className="fd-nl-empty">No birthdays this month.</p>
+                    ) : birthdays.map((b, i) => (
+                      <div className="fd-nl-line" key={"b" + i}>
+                        <span className="fd-dotmark" style={{ background: CAL_COLORS.birthday }} />
+                        <span><strong>{b.title ? b.name + " — " + b.title : b.name}</strong>'s birthday is {monthName} {ordinal(b.d)}.</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </>
+        )}
+
         {section === "admin" && isAdmin && (
         <>
           <div className="fd-panel">
@@ -4542,6 +4755,23 @@ function FollowUpDesk() {
               <input className="fd-input" placeholder="Email to make a USPS manager" value={adminNewMgr}
                 onChange={(e) => setAdminNewMgr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addUspsManager(); }} />
               <button className="fd-btn primary" onClick={addUspsManager}>Add manager</button>
+            </div>
+          </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Newsletter tab access</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Newsletter tab is hidden from everyone except the people you add here. They can view and download the monthly newsletter PDF. You always have access.</p>
+            {((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one else has access yet. Add someone by email below.</p>
+            ) : ((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove access" onClick={() => revokeNewsletter(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to grant Newsletter access" value={adminNewNewsletter}
+                onChange={(e) => setAdminNewNewsletter(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantNewsletter(); }} />
+              <button className="fd-btn primary" onClick={grantNewsletter}>Grant access</button>
             </div>
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
