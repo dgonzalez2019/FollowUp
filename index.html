@@ -3562,7 +3562,10 @@ function FollowUpDesk() {
       .split("{signature}").join(sig);
     const body = fill(template, srSettings.signature || "");
     const subject = srSettings.subject.split("{month}").join(srMonthLabel);
-    const ccPart = sub.cc ? "&cc=" + encodeURIComponent(sub.cc) : "";
+    // Accept commas or semicolons in the saved CC, but hand Outlook semicolons
+    // so each address lands as its own recipient.
+    const ccList = (sub.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+    const ccPart = ccList.length ? "&cc=" + encodeURIComponent(ccList.join(";")) : "";
     window.open("mailto:" + encodeURIComponent(sub.email) + "?subject=" + encodeURIComponent(subject) + ccPart + "&body=" + encodeURIComponent(body), "_self");
 
     const htmlSig = (srSettings.htmlSignature || "").trim();
@@ -5607,10 +5610,10 @@ function FollowUpDesk() {
                         placeholder="billing@sub.com" />
                     </div>
                   </div>
-                  <label className="fd-label" style={{ marginTop: 14 }}>CC <span className="fd-hint">(optional — separate multiple with commas)</span></label>
+                  <label className="fd-label" style={{ marginTop: 14 }}>CC <span className="fd-hint">(optional — separate multiple with semicolons)</span></label>
                   <input className="fd-input" value={srSubForm.cc}
                     onChange={(e) => setSrSubForm(f => ({ ...f, cc: e.target.value }))}
-                    placeholder="pm@bdico.com, ap@bdico.com" />
+                    placeholder="pm@bdico.com; ap@bdico.com" />
                   <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
                     This subcontractor will appear for every month. Status is tracked per month.
                   </p>
