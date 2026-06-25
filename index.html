@@ -4868,6 +4868,22 @@ function FollowUpDesk() {
     flash("Imported — " + added + " added, " + updated + " updated");
     setEmpImportInfo(null);
   };
+  // Pull everyone from the Birthdays tab (the built-in BIRTHDAYS roster) straight
+  // into the newsletter list, with titles looked up from the office directory.
+  // Existing people keep their id + start date; only their birthday/title refresh.
+  const importFromBirthdays = () => {
+    const byName = {};
+    nlEmployees().forEach((e) => { byName[normName(e.name)] = e; });
+    let added = 0, updated = 0;
+    BIRTHDAYS.forEach((b) => {
+      const key = normName(b.n);
+      const ex = byName[key];
+      if (ex) { byName[key] = { ...ex, bMonth: b.m, bDay: b.d, title: ex.title || titleFor(b.n) }; updated++; }
+      else { byName[key] = { id: "e_" + Math.random().toString(36).slice(2, 9), name: b.n, title: titleFor(b.n), bMonth: b.m, bDay: b.d, sYear: 0, sMonth: 0, sDay: 0 }; added++; }
+    });
+    saveEmployees(Object.keys(byName).map((k) => byName[k]));
+    flash("Imported from Birthdays — " + added + " added, " + updated + " updated");
+  };
   const exportEmployeesExcel = async () => {
     const EJS = window.ExcelJS;
     if (!EJS) { flash("Excel tool didn't load — check your connection and retry"); return; }
@@ -4879,25 +4895,49 @@ function FollowUpDesk() {
         ? [...cur]
         : BIRTHDAYS.map((b) => ({ name: b.n, title: titleFor(b.n), bMonth: b.m, bDay: b.d, sYear: 0, sMonth: 0, sDay: 0 }));
       base.sort((a, b) => a.name.localeCompare(b.name));
-      const wb = new EJS.Workbook(); wb.creator = "BDI University"; wb.created = new Date();
-      const ws = wb.addWorksheet("Employees", { views: [{ state: "frozen", ySplit: 1 }] });
+      const NAVY = "FF185A93", LIGHT = "FFEAF1F8", LINE = "FFB9CCE0";
+      const wb = new EJS.Workbook(); wb.creator = "BDI University"; wb.company = "BDI Construction"; wb.created = new Date();
+      const ws = wb.addWorksheet("Employees", { views: [{ state: "frozen", ySplit: 3 }] });
       ws.columns = [
-        { header: "Name", key: "name", width: 30 },
-        { header: "Title", key: "title", width: 32 },
-        { header: "Birthday", key: "birthday", width: 16 },
-        { header: "Start Date", key: "startDate", width: 16 },
+        { key: "name", width: 32 },
+        { key: "title", width: 36 },
+        { key: "birthday", width: 18 },
+        { key: "startDate", width: 16 },
       ];
-      const hr = ws.getRow(1);
-      hr.eachCell((c) => { c.font = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185A93" } }; c.alignment = { vertical: "middle", horizontal: "left" }; });
+      // Row 1 — company banner
+      ws.mergeCells("A1:D1");
+      const ban = ws.getCell("A1");
+      ban.value = "BDI CONSTRUCTION";
+      ban.font = { name: "Calibri", bold: true, size: 18, color: { argb: "FFFFFFFF" } };
+      ban.alignment = { vertical: "middle", horizontal: "center" };
+      ban.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NAVY } };
+      ws.getRow(1).height = 30;
+      // Row 2 — subtitle / export stamp
+      ws.mergeCells("A2:D2");
+      const sub = ws.getCell("A2");
+      sub.value = "Employee Directory     ·     " + base.length + " employees     ·     Exported " + new Date().toLocaleDateString();
+      sub.font = { name: "Calibri", italic: true, size: 11, color: { argb: NAVY } };
+      sub.alignment = { vertical: "middle", horizontal: "center" };
+      sub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LIGHT } };
+      ws.getRow(2).height = 19;
+      // Row 3 — column headers
+      const hr = ws.getRow(3);
+      hr.values = ["Name", "Title", "Birthday", "Start Date"];
+      hr.eachCell((c) => { c.font = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NAVY } }; c.alignment = { vertical: "middle", horizontal: "left" }; });
       hr.height = 20;
-      base.forEach((e) => {
-        ws.addRow({
+      // Data rows
+      base.forEach((e, i) => {
+        const row = ws.addRow({
           name: e.name, title: e.title || "",
           birthday: e.bMonth && e.bDay ? MONTHS[e.bMonth - 1] + " " + e.bDay : "",
           startDate: e.sYear && e.sMonth && e.sDay ? pad2(e.sMonth) + "/" + pad2(e.sDay) + "/" + e.sYear : "",
         });
+        row.eachCell((c) => {
+          c.alignment = { vertical: "middle", horizontal: "left" };
+          c.border = { bottom: { style: "thin", color: { argb: LINE } } };
+          if (i % 2 === 1) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F8FC" } }; // zebra
+        });
       });
-      ws.getColumn("birthday").alignment = { horizontal: "left" };
       const buf = await wb.xlsx.writeBuffer();
       const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
@@ -6339,12 +6379,15 @@ function FollowUpDesk() {
 
                     <div className="fd-panel">
                       <div className="fd-group-head">Newsletter employees <span className="fd-count">{nlEmployees().length}</span></div>
-                      <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>This roster feeds the newsletter's birthdays and work anniversaries. Add people as they join, remove them when they leave, or import everyone from a spreadsheet. {nlEmployees().length === 0 ? "Until you add anyone, the newsletter uses the built-in birthday list." : ""}</p>
+                      <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>This roster feeds the newsletter's birthdays and work anniversaries. Pull everyone in from the Birthdays tab in one click, import from a spreadsheet, or add people by hand — then export the whole list as a company-branded Excel. {nlEmployees().length === 0 ? "Until you add anyone, the newsletter uses the built-in birthday list." : ""}</p>
 
                       <input ref={empImportRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleEmpImportFile} />
                       <div className="fd-emp-tools">
                         {!empImportInfo ? (
-                          <button className="fd-btn" onClick={() => empImportRef.current && empImportRef.current.click()}><FileText size={15} /> Import from Excel…</button>
+                          <>
+                            <button className="fd-btn primary" onClick={importFromBirthdays}><Cake size={15} /> Import from Birthdays tab</button>
+                            <button className="fd-btn" onClick={() => empImportRef.current && empImportRef.current.click()}><FileText size={15} /> Import from Excel…</button>
+                          </>
                         ) : (
                           <span style={{ fontSize: 13.5 }}>Found <strong>{empImportInfo.items.length}</strong> {empImportInfo.items.length === 1 ? "person" : "people"} ready to import (existing names are updated).</span>
                         )}
@@ -6356,7 +6399,7 @@ function FollowUpDesk() {
                           <button className="fd-btn" onClick={() => setEmpImportInfo(null)}>Cancel</button>
                         </div>
                       )}
-                      <p className="fd-sub" style={{ fontSize: 11.5, margin: "8px 0 0" }}>Spreadsheet columns: <strong>Name</strong>, <strong>Title</strong>, <strong>Birthday</strong>, <strong>Start Date</strong>. The template comes pre-filled with current birthdays — just add start dates.</p>
+                      <p className="fd-sub" style={{ fontSize: 11.5, margin: "8px 0 0" }}>Spreadsheet columns: <strong>Name</strong>, <strong>Title</strong>, <strong>Birthday</strong>, <strong>Start Date</strong>. The template comes pre-filled with current birthdays — just add start dates. The export is a BDI-branded workbook with the company banner.</p>
 
                       <div className="fd-emp-add">
                         <div className="fd-emp-grid">
