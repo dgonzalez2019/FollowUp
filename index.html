@@ -2135,6 +2135,7 @@ function FollowUpDesk() {
   const [srSubForm, setSrSubForm] = useState({ name: "", email: "", cc: "" });
   const [srSearch, setSrSearch] = useState("");
   const [srCollapsed, setSrCollapsed] = useState({});
+  const [srTemplateTarget, setSrTemplateTarget] = useState("default");
   const [adminNewSubreq, setAdminNewSubreq] = useState("");
   const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const appVisible = (!cloudOn || (authReady && !!user));
@@ -3535,6 +3536,39 @@ function FollowUpDesk() {
     });
   };
 
+  // Per-project email templates, falling back to the shared default (srSettings).
+  // Signature is always global, so it lives only on srSettings — never per project.
+  const projTemplate = (proj) => {
+    const t = (proj && proj.templates) || {};
+    return {
+      subject: t.subject != null ? t.subject : srSettings.subject,
+      firstBody: t.firstBody != null ? t.firstBody : srSettings.firstBody,
+      followUpBody: t.followUpBody != null ? t.followUpBody : srSettings.followUpBody,
+    };
+  };
+  const srTplTargetProj = srTemplateTarget === "default" ? null : subReqProjects.find((p) => p.id === srTemplateTarget);
+  const srTplValues = srTemplateTarget === "default"
+    ? { subject: srSettings.subject, firstBody: srSettings.firstBody, followUpBody: srSettings.followUpBody }
+    : projTemplate(srTplTargetProj);
+  const setSrTpl = (patch) => {
+    if (srTemplateTarget === "default") {
+      setSrSettings((s) => ({ ...s, ...patch }));
+    } else {
+      setSubReqProjects((ps) => ps.map((p) => {
+        if (p.id !== srTemplateTarget) return p;
+        const base = p.templates || { subject: srSettings.subject, firstBody: srSettings.firstBody, followUpBody: srSettings.followUpBody };
+        return { ...p, templates: { ...base, ...patch } };
+      }));
+    }
+  };
+  const resetSrTpl = () => {
+    if (srTemplateTarget === "default") {
+      setSrSettings((s) => ({ ...s, subject: DEFAULT_SR_SETTINGS.subject, firstBody: DEFAULT_SR_SETTINGS.firstBody, followUpBody: DEFAULT_SR_SETTINGS.followUpBody }));
+    } else {
+      setSubReqProjects((ps) => ps.map((p) => (p.id === srTemplateTarget ? { ...p, templates: undefined } : p)));
+    }
+  };
+
   const copyRichHtml = (html, plain) => {
     try {
       if (navigator.clipboard && typeof window.ClipboardItem === "function") {
@@ -3554,14 +3588,15 @@ function FollowUpDesk() {
     const rec = getSrRecord(sub.id);
     const isFirst = !rec || rec.followUpsSent === 0;
     const nextCount = ((rec && rec.followUpsSent) || 0) + 1;
-    const template = isFirst ? srSettings.firstBody : srSettings.followUpBody;
+    const tpl = projTemplate(subReqProjects.find((p) => p.id === sub.projectId));
+    const template = isFirst ? tpl.firstBody : tpl.followUpBody;
     const fill = (str, sig) => str
       .split("{name}").join(sub.name || "there")
       .split("{month}").join(srMonthLabel)
       .split("{followUpCount}").join(String(nextCount))
       .split("{signature}").join(sig);
     const body = fill(template, srSettings.signature || "");
-    const subject = srSettings.subject.split("{month}").join(srMonthLabel);
+    const subject = (tpl.subject || "").split("{month}").join(srMonthLabel);
     // Accept commas or semicolons in the saved CC, but hand Outlook semicolons
     // so each address lands as its own recipient.
     const ccList = (sub.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
@@ -5427,6 +5462,7 @@ function FollowUpDesk() {
                             setSubReqSubs(ss => ss.filter(s => s.projectId !== proj.id));
                             setSubReqMonthly(ms => ms.filter(r => !subIds.includes(r.subId)));
                             setSubReqProjects(ps => ps.filter(p => p.id !== proj.id));
+                            setSrTemplateTarget(t => t === proj.id ? "default" : t);
                           }
                         }}><Trash2 size={14} /></button>
                       </div>
@@ -5495,31 +5531,57 @@ function FollowUpDesk() {
           )}
 
           {srTab === "settings" && (
+          <>
           <div className="fd-panel">
             <div className="fd-panel-head">Email Templates</div>
             <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 18px", lineHeight: 1.6 }}>
-              The first email sent each month uses the <strong style={{ color: "var(--ink)" }}>First Email</strong> body. Any send after that uses the <strong style={{ color: "var(--ink)" }}>Follow-up</strong> body, which can reference how many follow-ups have been sent with <code style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, background: "var(--surface-2)", padding: "1px 5px", borderRadius: 4 }}>{"{followUpCount}"}</code>.
+              Templates are <strong style={{ color: "var(--ink)" }}>per project</strong>. The first email sent each month uses the <strong style={{ color: "var(--ink)" }}>First Email</strong> body; any send after that uses the <strong style={{ color: "var(--ink)" }}>Follow-up</strong> body, which can reference how many follow-ups have been sent with <code style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, background: "var(--surface-2)", padding: "1px 5px", borderRadius: 4 }}>{"{followUpCount}"}</code>. The signature below is shared across every project.
             </p>
 
-            <label className="fd-label">Email Subject <span className="fd-hint">— {"{month}"} = full month name (e.g. "June 2026")</span></label>
-            <input className="fd-input" value={srSettings.subject}
-              onChange={(e) => setSrSettings(s => ({ ...s, subject: e.target.value }))} />
+            <label className="fd-label">Templates for</label>
+            <select className="fd-select" style={{ width: "100%" }} value={srTemplateTarget} onChange={(e) => setSrTemplateTarget(e.target.value)}>
+              <option value="default">Default — used by projects without their own</option>
+              {subReqProjects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}{p.jobNumber ? " (#" + p.jobNumber + ")" : ""}{p.templates ? "  • custom" : ""}</option>
+              ))}
+            </select>
+            <p className="fd-hint" style={{ fontSize: 12, margin: "6px 0 0" }}>
+              {srTemplateTarget === "default"
+                ? "The starting templates every project uses until you give it its own."
+                : (srTplTargetProj && srTplTargetProj.templates
+                  ? "This project has its own templates."
+                  : "This project is using the default templates — editing here makes it its own.")}
+            </p>
+
+            <label className="fd-label" style={{ marginTop: 16 }}>Email Subject <span className="fd-hint">— {"{month}"} = full month name (e.g. "June 2026")</span></label>
+            <input className="fd-input" value={srTplValues.subject}
+              onChange={(e) => setSrTpl({ subject: e.target.value })} />
 
             <label className="fd-label" style={{ marginTop: 16 }}>
               First Email Body
               <span className="fd-hint"> — tokens: {"{name}"}, {"{month}"}, {"{signature}"}</span>
             </label>
-            <textarea className="fd-input area" rows={7} value={srSettings.firstBody}
-              onChange={(e) => setSrSettings(s => ({ ...s, firstBody: e.target.value }))} />
+            <textarea className="fd-input area" rows={7} value={srTplValues.firstBody}
+              onChange={(e) => setSrTpl({ firstBody: e.target.value })} />
 
             <label className="fd-label" style={{ marginTop: 16 }}>
               Follow-up Body
               <span className="fd-hint"> — tokens: {"{name}"}, {"{month}"}, {"{followUpCount}"}, {"{signature}"}</span>
             </label>
-            <textarea className="fd-input area" rows={7} value={srSettings.followUpBody}
-              onChange={(e) => setSrSettings(s => ({ ...s, followUpBody: e.target.value }))} />
+            <textarea className="fd-input area" rows={7} value={srTplValues.followUpBody}
+              onChange={(e) => setSrTpl({ followUpBody: e.target.value })} />
 
-            <label className="fd-label" style={{ marginTop: 16 }}>Signature <span className="fd-hint">— plain text, used in the email your mail app opens</span></label>
+            <div className="fd-panel-foot">
+              <button className="fd-btn ghost sm" onClick={resetSrTpl}>
+                <RotateCcw size={13} /> {srTemplateTarget === "default" ? "Reset default templates" : "Reset this project to default"}
+              </button>
+            </div>
+          </div>
+
+          <div className="fd-panel">
+            <div className="fd-panel-head"><span>Shared signature <span className="fd-count" style={{ fontWeight: 400 }}>used for every project</span></span></div>
+
+            <label className="fd-label">Signature <span className="fd-hint">— plain text, used in the email your mail app opens</span></label>
             <textarea className="fd-input area" rows={4} value={srSettings.signature}
               onChange={(e) => setSrSettings(s => ({ ...s, signature: e.target.value }))} />
 
@@ -5548,13 +5610,8 @@ function FollowUpDesk() {
                 );
               })()}
             </div>
-
-            <div className="fd-panel-foot">
-              <button className="fd-btn ghost sm" onClick={() => setSrSettings(DEFAULT_SR_SETTINGS)}>
-                <RotateCcw size={13} /> Reset to defaults
-              </button>
-            </div>
           </div>
+          </>
           )}
 
           {srShowAddProject && (
