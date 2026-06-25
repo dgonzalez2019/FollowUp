@@ -740,10 +740,14 @@ button.fd-admin-chip:disabled{cursor:default;}
       ] },
     { name: "Babel",
       test: function () { return !!window.Babel; },
+      // Pin to Babel 7. Babel 8's "latest" defaults JSX to the automatic runtime
+      // (emits `import {jsx} from "react/jsx-runtime"`), which fails as a classic
+      // <script> with "Cannot use import statement outside a module" and white-screens
+      // the app. 7.26.4 keeps the classic React.createElement output this page needs.
       urls: [
-        "https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js",
+        "https://cdn.jsdelivr.net/npm/@babel/standalone@7.26.4/babel.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js",
-        "https://unpkg.com/@babel/standalone/babel.min.js"
+        "https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"
       ] }
   ], showError);
   // Once all three are in, compile the app's text/babel script (dynamic load skips auto-compile).
