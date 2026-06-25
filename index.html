@@ -752,6 +752,20 @@ button.fd-admin-chip:disabled{cursor:default;}
       'border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;">Reload</button></div></div>';
   }
   window.__showFatal = showFatal;
+  // Safety net: if anything throws before the app mounts (e.g. an async top-level
+  // error that escapes the compile try/catch), surface it instead of a white screen.
+  // Once the app has mounted, the React error boundary takes over and we stay quiet
+  // so we don't hijack benign post-load errors (e.g. a Firestore permission reject).
+  window.addEventListener("error", function (e) {
+    if (window.__appMounted) return;
+    if (!e || !e.error) return; // ignore resource-load errors (handled by CDN fallback)
+    showFatal("The app hit an error while starting", e.error.message || String(e.error));
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    if (window.__appMounted) return;
+    var r = e && e.reason; if (!r) return;
+    showFatal("The app hit an error while starting", r.message || String(r));
+  });
   chain([
     { name: "React",
       test: function () { return !!window.React; },
@@ -5740,6 +5754,7 @@ class ErrorBoundary extends React.Component {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><FollowUpDesk /></ErrorBoundary>);
+window.__appMounted = true;
 </script>
 <script>
 /* Permanent white-screen fix: no service worker. We actively remove any previously
