@@ -5453,6 +5453,9 @@ function FollowUpDesk() {
                         <span className="fd-count">{allSubs.length}{allSubs.length === 1 ? " sub" : " subs"}</span>
                       </button>
                       <div style={{ display: "flex", gap: 8 }}>
+                        <button className="fd-icon-btn sm" title={"Edit email template for " + proj.name} onClick={() => { setSrTemplateTarget(proj.id); setSrTab("settings"); }}>
+                          <Pencil size={13} />
+                        </button>
                         <button className="fd-btn ghost sm" onClick={() => { setSrAddSubProjectId(proj.id); setSrSubForm({ name: "", email: "", cc: "" }); setSrShowAddSub(true); }}>
                           <Plus size={13} /> Add Sub
                         </button>
@@ -5535,7 +5538,7 @@ function FollowUpDesk() {
           <div className="fd-panel">
             <div className="fd-panel-head">Email Templates</div>
             <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 18px", lineHeight: 1.6 }}>
-              Templates are <strong style={{ color: "var(--ink)" }}>per project</strong>. The first email sent each month uses the <strong style={{ color: "var(--ink)" }}>First Email</strong> body; any send after that uses the <strong style={{ color: "var(--ink)" }}>Follow-up</strong> body, which can reference how many follow-ups have been sent with <code style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, background: "var(--surface-2)", padding: "1px 5px", borderRadius: 4 }}>{"{followUpCount}"}</code>. The signature below is shared across every project.
+              Templates are <strong style={{ color: "var(--ink)" }}>per project</strong> and <strong style={{ color: "var(--ink)" }}>carry over every month automatically</strong> — you set them once and they stay. Use the <Pencil size={12} style={{ display: "inline", verticalAlign: "middle", margin: "0 2px" }} /> icon on any project in the tracker to jump straight here. The first email sent each month uses the <strong style={{ color: "var(--ink)" }}>First Email</strong> body; any send after that uses the <strong style={{ color: "var(--ink)" }}>Follow-up</strong> body, which can reference how many follow-ups have been sent with <code style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, background: "var(--surface-2)", padding: "1px 5px", borderRadius: 4 }}>{"{followUpCount}"}</code>. The signature below is shared across every project.
             </p>
 
             <label className="fd-label">Templates for</label>
@@ -5549,8 +5552,8 @@ function FollowUpDesk() {
               {srTemplateTarget === "default"
                 ? "The starting templates every project uses until you give it its own."
                 : (srTplTargetProj && srTplTargetProj.templates
-                  ? "This project has its own templates."
-                  : "This project is using the default templates — editing here makes it its own.")}
+                  ? "This project has its own templates — saved and carried over every month automatically."
+                  : "This project is using the default templates — editing here gives it its own and saves them permanently.")}
             </p>
 
             <label className="fd-label" style={{ marginTop: 16 }}>Email Subject <span className="fd-hint">— {"{month}"} = full month name (e.g. "June 2026")</span></label>
