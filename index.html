@@ -3510,7 +3510,7 @@ function FollowUpDesk() {
   const sendSrEmail = (sub) => {
     const rec = getSrRecord(sub.id);
     const isFirst = !rec || rec.followUpsSent === 0;
-    const nextCount = (rec?.followUpsSent ?? 0) + 1;
+    const nextCount = ((rec && rec.followUpsSent) || 0) + 1;
     let body = (isFirst ? srSettings.firstBody : srSettings.followUpBody)
       .split("{name}").join(sub.name || "there")
       .split("{month}").join(srMonthLabel)
@@ -5334,9 +5334,9 @@ function FollowUpDesk() {
                         </div>
                         {projSubs.map(sub => {
                           const rec = getSrRecord(sub.id);
-                          const status = rec?.status ?? "pending";
-                          const followUpsSent = rec?.followUpsSent ?? 0;
-                          const lastSent = rec?.lastEmailSent;
+                          const status = (rec && rec.status) || "pending";
+                          const followUpsSent = (rec && rec.followUpsSent) || 0;
+                          const lastSent = rec && rec.lastEmailSent;
                           const statusColor = status === "received" ? "var(--ok)" : status === "not_billing" ? "var(--muted)" : "var(--danger)";
                           const statusLabel = status === "received" ? "Received" : status === "not_billing" ? "Not Billing" : "Pending";
                           return (
