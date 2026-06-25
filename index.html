@@ -583,6 +583,33 @@ button.fd-admin-chip:disabled{cursor:default;}
 .fd-emp-meta span{display:inline-flex; align-items:center; gap:5px;}
 .fd-emp-edit{padding:12px 0; border-bottom:1px solid var(--line);}
 @media(max-width:560px){ .fd-emp-grid{grid-template-columns:1fr;} }
+/* ===== Sub Req Tracker ===== */
+.fd-sr-month{display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+.fd-sr-month-label{font-family:'Archivo',sans-serif; font-weight:700; font-size:17px; min-width:160px;}
+.fd-sr-table{border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:2px;}
+.fd-sr-head{display:grid; grid-template-columns:1fr 140px 100px 220px; gap:8px; padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line); font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.05em; text-transform:uppercase;}
+.fd-sr-row{display:grid; grid-template-columns:1fr 140px 100px 220px; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); align-items:center; transition:background .12s;}
+.fd-sr-row:last-child{border-bottom:none;}
+.fd-sr-row:hover{background:var(--surface-3);}
+.fd-sr-status-dot{display:inline-block; width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-right:5px;}
+.fd-sr-actions{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+.fd-sr-tabs{display:flex; gap:3px; background:var(--surface-3); border:1px solid var(--line); border-radius:10px; padding:4px; margin-bottom:18px; width:fit-content;}
+.fd-sr-tab{border:none; background:none; font-family:inherit; font-size:13px; font-weight:500; color:var(--muted); padding:7px 14px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:color .15s, background .15s, box-shadow .15s;}
+.fd-sr-tab:hover{color:var(--ink);}
+.fd-sr-tab.active{background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm); font-weight:600;}
+.fd-sr-searchbar{display:flex; align-items:center; gap:10px; margin-bottom:16px; color:var(--muted);}
+.fd-sr-searchbar .fd-input{flex:1;}
+.fd-sr-projtoggle{display:inline-flex; align-items:center; gap:10px; background:none; border:none; font-family:'Archivo',sans-serif; font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--ink); cursor:pointer; padding:0; text-align:left; min-width:0;}
+.fd-sr-projtoggle:hover{color:var(--accent);}
+.fd-sr-chev{display:inline-flex; color:var(--muted); transition:transform .15s; flex-shrink:0;}
+.fd-sr-chev.open{transform:rotate(90deg);}
+.fd-sr-projtoggle:hover .fd-sr-chev{color:var(--accent);}
+@media(max-width:640px){
+  .fd-sr-head{display:none;}
+  .fd-sr-row{grid-template-columns:1fr auto; grid-template-rows:auto auto; row-gap:8px;}
+  .fd-sr-row > div:nth-child(3){grid-row:2; grid-column:1; font-size:12px;}
+  .fd-sr-row > div:nth-child(4){grid-row:2; grid-column:2;}
+}
 
 /* ===== Accessibility & motion ===== */
 .fd-root button:focus-visible, .fd-root a:focus-visible, .fd-root input:focus-visible, .fd-root select:focus-visible, .fd-root textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
@@ -906,6 +933,10 @@ button.fd-admin-chip:disabled{cursor:default;}
     // is exactly what white-screened the app. Keep these versions locked.
     { name: "Babel",
       test: function () { return !!window.Babel; },
+      // Pin to Babel 7. Babel 8's "latest" defaults JSX to the automatic runtime
+      // (emits `import {jsx} from "react/jsx-runtime"`), which fails as a classic
+      // <script> with "Cannot use import statement outside a module" and white-screens
+      // the app. 7.26.4 keeps the classic React.createElement output this page needs.
       urls: [
         "https://cdn.jsdelivr.net/npm/@babel/standalone@7.26.4/babel.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js",
@@ -1022,6 +1053,8 @@ const Trophy = (p) => <Svg {...p}><path d="M8 21h8"/><path d="M12 17v4"/><path d
 const Home = (p) => <Svg {...p}><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v11h14V10"/><path d="M9 21v-6h6v6"/></Svg>;
 const Newspaper = (p) => <Svg {...p}><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8z"/></Svg>;
 const Download = (p) => <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Svg>;
+const Receipt = (p) => <Svg {...p}><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></Svg>;
+const Search = (p) => <Svg {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Svg>;
 
 // ---------- date helpers ----------
 const MS_DAY = 86400000;
@@ -1038,6 +1071,14 @@ const DEFAULT_SETTINGS = {
   template:
     "Dear {name},\n\nI am writing to follow up on my previous email regarding {subject}. At your earliest convenience, could you please provide the outstanding items: {notes}?\n\nPlease let me know if you require any further information from me.\n\n{signature}",
   signature: "Best regards,\n[Your name]",
+};
+
+const DEFAULT_SR_SETTINGS = {
+  subject: "Monthly Requisition — {month}",
+  firstBody: "Hi {name},\n\nI hope you're doing well. I'm reaching out to collect your requisition for {month}. Could you please send it over at your earliest convenience?\n\nIf you are not billing this month, please let us know so we can update our records.\n\n{signature}",
+  followUpBody: "Hi {name},\n\nThis is follow-up #{followUpCount} regarding your {month} requisition. We still haven't received it in our office. Could you please send it over, or let us know if you're not billing this month?\n\n{signature}",
+  signature: "Thank you,\n[Your name]",
+  htmlSignature: "",
 };
 
 // ---------- phrasing pools (all professional; three registers) ----------
@@ -3023,7 +3064,7 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] }, newsletter: { access: [], employees: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] }, newsletter: { access: [], employees: [] }, subreqs: { access: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
@@ -3074,6 +3115,24 @@ function FollowUpDesk() {
   const [authReady, setAuthReady] = useState(!cloudOn);
   const [, setVerifyPing] = useState(0);
   const [user, setUser] = useState(null);
+  const [subReqProjects, setSubReqProjects] = useState([]);
+  const [subReqSubs, setSubReqSubs] = useState([]);
+  const [subReqMonthly, setSubReqMonthly] = useState([]);
+  const [srSettings, setSrSettings] = useState(DEFAULT_SR_SETTINGS);
+  const [srTab, setSrTab] = useState("tracker");
+  const [srMonth, setSrMonth] = useState(() => {
+    const n = new Date();
+    return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0");
+  });
+  const [srShowAddProject, setSrShowAddProject] = useState(false);
+  const [srShowAddSub, setSrShowAddSub] = useState(false);
+  const [srAddSubProjectId, setSrAddSubProjectId] = useState("");
+  const [srProjForm, setSrProjForm] = useState({ name: "", jobNumber: "" });
+  const [srSubForm, setSrSubForm] = useState({ name: "", email: "", cc: "" });
+  const [srSearch, setSrSearch] = useState("");
+  const [srCollapsed, setSrCollapsed] = useState({});
+  const [srTemplateTarget, setSrTemplateTarget] = useState("default");
+  const [adminNewSubreq, setAdminNewSubreq] = useState("");
   const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const appVisible = (!cloudOn || (authReady && !!user));
   const playIntro = (fast) => {
@@ -3467,6 +3526,10 @@ function FollowUpDesk() {
         setPending(parsed.pending || []);
         setDeadlines(parsed.deadlines || []);
         setPersonalApps(parsed.personalApps || []);
+        setSubReqProjects(parsed.subReqProjects || []);
+        setSubReqSubs(parsed.subReqSubs || []);
+        setSubReqMonthly(parsed.subReqMonthly || []);
+        setSrSettings({ ...DEFAULT_SR_SETTINGS, ...(parsed.srSettings || {}) });
       }
     } catch (e) { /* first run */ }
     setLoaded(true);
@@ -3474,14 +3537,14 @@ function FollowUpDesk() {
 
   useEffect(() => {
     if (!loaded) return;
-    const json = JSON.stringify({ followups, settings, pending, deadlines, personalApps });
+    const json = JSON.stringify({ followups, settings, pending, deadlines, personalApps, subReqProjects, subReqSubs, subReqMonthly, srSettings });
     try { localStorage.setItem(STORE_KEY, json); }
     catch (e) { console.error("save failed", e); }
     if (cloudOn && user && cloudLoadedRef.current && json !== lastSyncedRef.current) {
       lastSyncedRef.current = json;
       fbDb.collection("users").doc(user.uid).set({ data: json, updatedAt: Date.now() }).catch((e) => console.error("cloud save failed", e));
     }
-  }, [followups, settings, pending, deadlines, loaded, user, personalApps]);
+  }, [followups, settings, pending, deadlines, loaded, user, personalApps, subReqProjects, subReqSubs, subReqMonthly, srSettings]);
 
   // watch email/password sign-in state
   useEffect(() => {
@@ -3499,7 +3562,7 @@ function FollowUpDesk() {
       const remote = snap.exists ? snap.data().data : null;
       if (remote == null) {
         // brand-new account: push whatever is on this device up (migrates existing data)
-        const json = JSON.stringify({ followups, settings, pending, deadlines, personalApps });
+        const json = JSON.stringify({ followups, settings, pending, deadlines, personalApps, subReqProjects, subReqSubs, subReqMonthly, srSettings });
         lastSyncedRef.current = json;
         ref.set({ data: json, updatedAt: Date.now() }).catch(() => {});
       } else if (remote !== lastSyncedRef.current) {
@@ -3511,6 +3574,10 @@ function FollowUpDesk() {
           setPending(p.pending || []);
           setDeadlines(p.deadlines || []);
           setPersonalApps(p.personalApps || []);
+          setSubReqProjects(p.subReqProjects || []);
+          setSubReqSubs(p.subReqSubs || []);
+          setSubReqMonthly(p.subReqMonthly || []);
+          setSrSettings({ ...DEFAULT_SR_SETTINGS, ...(p.srSettings || {}) });
         } catch (e) { /* ignore */ }
       }
       cloudLoadedRef.current = true;
@@ -3527,7 +3594,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] }, subreqs: { access: (c.subreqs && c.subreqs.access) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -4887,6 +4954,17 @@ function FollowUpDesk() {
     const cur = ((sharedConfig.acct && sharedConfig.acct.insManagers) || []).filter((x) => x !== em);
     saveSharedConfig({ ...sharedConfig, acct: { ...sharedConfig.acct, insManagers: cur } });
   };
+  const grantSubreq = () => {
+    const em = adminNewSubreq.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const cur = ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, subreqs: { access: [...cur, em] } });
+    setAdminNewSubreq("");
+  };
+  const revokeSubreq = (em) => {
+    const cur = ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, subreqs: { access: cur } });
+  };
   const toggleTab = (key) => {
     const tabs = { ...sharedConfig.tabs, [key]: sharedConfig.tabs[key] === false ? true : false };
     saveSharedConfig({ ...sharedConfig, tabs });
@@ -4963,6 +5041,7 @@ function FollowUpDesk() {
   const isInsManager = isAdmin || ((sharedConfig.acct && sharedConfig.acct.insManagers) || []).indexOf(myEmailLc) >= 0;
   const acctHasAccess = isAcctManager || isInsManager || ((sharedConfig.acct && sharedConfig.acct.access) || []).indexOf(myEmailLc) >= 0;
   const newsletterHasAccess = isAdmin || ((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).indexOf(myEmailLc) >= 0;
+  const srHasAccess = isAdmin || ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).indexOf(myEmailLc) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
 
   const tabVisible = (key) => {
@@ -5029,6 +5108,120 @@ function FollowUpDesk() {
     : uspsTab === "joc" ? uspsView.filter(isJoc)
     : uspsTab === "stale" ? uspsView.filter((it) => isActive(it) && isStale(it))
     : uspsView.filter(isActive);
+  const srMonthLabel = (() => {
+    const [y, m] = srMonth.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  })();
+
+  const prevSrMonth = () => {
+    const [y, m] = srMonth.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    setSrMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
+  };
+
+  const nextSrMonth = () => {
+    const [y, m] = srMonth.split("-").map(Number);
+    const d = new Date(y, m, 1);
+    setSrMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
+  };
+
+  const getSrRecord = (subId) => subReqMonthly.find(r => r.subId === subId && r.month === srMonth);
+
+  const updateSrRecord = (subId, patch) => {
+    setSubReqMonthly(ms => {
+      const idx = ms.findIndex(r => r.subId === subId && r.month === srMonth);
+      if (idx >= 0) {
+        const next = [...ms]; next[idx] = { ...next[idx], ...patch }; return next;
+      }
+      return [...ms, { id: "srm" + Date.now().toString(36), subId, month: srMonth, status: "pending", followUpsSent: 0, lastEmailSent: null, ...patch }];
+    });
+  };
+
+  // Per-project email templates, falling back to the shared default (srSettings).
+  // Signature is always global, so it lives only on srSettings — never per project.
+  const projTemplate = (proj) => {
+    const t = (proj && proj.templates) || {};
+    return {
+      subject: t.subject != null ? t.subject : srSettings.subject,
+      firstBody: t.firstBody != null ? t.firstBody : srSettings.firstBody,
+      followUpBody: t.followUpBody != null ? t.followUpBody : srSettings.followUpBody,
+    };
+  };
+  const srTplTargetProj = srTemplateTarget === "default" ? null : subReqProjects.find((p) => p.id === srTemplateTarget);
+  const srTplValues = srTemplateTarget === "default"
+    ? { subject: srSettings.subject, firstBody: srSettings.firstBody, followUpBody: srSettings.followUpBody }
+    : projTemplate(srTplTargetProj);
+  const setSrTpl = (patch) => {
+    if (srTemplateTarget === "default") {
+      setSrSettings((s) => ({ ...s, ...patch }));
+    } else {
+      setSubReqProjects((ps) => ps.map((p) => {
+        if (p.id !== srTemplateTarget) return p;
+        const base = p.templates || { subject: srSettings.subject, firstBody: srSettings.firstBody, followUpBody: srSettings.followUpBody };
+        return { ...p, templates: { ...base, ...patch } };
+      }));
+    }
+  };
+  const resetSrTpl = () => {
+    if (srTemplateTarget === "default") {
+      setSrSettings((s) => ({ ...s, subject: DEFAULT_SR_SETTINGS.subject, firstBody: DEFAULT_SR_SETTINGS.firstBody, followUpBody: DEFAULT_SR_SETTINGS.followUpBody }));
+    } else {
+      setSubReqProjects((ps) => ps.map((p) => (p.id === srTemplateTarget ? { ...p, templates: undefined } : p)));
+    }
+  };
+
+  const copyRichHtml = (html, plain) => {
+    try {
+      if (navigator.clipboard && typeof window.ClipboardItem === "function") {
+        const item = new window.ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([plain], { type: "text/plain" }),
+        });
+        return navigator.clipboard.write([item]).catch(() => {
+          if (navigator.clipboard.writeText) navigator.clipboard.writeText(plain);
+        });
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(plain);
+    } catch (e) { /* clipboard unavailable */ }
+  };
+
+  const sendSrEmail = (sub) => {
+    const rec = getSrRecord(sub.id);
+    const isFirst = !rec || rec.followUpsSent === 0;
+    const nextCount = ((rec && rec.followUpsSent) || 0) + 1;
+    const tpl = projTemplate(subReqProjects.find((p) => p.id === sub.projectId));
+    const template = isFirst ? tpl.firstBody : tpl.followUpBody;
+    const fill = (str, sig) => str
+      .split("{name}").join(sub.name || "there")
+      .split("{month}").join(srMonthLabel)
+      .split("{followUpCount}").join(String(nextCount))
+      .split("{signature}").join(sig);
+    const body = fill(template, srSettings.signature || "");
+    const subject = (tpl.subject || "").split("{month}").join(srMonthLabel);
+    // Accept commas or semicolons in the saved CC, but hand Outlook semicolons
+    // so each address lands as its own recipient.
+    const ccList = (sub.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+    const ccPart = ccList.length ? "&cc=" + encodeURIComponent(ccList.join(";")) : "";
+    window.open("mailto:" + encodeURIComponent(sub.email) + "?subject=" + encodeURIComponent(subject) + ccPart + "&body=" + encodeURIComponent(body), "_self");
+
+    const htmlSig = (srSettings.htmlSignature || "").trim();
+    if (htmlSig) {
+      const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const bodyText = fill(template, "").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
+      const htmlBody = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;">'
+        + esc(bodyText).replace(/\n/g, "<br>") + "<br><br>" + htmlSig + "</div>";
+      const plainFallback = (bodyText + "\n\n" + (srSettings.signature || "")).replace(/\s+$/, "");
+      copyRichHtml(htmlBody, plainFallback);
+    }
+    updateSrRecord(sub.id, { followUpsSent: nextCount, lastEmailSent: todayStr() });
+    flash(htmlSig ? "Mail app opened · formatted email copied — paste it in for your HTML signature" : "Email client opened");
+  };
+
+  const srPendingCount = subReqSubs.filter(sub => {
+    const rec = getSrRecord(sub.id);
+    return !rec || rec.status === "pending";
+  }).length;
+
   const inCalGroup = section === "calendar" || section === "followups" || section === "pending" || section === "deadlines";
 
   return (
@@ -5057,8 +5250,8 @@ function FollowUpDesk() {
         <header className={"fd-head" + (section === "home" ? " hero" : "")}>
           <div>
             {section === "home" && <img ref={heroLogoRef} src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" style={{ opacity: intro ? 0 : undefined }} />}
-            {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ bracket: "WORLD CUP 2026", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST", newsletter: "MONTHLY EDITION" }[section] || "CORRESPONDENCE LEDGER")}</div>}
-            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS", newsletter: "Company Newsletter" }[section] || "Follow-ups")}</h1>
+            {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ bracket: "WORLD CUP 2026", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST", newsletter: "MONTHLY EDITION", subreqs: "SUBCONTRACTOR BILLING" }[section] || "CORRESPONDENCE LEDGER")}</div>}
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS", newsletter: "Company Newsletter", subreqs: "Sub Requisition Tracker" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
                 bracket: "Order each group 1–4, pick your best thirds, then advance teams through your own bracket to the trophy. Scores update live.",
@@ -5072,6 +5265,7 @@ function FollowUpDesk() {
                 admin: "Control what everyone sees and add company-wide tabs. Changes apply to all users.",
                 usps: "A shared list — visible to everyone you've given access, and kept in sync between you all.",
                 newsletter: "The monthly BDI newsletter — work anniversaries and birthdays on a company letterhead, ready to download as a PDF.",
+                subreqs: "Track monthly requisitions by project — log who's sent theirs, who's not billing, and follow up with a click.",
               }[section] || "Track who still owes you documents — see exactly who's due, write the note, and open it in your mail app in one click.")}
             </p>
           </div>
@@ -5145,6 +5339,11 @@ function FollowUpDesk() {
           {newsletterHasAccess && (
             <button className={"fd-nav-btn" + (section === "newsletter" ? " active" : "")} onClick={() => setSection("newsletter")}>
               <Newspaper size={15} /> Newsletter
+            </button>
+          )}
+          {srHasAccess && (
+            <button className={"fd-nav-btn" + (section === "subreqs" ? " active" : "")} onClick={() => setSection("subreqs")}>
+              <Receipt size={15} /> Sub Reqs{srPendingCount > 0 ? " (" + srPendingCount + ")" : ""}
             </button>
           )}
           {isAdmin && (
@@ -5278,6 +5477,15 @@ function FollowUpDesk() {
                 <span className="fd-launch-ico"><Newspaper size={20} /></span>
                 <span className="fd-launch-name">Newsletter</span>
                 <span className="fd-launch-desc">The monthly BDI newsletter — birthdays and work anniversaries, ready to download as a PDF.</span>
+                <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
+              </button>
+            )}
+            {srHasAccess && (
+              <button className="fd-launch" onClick={(e) => openTab("subreqs", e)}>
+                {srPendingCount > 0 && <span className="fd-launch-count">{srPendingCount}</span>}
+                <span className="fd-launch-ico"><Receipt size={20} /></span>
+                <span className="fd-launch-name">Sub Requisitions</span>
+                <span className="fd-launch-desc">Monthly tracker — log received, not billing, and pending reqs by project.</span>
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
@@ -6340,6 +6548,23 @@ function FollowUpDesk() {
               <input className="fd-input" placeholder="Email to make an Insurance manager" value={adminNewAcctInsMgr}
                 onChange={(e) => setAdminNewAcctInsMgr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAcctInsManager(); }} />
               <button className="fd-btn primary" onClick={addAcctInsManager}>Add manager</button>
+            </div>
+          </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Sub Reqs tab access</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Sub Requisition Tracker is hidden from everyone except the people you add here. Each person keeps their own projects and subcontractors. You always have access.</p>
+            {((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one else has access yet. Add someone by email below.</p>
+            ) : ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove access" onClick={() => revokeSubreq(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to grant Sub Reqs access" value={adminNewSubreq}
+                onChange={(e) => setAdminNewSubreq(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantSubreq(); }} />
+              <button className="fd-btn primary" onClick={grantSubreq}>Grant access</button>
             </div>
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in. Newsletter access and the employee roster are managed from the Newsletter tab's settings (gear) button.</p>
@@ -7426,6 +7651,322 @@ function FollowUpDesk() {
               </>
             );
           })()}
+        </>
+        )}
+
+        {section === "subreqs" && srHasAccess && (
+        <>
+          <div className="fd-sr-tabs">
+            <button className={"fd-sr-tab" + (srTab === "tracker" ? " active" : "")} onClick={() => setSrTab("tracker")}>
+              <Receipt size={14} /> Tracker
+            </button>
+            <button className={"fd-sr-tab" + (srTab === "settings" ? " active" : "")} onClick={() => setSrTab("settings")}>
+              <SettingsIcon size={14} /> Email Templates
+            </button>
+          </div>
+
+          {srTab === "tracker" && (
+          <>
+            <div className="fd-stats">
+              <Stat n={subReqSubs.filter(s => { const r = getSrRecord(s.id); return r && r.status === "received"; }).length} label="received" tone="#4caf7d" />
+              <Stat n={subReqSubs.filter(s => { const r = getSrRecord(s.id); return r && r.status === "not_billing"; }).length} label="not billing" tone="#9aa3ad" />
+              <Stat n={srPendingCount} label="pending" tone="#e06149" />
+            </div>
+
+            <div className="fd-sr-month">
+              <button className="fd-icon-btn sm" onClick={prevSrMonth}><ChevronLeft size={16} /></button>
+              <span className="fd-sr-month-label">{srMonthLabel}</span>
+              <button className="fd-icon-btn sm" onClick={nextSrMonth}><ChevronRight size={16} /></button>
+              <div className="fd-spacer" />
+              <button className="fd-btn primary sm" onClick={() => { setSrShowAddProject(true); setSrProjForm({ name: "", jobNumber: "" }); }}>
+                <Plus size={14} /> Add Project
+              </button>
+            </div>
+
+            <div className="fd-sr-searchbar">
+              <Search size={16} />
+              <input
+                className="fd-input"
+                placeholder="Search projects or subcontractors…"
+                value={srSearch}
+                onChange={(e) => setSrSearch(e.target.value)}
+              />
+              {srSearch && <button className="fd-icon-btn sm" title="Clear search" onClick={() => setSrSearch("")}><X size={14} /></button>}
+            </div>
+
+            {subReqProjects.length === 0 ? (
+              <div className="fd-empty">
+                <Receipt size={32} />
+                <p>No projects yet. Add a project to get started.</p>
+              </div>
+            ) : (() => {
+              const q = srSearch.trim().toLowerCase();
+              const matchSub = (sub) => !q || (String(sub.name) + " " + String(sub.email)).toLowerCase().indexOf(q) >= 0;
+              const matchProj = (proj) => !q || (String(proj.name) + " " + String(proj.jobNumber || "")).toLowerCase().indexOf(q) >= 0;
+              const rows = subReqProjects.map(proj => {
+                const allSubs = subReqSubs.filter(s => s.projectId === proj.id);
+                const projMatches = matchProj(proj);
+                const subs = q ? (projMatches ? allSubs : allSubs.filter(matchSub)) : allSubs;
+                return { proj, allSubs, subs, projMatches };
+              }).filter(r => !q || r.projMatches || r.subs.length > 0);
+              if (rows.length === 0) {
+                return (
+                  <div className="fd-empty">
+                    <Search size={32} />
+                    <p>No projects or subcontractors match “{srSearch}”.</p>
+                  </div>
+                );
+              }
+              return rows.map(({ proj, allSubs, subs }) => {
+                const projSubs = subs;
+                const open = q ? true : !srCollapsed[proj.id];
+                return (
+                  <div key={proj.id} className="fd-panel" style={{ marginBottom: 16 }}>
+                    <div className="fd-panel-head" style={{ marginBottom: open ? 16 : 0 }}>
+                      <button className="fd-sr-projtoggle" onClick={() => setSrCollapsed(c => ({ ...c, [proj.id]: !c[proj.id] }))} title={open ? "Collapse" : "Expand"}>
+                        <span className={"fd-sr-chev" + (open ? " open" : "")}><ChevronRight size={16} /></span>
+                        <span>{proj.name}</span>
+                        {proj.jobNumber && <span style={{ fontSize: 12, fontFamily: "'IBM Plex Mono',monospace", color: "var(--muted)", fontWeight: 400 }}>#{proj.jobNumber}</span>}
+                        <span className="fd-count">{allSubs.length}{allSubs.length === 1 ? " sub" : " subs"}</span>
+                      </button>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="fd-icon-btn sm" title={"Edit email template for " + proj.name} onClick={() => { setSrTemplateTarget(proj.id); setSrTab("settings"); }}>
+                          <Pencil size={13} />
+                        </button>
+                        <button className="fd-btn ghost sm" onClick={() => { setSrAddSubProjectId(proj.id); setSrSubForm({ name: "", email: "", cc: "" }); setSrShowAddSub(true); }}>
+                          <Plus size={13} /> Add Sub
+                        </button>
+                        <button className="fd-icon-btn sm danger" title="Delete project" onClick={() => {
+                          if (window.confirm("Delete project \"" + proj.name + "\" and all its subcontractors?")) {
+                            const subIds = subReqSubs.filter(s => s.projectId === proj.id).map(s => s.id);
+                            setSubReqSubs(ss => ss.filter(s => s.projectId !== proj.id));
+                            setSubReqMonthly(ms => ms.filter(r => !subIds.includes(r.subId)));
+                            setSubReqProjects(ps => ps.filter(p => p.id !== proj.id));
+                            setSrTemplateTarget(t => t === proj.id ? "default" : t);
+                          }
+                        }}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+
+                    {open && (allSubs.length === 0 ? (
+                      <div style={{ color: "var(--muted)", fontSize: 13, padding: "6px 0 2px" }}>No subcontractors added yet.</div>
+                    ) : (
+                      <div className="fd-sr-table">
+                        <div className="fd-sr-head">
+                          <span>Subcontractor</span>
+                          <span>Status</span>
+                          <span>Follow-ups</span>
+                          <span>Actions</span>
+                        </div>
+                        {projSubs.map(sub => {
+                          const rec = getSrRecord(sub.id);
+                          const status = (rec && rec.status) || "pending";
+                          const followUpsSent = (rec && rec.followUpsSent) || 0;
+                          const lastSent = rec && rec.lastEmailSent;
+                          const statusColor = status === "received" ? "var(--ok)" : status === "not_billing" ? "var(--muted)" : "var(--danger)";
+                          const statusLabel = status === "received" ? "Received" : status === "not_billing" ? "Not Billing" : "Pending";
+                          return (
+                            <div key={sub.id} className="fd-sr-row">
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{sub.name}</div>
+                                <div style={{ fontSize: 12, color: "var(--muted)", fontFamily: "'IBM Plex Mono',monospace", marginTop: 2 }}>{sub.email}</div>
+                              </div>
+                              <div>
+                                <select
+                                  className="fd-select"
+                                  style={{ fontSize: 12.5, padding: "5px 28px 5px 9px" }}
+                                  value={status}
+                                  onChange={(e) => updateSrRecord(sub.id, { status: e.target.value })}
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="received">Received</option>
+                                  <option value="not_billing">Not Billing</option>
+                                </select>
+                              </div>
+                              <div style={{ fontSize: 13, fontFamily: "'IBM Plex Mono',monospace", color: "var(--muted)" }}>
+                                {followUpsSent > 0 ? followUpsSent + " sent" : "—"}
+                                {lastSent && <div style={{ fontSize: 11, color: "var(--faint)", marginTop: 2 }}>{prettyDate(lastSent)}</div>}
+                              </div>
+                              <div className="fd-sr-actions">
+                                {status === "pending" && (
+                                  <button className="fd-btn primary sm" title={followUpsSent === 0 ? "Send first email" : "Send follow-up #" + (followUpsSent + 1)} onClick={() => sendSrEmail(sub)}>
+                                    <Mail size={13} /> {followUpsSent === 0 ? "Send Email" : "Follow-up #" + (followUpsSent + 1)}
+                                  </button>
+                                )}
+                                <button className="fd-icon-btn sm danger" title="Remove sub" onClick={() => {
+                                  setSubReqSubs(ss => ss.filter(s => s.id !== sub.id));
+                                  setSubReqMonthly(ms => ms.filter(r => r.subId !== sub.id));
+                                }}><Trash2 size={13} /></button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                );
+              });
+            })()}
+          </>
+          )}
+
+          {srTab === "settings" && (
+          <>
+          <div className="fd-panel">
+            <div className="fd-panel-head">Email Templates</div>
+            <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 18px", lineHeight: 1.6 }}>
+              Templates are <strong style={{ color: "var(--ink)" }}>per project</strong> and <strong style={{ color: "var(--ink)" }}>carry over every month automatically</strong> — you set them once and they stay. Use the <Pencil size={12} style={{ display: "inline", verticalAlign: "middle", margin: "0 2px" }} /> icon on any project in the tracker to jump straight here. The first email sent each month uses the <strong style={{ color: "var(--ink)" }}>First Email</strong> body; any send after that uses the <strong style={{ color: "var(--ink)" }}>Follow-up</strong> body, which can reference how many follow-ups have been sent with <code style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, background: "var(--surface-2)", padding: "1px 5px", borderRadius: 4 }}>{"{followUpCount}"}</code>. The signature below is shared across every project.
+            </p>
+
+            <label className="fd-label">Templates for</label>
+            <select className="fd-select" style={{ width: "100%" }} value={srTemplateTarget} onChange={(e) => setSrTemplateTarget(e.target.value)}>
+              <option value="default">Default — used by projects without their own</option>
+              {subReqProjects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}{p.jobNumber ? " (#" + p.jobNumber + ")" : ""}{p.templates ? "  • custom" : ""}</option>
+              ))}
+            </select>
+            <p className="fd-hint" style={{ fontSize: 12, margin: "6px 0 0" }}>
+              {srTemplateTarget === "default"
+                ? "The starting templates every project uses until you give it its own."
+                : (srTplTargetProj && srTplTargetProj.templates
+                  ? "This project has its own templates — saved and carried over every month automatically."
+                  : "This project is using the default templates — editing here gives it its own and saves them permanently.")}
+            </p>
+
+            <label className="fd-label" style={{ marginTop: 16 }}>Email Subject <span className="fd-hint">— {"{month}"} = full month name (e.g. "June 2026")</span></label>
+            <input className="fd-input" value={srTplValues.subject}
+              onChange={(e) => setSrTpl({ subject: e.target.value })} />
+
+            <label className="fd-label" style={{ marginTop: 16 }}>
+              First Email Body
+              <span className="fd-hint"> — tokens: {"{name}"}, {"{month}"}, {"{signature}"}</span>
+            </label>
+            <textarea className="fd-input area" rows={7} value={srTplValues.firstBody}
+              onChange={(e) => setSrTpl({ firstBody: e.target.value })} />
+
+            <label className="fd-label" style={{ marginTop: 16 }}>
+              Follow-up Body
+              <span className="fd-hint"> — tokens: {"{name}"}, {"{month}"}, {"{followUpCount}"}, {"{signature}"}</span>
+            </label>
+            <textarea className="fd-input area" rows={7} value={srTplValues.followUpBody}
+              onChange={(e) => setSrTpl({ followUpBody: e.target.value })} />
+
+            <div className="fd-panel-foot">
+              <button className="fd-btn ghost sm" onClick={resetSrTpl}>
+                <RotateCcw size={13} /> {srTemplateTarget === "default" ? "Reset default templates" : "Reset this project to default"}
+              </button>
+            </div>
+          </div>
+
+          <div className="fd-panel">
+            <div className="fd-panel-head"><span>Shared signature <span className="fd-count" style={{ fontWeight: 400 }}>used for every project</span></span></div>
+
+            <label className="fd-label">Signature <span className="fd-hint">— plain text, used in the email your mail app opens</span></label>
+            <textarea className="fd-input area" rows={4} value={srSettings.signature}
+              onChange={(e) => setSrSettings(s => ({ ...s, signature: e.target.value }))} />
+
+            <div style={{ marginTop: 16 }}>
+              <label className="fd-label">HTML signature <span className="fd-count">optional</span></label>
+              <p className="fd-hint" style={{ marginTop: 0, fontSize: 12 }}>Paste your Outlook signature HTML below, or upload the .htm file from your Outlook signatures folder. Since the Send button opens your mail app with plain text, when an HTML signature is set the formatted message is also copied to your clipboard — just paste it into the email to keep the styling. Images must use public https:// links to display.</p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                <label className="fd-btn ghost sm" style={{ cursor: "pointer" }}>
+                  <input type="file" accept=".htm,.html,text/html" style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => setSrSettings(s => ({ ...s, htmlSignature: String(r.result || "") })); r.readAsText(f); }} />
+                  Upload .htm file
+                </label>
+                {srSettings.htmlSignature && <button className="fd-btn ghost sm" onClick={() => setSrSettings(s => ({ ...s, htmlSignature: "" }))}>Remove</button>}
+              </div>
+              <textarea className="fd-input area" rows={4} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}
+                placeholder="<table>...your signature HTML...</table>" value={srSettings.htmlSignature || ""}
+                onChange={(e) => setSrSettings(s => ({ ...s, htmlSignature: e.target.value }))} />
+              {srSettings.htmlSignature && (() => {
+                const hasLocalImg = /<img[^>]+src=["'](?!https?:|data:)/i.test(srSettings.htmlSignature);
+                return (
+                  <div style={{ marginTop: 10 }}>
+                    {hasLocalImg && <p className="fd-hint" style={{ color: "var(--danger)", fontSize: 12 }}>Heads up: an image in this signature uses a local/embedded path and won't show when pasted. Replace it with a public https:// image link.</p>}
+                    <div className="fd-hint" style={{ fontSize: 11, marginBottom: 4 }}>Preview:</div>
+                    <div style={{ background: "#fff", color: "#111", borderRadius: 8, padding: 12, overflow: "auto", maxHeight: 220 }} dangerouslySetInnerHTML={{ __html: srSettings.htmlSignature }} />
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+          </>
+          )}
+
+          {srShowAddProject && (
+            <div className="fd-modal" onClick={(e) => { if (e.target === e.currentTarget) { setSrShowAddProject(false); } }}>
+              <div className="fd-modal-box" style={{ maxWidth: 480 }}>
+                <div className="fd-modal-head">
+                  <span>Add Project</span>
+                  <button className="fd-icon-btn sm" onClick={() => setSrShowAddProject(false)}><X size={16} /></button>
+                </div>
+                <div style={{ padding: "18px 20px 20px" }}>
+                  <label className="fd-label">Project Name</label>
+                  <input className="fd-input" value={srProjForm.name}
+                    onChange={(e) => setSrProjForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. 123 Main Street"
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.form && e.currentTarget.form.requestSubmit(); }} />
+                  <label className="fd-label" style={{ marginTop: 14 }}>Job Number <span className="fd-hint">(optional)</span></label>
+                  <input className="fd-input" value={srProjForm.jobNumber}
+                    onChange={(e) => setSrProjForm(f => ({ ...f, jobNumber: e.target.value }))}
+                    placeholder="e.g. 2024-001" />
+                </div>
+                <div className="fd-modal-foot" style={{ gap: 8 }}>
+                  <button className="fd-btn ghost sm" onClick={() => setSrShowAddProject(false)}>Cancel</button>
+                  <button className="fd-btn primary sm" onClick={() => {
+                    if (!srProjForm.name.trim()) { flash("Project name is required"); return; }
+                    setSubReqProjects(ps => [...ps, { id: "p" + Date.now().toString(36), name: srProjForm.name.trim(), jobNumber: srProjForm.jobNumber.trim() }]);
+                    setSrShowAddProject(false);
+                    flash("Project added");
+                  }}>Add Project</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {srShowAddSub && (
+            <div className="fd-modal" onClick={(e) => { if (e.target === e.currentTarget) { setSrShowAddSub(false); } }}>
+              <div className="fd-modal-box" style={{ maxWidth: 520 }}>
+                <div className="fd-modal-head">
+                  <span>Add Subcontractor</span>
+                  <button className="fd-icon-btn sm" onClick={() => setSrShowAddSub(false)}><X size={16} /></button>
+                </div>
+                <div style={{ padding: "18px 20px 20px" }}>
+                  <div className="fd-grid">
+                    <div>
+                      <label className="fd-label">Company / Name</label>
+                      <input className="fd-input" value={srSubForm.name}
+                        onChange={(e) => setSrSubForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="ABC Electrical" />
+                    </div>
+                    <div>
+                      <label className="fd-label">Email</label>
+                      <input className="fd-input" type="email" value={srSubForm.email}
+                        onChange={(e) => setSrSubForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="billing@sub.com" />
+                    </div>
+                  </div>
+                  <label className="fd-label" style={{ marginTop: 14 }}>CC <span className="fd-hint">(optional — separate multiple with semicolons)</span></label>
+                  <input className="fd-input" value={srSubForm.cc}
+                    onChange={(e) => setSrSubForm(f => ({ ...f, cc: e.target.value }))}
+                    placeholder="pm@bdico.com; ap@bdico.com" />
+                  <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                    This subcontractor will appear for every month. Status is tracked per month.
+                  </p>
+                </div>
+                <div className="fd-modal-foot" style={{ gap: 8 }}>
+                  <button className="fd-btn ghost sm" onClick={() => setSrShowAddSub(false)}>Cancel</button>
+                  <button className="fd-btn primary sm" onClick={() => {
+                    if (!srSubForm.name.trim() || !srSubForm.email.trim()) { flash("Name and email are required"); return; }
+                    setSubReqSubs(ss => [...ss, { id: "s" + Date.now().toString(36), projectId: srAddSubProjectId, name: srSubForm.name.trim(), email: srSubForm.email.trim(), cc: srSubForm.cc.trim() }]);
+                    setSrShowAddSub(false);
+                    flash("Subcontractor added");
+                  }}>Add Subcontractor</button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
         )}
 
