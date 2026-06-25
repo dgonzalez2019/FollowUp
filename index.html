@@ -445,6 +445,13 @@ button.fd-admin-chip:disabled{cursor:default;}
 .fd-sr-tab{border:none; background:none; font-family:inherit; font-size:13px; font-weight:500; color:var(--muted); padding:7px 14px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:color .15s, background .15s, box-shadow .15s;}
 .fd-sr-tab:hover{color:var(--ink);}
 .fd-sr-tab.active{background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm); font-weight:600;}
+.fd-sr-searchbar{display:flex; align-items:center; gap:10px; margin-bottom:16px; color:var(--muted);}
+.fd-sr-searchbar .fd-input{flex:1;}
+.fd-sr-projtoggle{display:inline-flex; align-items:center; gap:10px; background:none; border:none; font-family:'Archivo',sans-serif; font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--ink); cursor:pointer; padding:0; text-align:left; min-width:0;}
+.fd-sr-projtoggle:hover{color:var(--accent);}
+.fd-sr-chev{display:inline-flex; color:var(--muted); transition:transform .15s; flex-shrink:0;}
+.fd-sr-chev.open{transform:rotate(90deg);}
+.fd-sr-projtoggle:hover .fd-sr-chev{color:var(--accent);}
 @media(max-width:640px){
   .fd-sr-head{display:none;}
   .fd-sr-row{grid-template-columns:1fr auto; grid-template-rows:auto auto; row-gap:8px;}
@@ -842,6 +849,7 @@ const Box = (p) => <Svg {...p}><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 
 const Trophy = (p) => <Svg {...p}><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a3 3 0 0 0 3 4"/><path d="M17 6h3a3 3 0 0 1-3 4"/></Svg>;
 const Home = (p) => <Svg {...p}><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v11h14V10"/><path d="M9 21v-6h6v6"/></Svg>;
 const Receipt = (p) => <Svg {...p}><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></Svg>;
+const Search = (p) => <Svg {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Svg>;
 
 // ---------- date helpers ----------
 const MS_DAY = 86400000;
@@ -2073,7 +2081,7 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, subreqs: { access: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
@@ -2124,6 +2132,9 @@ function FollowUpDesk() {
   const [srAddSubProjectId, setSrAddSubProjectId] = useState("");
   const [srProjForm, setSrProjForm] = useState({ name: "", jobNumber: "" });
   const [srSubForm, setSrSubForm] = useState({ name: "", email: "", cc: "" });
+  const [srSearch, setSrSearch] = useState("");
+  const [srCollapsed, setSrCollapsed] = useState({});
+  const [adminNewSubreq, setAdminNewSubreq] = useState("");
   const isAdmin = !!(user && user.email && ADMINS.indexOf(user.email.toLowerCase()) >= 0);
   const appVisible = (!cloudOn || (authReady && !!user));
   const playIntro = (fast) => {
@@ -2332,7 +2343,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, subreqs: { access: (c.subreqs && c.subreqs.access) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -3351,6 +3362,17 @@ function FollowUpDesk() {
     const cur = ((sharedConfig.usps && sharedConfig.usps.managers) || []).filter((x) => x !== em);
     saveSharedConfig({ ...sharedConfig, usps: { access, managers: cur } });
   };
+  const grantSubreq = () => {
+    const em = adminNewSubreq.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const cur = ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, subreqs: { access: [...cur, em] } });
+    setAdminNewSubreq("");
+  };
+  const revokeSubreq = (em) => {
+    const cur = ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, subreqs: { access: cur } });
+  };
   const toggleTab = (key) => {
     const tabs = { ...sharedConfig.tabs, [key]: sharedConfig.tabs[key] === false ? true : false };
     saveSharedConfig({ ...sharedConfig, tabs });
@@ -3421,6 +3443,7 @@ function FollowUpDesk() {
   const myEmailLc = ((user && user.email) || "").toLowerCase();
   const isUspsManager = isAdmin || ((sharedConfig.usps && sharedConfig.usps.managers) || []).indexOf(myEmailLc) >= 0;
   const uspsHasAccess = isUspsManager || ((sharedConfig.usps && sharedConfig.usps.access) || []).indexOf(myEmailLc) >= 0;
+  const srHasAccess = isAdmin || ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).indexOf(myEmailLc) >= 0;
   const myOverride = (user && user.email && (sharedConfig.overrides || {})[user.email.toLowerCase()]) || {};
 
   const tabVisible = (key) => {
@@ -3640,9 +3663,11 @@ function FollowUpDesk() {
               <Inbox size={15} /> USPS
             </button>
           )}
-          <button className={"fd-nav-btn" + (section === "subreqs" ? " active" : "")} onClick={() => setSection("subreqs")}>
-            <Receipt size={15} /> Sub Reqs{srPendingCount > 0 ? " (" + srPendingCount + ")" : ""}
-          </button>
+          {srHasAccess && (
+            <button className={"fd-nav-btn" + (section === "subreqs" ? " active" : "")} onClick={() => setSection("subreqs")}>
+              <Receipt size={15} /> Sub Reqs{srPendingCount > 0 ? " (" + srPendingCount + ")" : ""}
+            </button>
+          )}
           {isAdmin && (
             <button className={"fd-nav-btn" + (section === "admin" ? " active" : "")} onClick={() => setSection("admin")}>
               <Shield size={15} /> Admin
@@ -3761,13 +3786,15 @@ function FollowUpDesk() {
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
-            <button className="fd-launch" onClick={(e) => openTab("subreqs", e)}>
-              {srPendingCount > 0 && <span className="fd-launch-count">{srPendingCount}</span>}
-              <span className="fd-launch-ico"><Receipt size={20} /></span>
-              <span className="fd-launch-name">Sub Requisitions</span>
-              <span className="fd-launch-desc">Monthly tracker — log received, not billing, and pending reqs by project.</span>
-              <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
-            </button>
+            {srHasAccess && (
+              <button className="fd-launch" onClick={(e) => openTab("subreqs", e)}>
+                {srPendingCount > 0 && <span className="fd-launch-count">{srPendingCount}</span>}
+                <span className="fd-launch-ico"><Receipt size={20} /></span>
+                <span className="fd-launch-name">Sub Requisitions</span>
+                <span className="fd-launch-desc">Monthly tracker — log received, not billing, and pending reqs by project.</span>
+                <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
+              </button>
+            )}
             {isAdmin && (
               <button className="fd-launch" onClick={(e) => openTab("admin", e)}>
                 <span className="fd-launch-ico"><Shield size={20} /></span>
@@ -4660,6 +4687,23 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={addUspsManager}>Add manager</button>
             </div>
           </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Sub Reqs tab access</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Sub Requisition Tracker is hidden from everyone except the people you add here. Each person keeps their own projects and subcontractors. You always have access.</p>
+            {((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one else has access yet. Add someone by email below.</p>
+            ) : ((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Remove access" onClick={() => revokeSubreq(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to grant Sub Reqs access" value={adminNewSubreq}
+                onChange={(e) => setAdminNewSubreq(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantSubreq(); }} />
+              <button className="fd-btn primary" onClick={grantSubreq}>Grant access</button>
+            </div>
+          </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
         </>
         )}
@@ -5267,7 +5311,7 @@ function FollowUpDesk() {
         </>
         )}
 
-        {section === "subreqs" && (
+        {section === "subreqs" && srHasAccess && (
         <>
           <div className="fd-sr-tabs">
             <button className={"fd-sr-tab" + (srTab === "tracker" ? " active" : "")} onClick={() => setSrTab("tracker")}>
@@ -5296,21 +5340,52 @@ function FollowUpDesk() {
               </button>
             </div>
 
+            <div className="fd-sr-searchbar">
+              <Search size={16} />
+              <input
+                className="fd-input"
+                placeholder="Search projects or subcontractors…"
+                value={srSearch}
+                onChange={(e) => setSrSearch(e.target.value)}
+              />
+              {srSearch && <button className="fd-icon-btn sm" title="Clear search" onClick={() => setSrSearch("")}><X size={14} /></button>}
+            </div>
+
             {subReqProjects.length === 0 ? (
               <div className="fd-empty">
                 <Receipt size={32} />
                 <p>No projects yet. Add a project to get started.</p>
               </div>
-            ) : (
-              subReqProjects.map(proj => {
-                const projSubs = subReqSubs.filter(s => s.projectId === proj.id);
+            ) : (() => {
+              const q = srSearch.trim().toLowerCase();
+              const matchSub = (sub) => !q || (String(sub.name) + " " + String(sub.email)).toLowerCase().indexOf(q) >= 0;
+              const matchProj = (proj) => !q || (String(proj.name) + " " + String(proj.jobNumber || "")).toLowerCase().indexOf(q) >= 0;
+              const rows = subReqProjects.map(proj => {
+                const allSubs = subReqSubs.filter(s => s.projectId === proj.id);
+                const projMatches = matchProj(proj);
+                const subs = q ? (projMatches ? allSubs : allSubs.filter(matchSub)) : allSubs;
+                return { proj, allSubs, subs, projMatches };
+              }).filter(r => !q || r.projMatches || r.subs.length > 0);
+              if (rows.length === 0) {
+                return (
+                  <div className="fd-empty">
+                    <Search size={32} />
+                    <p>No projects or subcontractors match “{srSearch}”.</p>
+                  </div>
+                );
+              }
+              return rows.map(({ proj, allSubs, subs }) => {
+                const projSubs = subs;
+                const open = q ? true : !srCollapsed[proj.id];
                 return (
                   <div key={proj.id} className="fd-panel" style={{ marginBottom: 16 }}>
-                    <div className="fd-panel-head">
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="fd-panel-head" style={{ marginBottom: open ? 16 : 0 }}>
+                      <button className="fd-sr-projtoggle" onClick={() => setSrCollapsed(c => ({ ...c, [proj.id]: !c[proj.id] }))} title={open ? "Collapse" : "Expand"}>
+                        <span className={"fd-sr-chev" + (open ? " open" : "")}><ChevronRight size={16} /></span>
                         <span>{proj.name}</span>
                         {proj.jobNumber && <span style={{ fontSize: 12, fontFamily: "'IBM Plex Mono',monospace", color: "var(--muted)", fontWeight: 400 }}>#{proj.jobNumber}</span>}
-                      </div>
+                        <span className="fd-count">{allSubs.length}{allSubs.length === 1 ? " sub" : " subs"}</span>
+                      </button>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button className="fd-btn ghost sm" onClick={() => { setSrAddSubProjectId(proj.id); setSrSubForm({ name: "", email: "", cc: "" }); setSrShowAddSub(true); }}>
                           <Plus size={13} /> Add Sub
@@ -5326,7 +5401,7 @@ function FollowUpDesk() {
                       </div>
                     </div>
 
-                    {projSubs.length === 0 ? (
+                    {open && (allSubs.length === 0 ? (
                       <div style={{ color: "var(--muted)", fontSize: 13, padding: "6px 0 2px" }}>No subcontractors added yet.</div>
                     ) : (
                       <div className="fd-sr-table">
@@ -5380,11 +5455,11 @@ function FollowUpDesk() {
                           );
                         })}
                       </div>
-                    )}
+                    ))}
                   </div>
                 );
-              })
-            )}
+              });
+            })()}
           </>
           )}
 
