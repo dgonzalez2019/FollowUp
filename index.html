@@ -784,17 +784,34 @@ button.fd-admin-chip:disabled{cursor:default;}
     { name: "Babel",
       test: function () { return !!window.Babel; },
       urls: [
-        "https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js",
+        "https://cdn.jsdelivr.net/npm/@babel/standalone@7.26.4/babel.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js",
-        "https://unpkg.com/@babel/standalone/babel.min.js"
+        "https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"
       ] }
   ], showError);
-  // Once all three are in, compile the app's text/babel script (dynamic load skips auto-compile).
+  // Once all three are in, compile the app's text/babel script ourselves. We force
+  // the CLASSIC JSX runtime (React.createElement) instead of relying on
+  // transformScriptTags()'s defaults: newer Babel defaults to the automatic
+  // runtime, which emits `import { jsx } from "react/jsx-runtime"`. That import,
+  // injected as a plain script, parse-errors in browsers (Safari: "import call
+  // expects one or two arguments") and leaves a white screen. Classic runtime uses
+  // the React UMD global we already load, so no imports are ever emitted.
   var startTries = 0;
   (function start() {
     if (window.React && window.ReactDOM && window.Babel) {
-      try { window.Babel.transformScriptTags(); }
-      catch (e) { showFatal("Couldn't start the app", (e && (e.message || e.toString())) || "Unknown compile error"); }
+      try {
+        var tags = document.querySelectorAll('script[type="text/babel"]');
+        for (var i = 0; i < tags.length; i++) {
+          var compiled = window.Babel.transform(tags[i].textContent, {
+            presets: [["react", { runtime: "classic" }]]
+          }).code;
+          var s = document.createElement("script");
+          s.textContent = compiled;
+          document.head.appendChild(s);
+        }
+      } catch (e) {
+        showFatal("Couldn't start the app", (e && (e.message || e.toString())) || "Unknown compile error");
+      }
       return;
     }
     if (startTries++ < 200) setTimeout(start, 50);
