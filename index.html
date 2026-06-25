@@ -735,6 +735,23 @@ button.fd-admin-chip:disabled{cursor:default;}
       '<button onclick="location.reload()" style="margin-top:16px;background:#2f9be0;color:#06121c;border:none;' +
       'border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;">Reload</button></div></div>';
   }
+  // Show a readable fatal error instead of a silent white screen. Used when the
+  // in-browser compile throws, and exposed for the React error boundary to reuse.
+  function showFatal(title, detail) {
+    var esc = function (s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+    document.documentElement.innerHTML =
+      '<div style="font-family:system-ui,sans-serif;background:#040507;color:#eceef0;' +
+      'min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;">' +
+      '<div style="max-width:560px;"><div style="font-size:18px;font-weight:700;margin-bottom:8px;">' + esc(title) + '</div>' +
+      '<div style="color:#9aa3ad;font-size:14px;line-height:1.5;margin-bottom:12px;">Something went wrong while loading the app. ' +
+      'The details below help pinpoint it — please share them with your admin if this keeps happening.</div>' +
+      (detail ? '<pre style="text-align:left;white-space:pre-wrap;word-break:break-word;background:#0e1014;' +
+        'border:1px solid #2c333b;border-radius:8px;padding:12px;font-size:12.5px;color:#e06149;max-height:40vh;' +
+        'overflow:auto;margin:0 0 16px;">' + esc(detail) + '</pre>' : '') +
+      '<button onclick="location.reload()" style="background:#2f9be0;color:#06121c;border:none;' +
+      'border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;">Reload</button></div></div>';
+  }
+  window.__showFatal = showFatal;
   chain([
     { name: "React",
       test: function () { return !!window.React; },
@@ -762,7 +779,8 @@ button.fd-admin-chip:disabled{cursor:default;}
   var startTries = 0;
   (function start() {
     if (window.React && window.ReactDOM && window.Babel) {
-      try { window.Babel.transformScriptTags(); } catch (e) {}
+      try { window.Babel.transformScriptTags(); }
+      catch (e) { showFatal("Couldn't start the app", (e && (e.message || e.toString())) || "Unknown compile error"); }
       return;
     }
     if (startTries++ < 200) setTimeout(start, 50);
@@ -5697,7 +5715,31 @@ function FollowUpDesk() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<FollowUpDesk />);
+// Catch any render-time error so the app shows a readable message instead of a
+// silent white screen. Without this, one thrown error blanks the whole page.
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error: error }; }
+  componentDidCatch(error, info) { try { console.error("App crashed:", error, info); } catch (e) {} }
+  render() {
+    if (!this.state.error) return this.props.children;
+    const e = this.state.error;
+    const msg = (e && e.message) ? e.message : String(e);
+    const stack = (e && e.stack) ? e.stack : "";
+    return (
+      <div style={{ fontFamily: "system-ui,sans-serif", background: "#040507", color: "#eceef0", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
+        <div style={{ maxWidth: 560 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Something went wrong</div>
+          <div style={{ color: "#9aa3ad", fontSize: 14, lineHeight: 1.5, marginBottom: 12 }}>The app hit an unexpected error and stopped. The details below help pinpoint it — please share them with your admin if this keeps happening.</div>
+          <pre style={{ textAlign: "left", whiteSpace: "pre-wrap", wordBreak: "break-word", background: "#0e1014", border: "1px solid #2c333b", borderRadius: 8, padding: 12, fontSize: 12.5, color: "#e06149", maxHeight: "40vh", overflow: "auto", margin: "0 0 16px" }}>{msg}{stack ? "\n\n" + stack : ""}</pre>
+          <button onClick={() => location.reload()} style={{ background: "#2f9be0", color: "#06121c", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Reload</button>
+        </div>
+      </div>
+    );
+  }
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><FollowUpDesk /></ErrorBoundary>);
 </script>
 <script>
 /* Permanent white-screen fix: no service worker. We actively remove any previously
