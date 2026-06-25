@@ -873,6 +873,7 @@ const DEFAULT_SR_SETTINGS = {
   firstBody: "Hi {name},\n\nI hope you're doing well. I'm reaching out to collect your requisition for {month}. Could you please send it over at your earliest convenience?\n\nIf you are not billing this month, please let us know so we can update our records.\n\n{signature}",
   followUpBody: "Hi {name},\n\nThis is follow-up #{followUpCount} regarding your {month} requisition. We still haven't received it in our office. Could you please send it over, or let us know if you're not billing this month?\n\n{signature}",
   signature: "Thank you,\n[Your name]",
+  htmlSignature: "",
 };
 
 // ---------- phrasing pools (all professional; three registers) ----------
@@ -3534,20 +3535,47 @@ function FollowUpDesk() {
     });
   };
 
+  const copyRichHtml = (html, plain) => {
+    try {
+      if (navigator.clipboard && typeof window.ClipboardItem === "function") {
+        const item = new window.ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([plain], { type: "text/plain" }),
+        });
+        return navigator.clipboard.write([item]).catch(() => {
+          if (navigator.clipboard.writeText) navigator.clipboard.writeText(plain);
+        });
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(plain);
+    } catch (e) { /* clipboard unavailable */ }
+  };
+
   const sendSrEmail = (sub) => {
     const rec = getSrRecord(sub.id);
     const isFirst = !rec || rec.followUpsSent === 0;
     const nextCount = ((rec && rec.followUpsSent) || 0) + 1;
-    let body = (isFirst ? srSettings.firstBody : srSettings.followUpBody)
+    const template = isFirst ? srSettings.firstBody : srSettings.followUpBody;
+    const fill = (str, sig) => str
       .split("{name}").join(sub.name || "there")
       .split("{month}").join(srMonthLabel)
       .split("{followUpCount}").join(String(nextCount))
-      .split("{signature}").join(srSettings.signature || "");
+      .split("{signature}").join(sig);
+    const body = fill(template, srSettings.signature || "");
     const subject = srSettings.subject.split("{month}").join(srMonthLabel);
     const ccPart = sub.cc ? "&cc=" + encodeURIComponent(sub.cc) : "";
     window.open("mailto:" + encodeURIComponent(sub.email) + "?subject=" + encodeURIComponent(subject) + ccPart + "&body=" + encodeURIComponent(body), "_self");
+
+    const htmlSig = (srSettings.htmlSignature || "").trim();
+    if (htmlSig) {
+      const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const bodyText = fill(template, "").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
+      const htmlBody = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;">'
+        + esc(bodyText).replace(/\n/g, "<br>") + "<br><br>" + htmlSig + "</div>";
+      const plainFallback = (bodyText + "\n\n" + (srSettings.signature || "")).replace(/\s+$/, "");
+      copyRichHtml(htmlBody, plainFallback);
+    }
     updateSrRecord(sub.id, { followUpsSent: nextCount, lastEmailSent: todayStr() });
-    flash("Email client opened");
+    flash(htmlSig ? "Mail app opened · formatted email copied — paste it in for your HTML signature" : "Email client opened");
   };
 
   const srPendingCount = subReqSubs.filter(sub => {
@@ -5488,9 +5516,35 @@ function FollowUpDesk() {
             <textarea className="fd-input area" rows={7} value={srSettings.followUpBody}
               onChange={(e) => setSrSettings(s => ({ ...s, followUpBody: e.target.value }))} />
 
-            <label className="fd-label" style={{ marginTop: 16 }}>Signature</label>
+            <label className="fd-label" style={{ marginTop: 16 }}>Signature <span className="fd-hint">— plain text, used in the email your mail app opens</span></label>
             <textarea className="fd-input area" rows={4} value={srSettings.signature}
               onChange={(e) => setSrSettings(s => ({ ...s, signature: e.target.value }))} />
+
+            <div style={{ marginTop: 16 }}>
+              <label className="fd-label">HTML signature <span className="fd-count">optional</span></label>
+              <p className="fd-hint" style={{ marginTop: 0, fontSize: 12 }}>Paste your Outlook signature HTML below, or upload the .htm file from your Outlook signatures folder. Since the Send button opens your mail app with plain text, when an HTML signature is set the formatted message is also copied to your clipboard — just paste it into the email to keep the styling. Images must use public https:// links to display.</p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                <label className="fd-btn ghost sm" style={{ cursor: "pointer" }}>
+                  <input type="file" accept=".htm,.html,text/html" style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => setSrSettings(s => ({ ...s, htmlSignature: String(r.result || "") })); r.readAsText(f); }} />
+                  Upload .htm file
+                </label>
+                {srSettings.htmlSignature && <button className="fd-btn ghost sm" onClick={() => setSrSettings(s => ({ ...s, htmlSignature: "" }))}>Remove</button>}
+              </div>
+              <textarea className="fd-input area" rows={4} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 }}
+                placeholder="<table>...your signature HTML...</table>" value={srSettings.htmlSignature || ""}
+                onChange={(e) => setSrSettings(s => ({ ...s, htmlSignature: e.target.value }))} />
+              {srSettings.htmlSignature && (() => {
+                const hasLocalImg = /<img[^>]+src=["'](?!https?:|data:)/i.test(srSettings.htmlSignature);
+                return (
+                  <div style={{ marginTop: 10 }}>
+                    {hasLocalImg && <p className="fd-hint" style={{ color: "var(--danger)", fontSize: 12 }}>Heads up: an image in this signature uses a local/embedded path and won't show when pasted. Replace it with a public https:// image link.</p>}
+                    <div className="fd-hint" style={{ fontSize: 11, marginBottom: 4 }}>Preview:</div>
+                    <div style={{ background: "#fff", color: "#111", borderRadius: 8, padding: 12, overflow: "auto", maxHeight: 220 }} dangerouslySetInnerHTML={{ __html: srSettings.htmlSignature }} />
+                  </div>
+                );
+              })()}
+            </div>
 
             <div className="fd-panel-foot">
               <button className="fd-btn ghost sm" onClick={() => setSrSettings(DEFAULT_SR_SETTINGS)}>
