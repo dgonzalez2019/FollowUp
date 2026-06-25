@@ -448,6 +448,21 @@ button.fd-admin-chip:disabled{cursor:default;}
 .fd-nl-line .fd-dotmark{margin-top:7px; flex-shrink:0;}
 .fd-nl-line strong{font-weight:700;}
 .fd-nl-empty{font-size:14px; color:#7a828b; font-style:italic; margin:4px 0;}
+.fd-emp-tools{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
+.fd-emp-add{margin-top:14px; padding-top:14px; border-top:1px solid var(--line);}
+.fd-emp-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;}
+.fd-emp-field{display:flex; flex-direction:column; gap:4px;}
+.fd-emp-field span{font-size:11px; color:var(--faint); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+.fd-emp-field em{font-style:normal; text-transform:none; letter-spacing:0; color:var(--faint); font-weight:400;}
+.fd-emp-list{margin-top:6px;}
+.fd-emp-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+.fd-emp-main{flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px;}
+.fd-emp-name{font-size:14px; font-weight:600;}
+.fd-emp-title{font-size:12.5px; color:var(--muted);}
+.fd-emp-meta{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--faint); width:100%;}
+.fd-emp-meta span{display:inline-flex; align-items:center; gap:5px;}
+.fd-emp-edit{padding:12px 0; border-bottom:1px solid var(--line);}
+@media(max-width:560px){ .fd-emp-grid{grid-template-columns:1fr;} }
 
 /* ===== Accessibility & motion ===== */
 .fd-root button:focus-visible, .fd-root a:focus-visible, .fd-root input:focus-visible, .fd-root select:focus-visible, .fd-root textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
@@ -1035,6 +1050,12 @@ const USPS_IMPORT_MAP = {
   txtdatedue1: "dueDate", cbopriority1: "priority", cbobilledstatus1: "billedStatus", cbolocation1: "facilityName",
   txtaddress1: "facilityAddress", txtcontactname1: "facilityContact", txtcontactphone1: "phone",
   txtproblem1: "problemDescription", cbosubcontractor1: "subcontractorName", txtcomments1: "__comments",
+};
+const EMP_IMPORT_MAP = {
+  "name": "name", "full name": "name", "employee": "name", "employee name": "name",
+  "title": "title", "job title": "title", "position": "title", "role": "title",
+  "birthday": "birthday", "birthdate": "birthday", "birth date": "birthday", "dob": "birthday", "date of birth": "birthday", "bday": "birthday",
+  "start date": "startDate", "startdate": "startDate", "hire date": "startDate", "hiredate": "startDate", "start": "startDate", "hired": "startDate", "anniversary": "startDate", "date started": "startDate", "date of hire": "startDate",
 };
 const fmtImportDate = (v) => {
   if (v == null || v === "") return "";
@@ -2086,7 +2107,7 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, newsletter: { access: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, newsletter: { access: [], employees: [] } });
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
@@ -2094,6 +2115,12 @@ function FollowUpDesk() {
   const [adminNewNewsletter, setAdminNewNewsletter] = useState("");
   const [newsletterMonth, setNewsletterMonth] = useState(new Date().getMonth());
   const [newsletterYear, setNewsletterYear] = useState(new Date().getFullYear());
+  const empImportRef = useRef(null);
+  const [empImportInfo, setEmpImportInfo] = useState(null);
+  const [empDraft, setEmpDraft] = useState({ name: "", title: "", birthday: "", startDate: "" });
+  const [empEditId, setEmpEditId] = useState(null);
+  const [empEditDraft, setEmpEditDraft] = useState({ name: "", title: "", birthday: "", startDate: "" });
+  const [empQuery, setEmpQuery] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
   const [uspsItems, setUspsItems] = useState([]);
   const [uspsForm, setUspsForm] = useState(blankUspsForm());
@@ -2326,7 +2353,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -2833,6 +2860,21 @@ function FollowUpDesk() {
   const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
   const buildNewsletter = (mi, yr) => {
     const month = mi + 1;
+    const roster = nlEmployees();
+    if (roster.length) {
+      // Admin-managed roster (set up via the Admin tab / Excel import) is the source of truth.
+      const birthdays = roster
+        .filter((e) => e.bMonth === month && e.bDay)
+        .sort((a, b) => a.bDay - b.bDay)
+        .map((e) => ({ name: e.name, title: e.title || titleFor(e.name), d: e.bDay }));
+      const anniversaries = roster
+        .filter((e) => e.sMonth === month && e.sDay && e.sYear)
+        .sort((a, b) => a.sDay - b.sDay)
+        .map((e) => ({ name: e.name, title: e.title || titleFor(e.name), d: e.sDay, years: yr - e.sYear }))
+        .filter((a) => a.years > 0);
+      return { birthdays, anniversaries };
+    }
+    // Fallback to the built-in lists until an admin populates the roster.
     const birthdays = BIRTHDAYS
       .filter((b) => b.m === month)
       .sort((a, b) => a.d - b.d)
@@ -3406,16 +3448,144 @@ function FollowUpDesk() {
     const mgrs = (sharedConfig.usps && sharedConfig.usps.managers) || [];
     saveSharedConfig({ ...sharedConfig, usps: { access: cur, managers: mgrs } });
   };
+  const nlAccess = () => (sharedConfig.newsletter && sharedConfig.newsletter.access) || [];
+  const nlEmployees = () => (sharedConfig.newsletter && sharedConfig.newsletter.employees) || [];
   const grantNewsletter = () => {
     const em = adminNewNewsletter.trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
-    const cur = ((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).filter((x) => x !== em);
-    saveSharedConfig({ ...sharedConfig, newsletter: { access: [...cur, em] } });
+    const cur = nlAccess().filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, newsletter: { access: [...cur, em], employees: nlEmployees() } });
     setAdminNewNewsletter("");
   };
   const revokeNewsletter = (em) => {
-    const cur = ((sharedConfig.newsletter && sharedConfig.newsletter.access) || []).filter((x) => x !== em);
-    saveSharedConfig({ ...sharedConfig, newsletter: { access: cur } });
+    saveSharedConfig({ ...sharedConfig, newsletter: { access: nlAccess().filter((x) => x !== em), employees: nlEmployees() } });
+  };
+  // ----- newsletter employee roster (admin-managed) -----
+  const saveEmployees = (list) => {
+    saveSharedConfig({ ...sharedConfig, newsletter: { access: nlAccess(), employees: list } });
+  };
+  const parseMonthDay = (v) => {
+    if (v == null || v === "") return null;
+    if (v instanceof Date && !isNaN(v)) return { m: v.getMonth() + 1, d: v.getDate() };
+    const s = String(v).trim();
+    const mm = s.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.]\d{2,4})?$/);
+    if (mm) { const m = +mm[1], d = +mm[2]; if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return { m, d }; }
+    const dt = new Date(/\d{4}/.test(s) ? s : s + " 2000");
+    if (!isNaN(dt)) return { m: dt.getMonth() + 1, d: dt.getDate() };
+    return null;
+  };
+  const parseFullDate = (v) => {
+    const iso = fmtImportDate(v);
+    if (!iso) return null;
+    const [y, m, d] = iso.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return { y, m, d };
+  };
+  const empFromDraft = (draft, existing) => {
+    const bd = parseMonthDay(draft.birthday);
+    const sd = parseFullDate(draft.startDate);
+    return {
+      id: (existing && existing.id) || "e_" + Math.random().toString(36).slice(2, 9),
+      name: draft.name.trim(), title: draft.title.trim(),
+      bMonth: bd ? bd.m : 0, bDay: bd ? bd.d : 0,
+      sYear: sd ? sd.y : 0, sMonth: sd ? sd.m : 0, sDay: sd ? sd.d : 0,
+    };
+  };
+  const draftFromEmp = (e) => ({
+    name: e.name || "", title: e.title || "",
+    birthday: e.bMonth && e.bDay ? "2000-" + pad2(e.bMonth) + "-" + pad2(e.bDay) : "",
+    startDate: e.sYear && e.sMonth && e.sDay ? e.sYear + "-" + pad2(e.sMonth) + "-" + pad2(e.sDay) : "",
+  });
+  const addEmployee = () => {
+    if (!empDraft.name.trim()) { flash("Enter a name"); return; }
+    saveEmployees([...nlEmployees(), empFromDraft(empDraft)]);
+    setEmpDraft({ name: "", title: "", birthday: "", startDate: "" });
+    flash("Employee added");
+  };
+  const removeEmployee = (id) => { saveEmployees(nlEmployees().filter((e) => e.id !== id)); };
+  const startEmpEdit = (e) => { setEmpEditId(e.id); setEmpEditDraft(draftFromEmp(e)); };
+  const saveEmpEdit = () => {
+    if (!empEditDraft.name.trim()) { flash("Enter a name"); return; }
+    const existing = nlEmployees().find((e) => e.id === empEditId);
+    saveEmployees(nlEmployees().map((e) => (e.id === empEditId ? empFromDraft(empEditDraft, existing) : e)));
+    setEmpEditId(null);
+  };
+  const handleEmpImportFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!window.XLSX) { flash("Spreadsheet reader didn't load — check your connection and retry"); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = window.XLSX.read(ev.target.result, { type: "array", cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = window.XLSX.utils.sheet_to_json(ws, { defval: "" });
+        const items = rows.map((row) => {
+          const o = { name: "", title: "", birthday: "", startDate: "" };
+          Object.keys(row).forEach((k) => { const f = EMP_IMPORT_MAP[String(k).trim().toLowerCase()]; if (f) o[f] = row[k]; });
+          if (!String(o.name || "").trim()) return null;
+          return empFromDraft({ name: String(o.name), title: String(o.title || ""), birthday: o.birthday, startDate: o.startDate });
+        }).filter(Boolean);
+        if (!items.length) { flash("No employees found — check the column headers (Name, Title, Birthday, Start Date)"); return; }
+        setEmpImportInfo({ items });
+      } catch (err) { console.error(err); flash("Couldn't read that file"); }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  const confirmEmpImport = () => {
+    if (!empImportInfo) return;
+    const byName = {};
+    nlEmployees().forEach((e) => { byName[normName(e.name)] = e; });
+    let added = 0, updated = 0;
+    empImportInfo.items.forEach((imp) => {
+      const key = normName(imp.name);
+      if (byName[key]) { byName[key] = { ...imp, id: byName[key].id }; updated++; }
+      else { byName[key] = imp; added++; }
+    });
+    saveEmployees(Object.keys(byName).map((k) => byName[k]));
+    flash("Imported — " + added + " added, " + updated + " updated");
+    setEmpImportInfo(null);
+  };
+  const exportEmployeesExcel = async () => {
+    const EJS = window.ExcelJS;
+    if (!EJS) { flash("Excel tool didn't load — check your connection and retry"); return; }
+    try {
+      const cur = nlEmployees();
+      // When the roster is empty, seed the template from the known birthday list so
+      // the admin only has to fill in start dates and adjust titles.
+      const base = cur.length
+        ? [...cur]
+        : BIRTHDAYS.map((b) => ({ name: b.n, title: titleFor(b.n), bMonth: b.m, bDay: b.d, sYear: 0, sMonth: 0, sDay: 0 }));
+      base.sort((a, b) => a.name.localeCompare(b.name));
+      const wb = new EJS.Workbook(); wb.creator = "BDI University"; wb.created = new Date();
+      const ws = wb.addWorksheet("Employees", { views: [{ state: "frozen", ySplit: 1 }] });
+      ws.columns = [
+        { header: "Name", key: "name", width: 30 },
+        { header: "Title", key: "title", width: 32 },
+        { header: "Birthday", key: "birthday", width: 16 },
+        { header: "Start Date", key: "startDate", width: 16 },
+      ];
+      const hr = ws.getRow(1);
+      hr.eachCell((c) => { c.font = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185A93" } }; c.alignment = { vertical: "middle", horizontal: "left" }; });
+      hr.height = 20;
+      base.forEach((e) => {
+        ws.addRow({
+          name: e.name, title: e.title || "",
+          birthday: e.bMonth && e.bDay ? MONTHS[e.bMonth - 1] + " " + e.bDay : "",
+          startDate: e.sYear && e.sMonth && e.sDay ? pad2(e.sMonth) + "/" + pad2(e.sDay) + "/" + e.sYear : "",
+        });
+      });
+      ws.getColumn("birthday").alignment = { horizontal: "left" };
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "BDI_Employees_" + todayStr() + ".xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      flash(cur.length ? "Exported employee list" : "Downloaded template (pre-filled with birthdays)");
+    } catch (e) { console.error(e); flash("Couldn't export"); }
   };
   const addUspsManager = () => {
     const em = adminNewMgr.trim().toLowerCase();
@@ -4772,6 +4942,78 @@ function FollowUpDesk() {
               <input className="fd-input" placeholder="Email to grant Newsletter access" value={adminNewNewsletter}
                 onChange={(e) => setAdminNewNewsletter(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") grantNewsletter(); }} />
               <button className="fd-btn primary" onClick={grantNewsletter}>Grant access</button>
+            </div>
+          </div>
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Newsletter employees <span className="fd-count">{nlEmployees().length}</span></div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>This roster feeds the newsletter's birthdays and work anniversaries. Add people as they join, remove them when they leave, or import everyone from a spreadsheet. {nlEmployees().length === 0 ? "Until you add anyone, the newsletter uses the built-in birthday list." : ""}</p>
+
+            <input ref={empImportRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleEmpImportFile} />
+            <div className="fd-emp-tools">
+              {!empImportInfo ? (
+                <button className="fd-btn" onClick={() => empImportRef.current && empImportRef.current.click()}><FileText size={15} /> Import from Excel…</button>
+              ) : (
+                <span style={{ fontSize: 13.5 }}>Found <strong>{empImportInfo.items.length}</strong> {empImportInfo.items.length === 1 ? "person" : "people"} ready to import (existing names are updated).</span>
+              )}
+              <button className="fd-btn" onClick={exportEmployeesExcel}><Download size={15} /> {nlEmployees().length ? "Export to Excel" : "Download template"}</button>
+            </div>
+            {empImportInfo && (
+              <div className="fd-actions" style={{ marginTop: 10 }}>
+                <button className="fd-btn primary" onClick={confirmEmpImport}>Import {empImportInfo.items.length}</button>
+                <button className="fd-btn" onClick={() => setEmpImportInfo(null)}>Cancel</button>
+              </div>
+            )}
+            <p className="fd-sub" style={{ fontSize: 11.5, margin: "8px 0 0" }}>Spreadsheet columns: <strong>Name</strong>, <strong>Title</strong>, <strong>Birthday</strong>, <strong>Start Date</strong>. The template comes pre-filled with current birthdays — just add start dates.</p>
+
+            <div className="fd-emp-add">
+              <div className="fd-emp-grid">
+                <input className="fd-input" placeholder="Full name" value={empDraft.name} onChange={(e) => setEmpDraft((d) => ({ ...d, name: e.target.value }))} />
+                <input className="fd-input" placeholder="Title (optional)" value={empDraft.title} onChange={(e) => setEmpDraft((d) => ({ ...d, title: e.target.value }))} />
+                <label className="fd-emp-field"><span>Birthday <em>(year ignored)</em></span><input className="fd-input" type="date" value={empDraft.birthday} onChange={(e) => setEmpDraft((d) => ({ ...d, birthday: e.target.value }))} /></label>
+                <label className="fd-emp-field"><span>Start date</span><input className="fd-input" type="date" value={empDraft.startDate} onChange={(e) => setEmpDraft((d) => ({ ...d, startDate: e.target.value }))} /></label>
+              </div>
+              <button className="fd-btn primary" onClick={addEmployee}>Add employee</button>
+            </div>
+
+            {nlEmployees().length > 0 && (
+              <input className="fd-input" style={{ marginTop: 14 }} placeholder="Search employees…" value={empQuery} onChange={(e) => setEmpQuery(e.target.value)} />
+            )}
+            <div className="fd-emp-list">
+              {[...nlEmployees()]
+                .filter((e) => !empQuery.trim() || normName(e.name).indexOf(normName(empQuery)) >= 0)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((e) => (
+                empEditId === e.id ? (
+                  <div className="fd-emp-edit" key={e.id}>
+                    <div className="fd-emp-grid">
+                      <input className="fd-input" placeholder="Full name" value={empEditDraft.name} onChange={(ev) => setEmpEditDraft((d) => ({ ...d, name: ev.target.value }))} />
+                      <input className="fd-input" placeholder="Title (optional)" value={empEditDraft.title} onChange={(ev) => setEmpEditDraft((d) => ({ ...d, title: ev.target.value }))} />
+                      <label className="fd-emp-field"><span>Birthday <em>(year ignored)</em></span><input className="fd-input" type="date" value={empEditDraft.birthday} onChange={(ev) => setEmpEditDraft((d) => ({ ...d, birthday: ev.target.value }))} /></label>
+                      <label className="fd-emp-field"><span>Start date</span><input className="fd-input" type="date" value={empEditDraft.startDate} onChange={(ev) => setEmpEditDraft((d) => ({ ...d, startDate: ev.target.value }))} /></label>
+                    </div>
+                    <div className="fd-actions" style={{ marginTop: 8 }}>
+                      <button className="fd-btn primary" onClick={saveEmpEdit}>Save</button>
+                      <button className="fd-btn" onClick={() => setEmpEditId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="fd-emp-row" key={e.id}>
+                    <div className="fd-emp-main">
+                      <span className="fd-emp-name">{e.name}</span>
+                      {e.title ? <span className="fd-emp-title">{e.title}</span> : null}
+                      <span className="fd-emp-meta">
+                        {e.bMonth && e.bDay ? <span><Cake size={12} /> {MONTHS[e.bMonth - 1].slice(0, 3)} {e.bDay}</span> : null}
+                        {e.sYear && e.sMonth && e.sDay ? <span><CalendarClock size={12} /> {MONTHS[e.sMonth - 1].slice(0, 3)} {e.sDay}, {e.sYear}</span> : null}
+                      </span>
+                    </div>
+                    <button className="fd-icon-btn sm" title="Edit" onClick={() => startEmpEdit(e)}><Pencil size={14} /></button>
+                    <button className="fd-icon-btn sm" title="Remove employee" onClick={() => removeEmployee(e.id)}><Trash2 size={14} /></button>
+                  </div>
+                )
+              ))}
+              {nlEmployees().length > 0 && nlEmployees().filter((e) => !empQuery.trim() || normName(e.name).indexOf(normName(empQuery)) >= 0).length === 0 && (
+                <p className="fd-sub" style={{ fontSize: 13, margin: "8px 0 0" }}>No one matches “{empQuery}”.</p>
+              )}
             </div>
           </div>
           <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in.</p>
