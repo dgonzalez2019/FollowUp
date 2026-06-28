@@ -1780,23 +1780,49 @@ function brRealInfo(allGames) {
   });
   return { slots, into, champion: slots["M104"] ? slots["M104"].winner : null, thirds: thirdBySlot, ranks: ranks };
 }
-function brScore(p, matchesObj, realX) {
+function brScore(p, matchesObj, realX, games) {
   let g = 0, t = 0, b = 0;
   let anyR32 = Object.values(matchesObj || {}).some((m) => m.stage === "R32");
-  Object.keys(WC_GROUPS).forEach((grp) => {
-    const st = brStandings(matchesObj, grp);
-    if (!st.complete) return;
+  // A group's finishing order LOCKS IN as "actual" once its 6 games are final.
+  // Prefer the live ESPN feed (the real results) so points convert from projected
+  // to actual automatically when the group stage ends — fall back to the admin
+  // bracket doc when no live feed is supplied.
+  const liveThirdRows = [];
+  let liveGroupsDone = 0;
+  const groupKeys = Object.keys(WC_GROUPS);
+  groupKeys.forEach((grp) => {
+    let order = null, thirdRow = null, complete = false;
+    if (games) {
+      const tbl = brLiveTable(games, grp);
+      if (tbl.played >= 6) { order = tbl.order; thirdRow = tbl.rows[2]; complete = true; liveGroupsDone++; }
+    }
+    if (!complete) {
+      const st = brStandings(matchesObj, grp);
+      if (st.complete) { order = st.order; complete = true; }
+    }
+    if (!complete) return;
+    if (thirdRow) liveThirdRows.push({ grp, s: thirdRow });
     const mine = brRankOf(p, grp);
     mine.forEach((c, i) => {
-      if (st.order[i] === c) g += BR_SCORING.pos;
-      else if (i < 2 && st.order.indexOf(c) >= 0 && st.order.indexOf(c) < 2) g += BR_SCORING.adv;
+      if (order[i] === c) g += BR_SCORING.pos;
+      else if (i < 2 && order.indexOf(c) >= 0 && order.indexOf(c) < 2) g += BR_SCORING.adv;
     });
   });
-  const realThirdSet = {};
-  if (realX) Object.keys(realX.thirds || {}).forEach((k) => { realThirdSet[realX.thirds[k]] = 1; });
-  if (anyR32 || realX) {
-    const rt = anyR32 ? brRealThirds(matchesObj) : {};
-    (p.thirds || []).forEach((c) => { if (rt[c] || realThirdSet[c]) t += BR_SCORING.third; });
+  // Best-thirds points: the 8 qualifying third-place teams are only known once
+  // EVERY group is done. When the whole group stage has finished in the live feed,
+  // score thirds against it (same ranking as the projection); otherwise fall back
+  // to the real/admin thirds.
+  if (games && liveGroupsDone === groupKeys.length && liveThirdRows.length) {
+    const liveThirds = {};
+    liveThirdRows.sort((a, b) => b.s.p - a.s.p || b.s.gd - a.s.gd || b.s.gf - a.s.gf || a.grp.localeCompare(b.grp)).slice(0, 8).forEach((x) => (liveThirds[x.s.c] = 1));
+    (p.thirds || []).forEach((c) => { if (liveThirds[c]) t += BR_SCORING.third; });
+  } else {
+    const realThirdSet = {};
+    if (realX) Object.keys(realX.thirds || {}).forEach((k) => { realThirdSet[realX.thirds[k]] = 1; });
+    if (anyR32 || realX) {
+      const rt = anyR32 ? brRealThirds(matchesObj) : {};
+      (p.thirds || []).forEach((c) => { if (rt[c] || realThirdSet[c]) t += BR_SCORING.third; });
+    }
   }
   const slots = brMyBracket(p);
   const mineInto = { R16: {}, QF: {}, SF: {}, F: {} };
@@ -1889,7 +1915,7 @@ function brProjScore(p, games, matchesObj, realX) {
     });
   });
   (p.thirds || []).forEach((c) => { if (projThirds[c]) t += BR_SCORING.third; });
-  const b = brScore(p, matchesObj, realX).b;
+  const b = brScore(p, matchesObj, realX, games).b;
   return { g, t, b, total: g + t + b };
 }
 
@@ -6893,7 +6919,7 @@ function FollowUpDesk() {
                 </div>
                 <div className="fd-list">
                   {Object.keys(brPicksAll)
-                    .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", now: brScore(brPicksAll[uid], brLive, brReal), proj: brProjScore(brPicksAll[uid], liveStandGames, brLive, brReal) }))
+                    .map((uid) => ({ uid, name: brPicksAll[uid].name || "Player", now: brScore(brPicksAll[uid], brLive, brReal, liveStandGames), proj: brProjScore(brPicksAll[uid], liveStandGames, brLive, brReal) }))
                     .sort((a, b) => b.now.total - a.now.total || b.proj.total - a.proj.total || a.name.localeCompare(b.name))
                     .map((r, i) => (
                       <button key={r.uid} className="fd-dir-row fd-lb-row" style={user && r.uid === user.uid ? { borderColor: "var(--accent)" } : undefined} onClick={() => setLbView(r.uid)}>
@@ -6916,7 +6942,7 @@ function FollowUpDesk() {
             {lbView && brPicksAll[lbView] && (() => {
               const p = brPicksAll[lbView];
               const slots = brMyBracket(p);
-              const sc = brScore(p, brLive, brReal);
+              const sc = brScore(p, brLive, brReal, liveStandGames);
               const pb = brProjBreakdown(p, liveStandGames, brLive, brReal);
               const ORD = ["1st", "2nd", "3rd", "4th"];
               const grpName = (c) => (WC_TEAMS[c] ? WC_TEAMS[c][0] : c);
