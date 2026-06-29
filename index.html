@@ -1595,6 +1595,18 @@ const brRealRound = (matchesObj, stage) => {
   Object.values(matchesObj || {}).forEach((m) => { if (m.stage === stage) { s[m.home] = 1; s[m.away] = 1; } });
   return s;
 };
+// Teams that actually ADVANCED out of a stage — i.e. won a FINISHED match in it.
+// Used for knockout scoring so points aren't awarded just because a team was
+// seeded into a later-round fixture before that round has been played.
+const brRoundWinners = (matchesObj, stage) => {
+  const s = {};
+  Object.values(matchesObj || {}).forEach((m) => {
+    if (m.stage !== stage || m.status !== "final" || m.hs == null || m.as == null) return;
+    const w = brWinner(m);
+    if (w) s[w] = 1;
+  });
+  return s;
+};
 function brRealThirds(matchesObj) {
   const inR32 = brRealRound(matchesObj, "R32");
   const out = {};
@@ -1783,47 +1795,41 @@ function brRealInfo(allGames) {
 function brScore(p, matchesObj, realX, games) {
   let g = 0, t = 0, b = 0;
   let anyR32 = Object.values(matchesObj || {}).some((m) => m.stage === "R32");
-  // A group's finishing order LOCKS IN as "actual" once its 6 games are final.
-  // Prefer the live ESPN feed (the real results) so points convert from projected
-  // to actual automatically when the group stage ends — fall back to the admin
-  // bracket doc when no live feed is supplied.
-  const liveThirdRows = [];
-  let liveGroupsDone = 0;
+  // A group's finishing order LOCKS IN as "actual" once its table is final.
+  // Source priority, all reflecting the SAME finished standings:
+  //   1. realX.ranks — the ESPN-derived real order (present once ALL groups end;
+  //      it's the same object already producing the actual thirds + knockout pts),
+  //   2. the live feed for any individually-finished group (played >= 6),
+  //   3. the admin-entered bracket doc.
   const groupKeys = Object.keys(WC_GROUPS);
   groupKeys.forEach((grp) => {
-    let order = null, thirdRow = null, complete = false;
-    if (games) {
-      const tbl = brLiveTable(games, grp);
-      if (tbl.played >= 6) { order = tbl.order; thirdRow = tbl.rows[2]; complete = true; liveGroupsDone++; }
-    }
-    if (!complete) {
-      const st = brStandings(matchesObj, grp);
-      if (st.complete) { order = st.order; complete = true; }
-    }
-    if (!complete) return;
-    if (thirdRow) liveThirdRows.push({ grp, s: thirdRow });
+    let order = null;
+    if (realX && realX.ranks && (realX.ranks[grp] || []).length === 4) order = realX.ranks[grp];
+    else if (games) { const tbl = brLiveTable(games, grp); if (tbl.played >= 6) order = tbl.order; }
+    if (!order) { const st = brStandings(matchesObj, grp); if (st.complete) order = st.order; }
+    if (!order) return;
     const mine = brRankOf(p, grp);
     mine.forEach((c, i) => {
       if (order[i] === c) g += BR_SCORING.pos;
       else if (i < 2 && order.indexOf(c) >= 0 && order.indexOf(c) < 2) g += BR_SCORING.adv;
     });
   });
-  // Best-thirds points: the 8 qualifying third-place teams are only known once
-  // EVERY group is done. When the whole group stage has finished in the live feed,
-  // score thirds against it (same ranking as the projection); otherwise fall back
-  // to the real/admin thirds.
-  if (games && liveGroupsDone === groupKeys.length && liveThirdRows.length) {
-    const liveThirds = {};
-    liveThirdRows.sort((a, b) => b.s.p - a.s.p || b.s.gd - a.s.gd || b.s.gf - a.s.gf || a.grp.localeCompare(b.grp)).slice(0, 8).forEach((x) => (liveThirds[x.s.c] = 1));
-    (p.thirds || []).forEach((c) => { if (liveThirds[c]) t += BR_SCORING.third; });
-  } else {
-    const realThirdSet = {};
-    if (realX) Object.keys(realX.thirds || {}).forEach((k) => { realThirdSet[realX.thirds[k]] = 1; });
-    if (anyR32 || realX) {
-      const rt = anyR32 ? brRealThirds(matchesObj) : {};
-      (p.thirds || []).forEach((c) => { if (rt[c] || realThirdSet[c]) t += BR_SCORING.third; });
+  // Best-thirds points: the 8 qualifiers are known once every group ends. Prefer
+  // the ESPN-derived thirds (realX); else the live feed when all groups are done;
+  // else the admin doc.
+  const realThirdSet = {};
+  if (realX) Object.keys(realX.thirds || {}).forEach((k) => { realThirdSet[realX.thirds[k]] = 1; });
+  let liveThirds = null;
+  if (!realX && games) {
+    const rows = []; let done = 0;
+    groupKeys.forEach((grp) => { const tbl = brLiveTable(games, grp); if (tbl.played >= 6) { done++; if (tbl.rows[2]) rows.push({ grp, s: tbl.rows[2] }); } });
+    if (done === groupKeys.length && rows.length) {
+      liveThirds = {};
+      rows.sort((a, b) => b.s.p - a.s.p || b.s.gd - a.s.gd || b.s.gf - a.s.gf || a.grp.localeCompare(b.grp)).slice(0, 8).forEach((x) => (liveThirds[x.s.c] = 1));
     }
   }
+  if (liveThirds) { (p.thirds || []).forEach((c) => { if (liveThirds[c]) t += BR_SCORING.third; }); }
+  else if (anyR32 || realX) { const rt = anyR32 ? brRealThirds(matchesObj) : {}; (p.thirds || []).forEach((c) => { if (rt[c] || realThirdSet[c]) t += BR_SCORING.third; }); }
   const slots = brMyBracket(p);
   const mineInto = { R16: {}, QF: {}, SF: {}, F: {} };
   Object.values(slots).forEach((s) => {
@@ -1833,8 +1839,12 @@ function brScore(p, matchesObj, realX, games) {
     else if (s.stage === "QF") mineInto.SF[s.pick] = 1;
     else if (s.stage === "SF") mineInto.F[s.pick] = 1;
   });
+  // A pick scores its round's points only once the team has WON the prior round's
+  // match — not merely been seeded into the next fixture. Reaching R16 means
+  // winning an R32 match, etc.
+  const prevStage = { R16: "R32", QF: "R16", SF: "QF", F: "SF" };
   ["R16", "QF", "SF", "F"].forEach((stg) => {
-    const real = brRealRound(matchesObj, stg);
+    const real = brRoundWinners(matchesObj, prevStage[stg]);
     const extra = (realX && realX.into[stg]) || {};
     Object.keys(mineInto[stg]).forEach((c) => { if (real[c] || extra[c]) b += BR_SCORING[stg]; });
   });
@@ -1961,8 +1971,9 @@ function brProjBreakdown(p, games, matchesObj, realX) {
   });
   const stageLabel = { R16: "Round of 16", QF: "Quarterfinals", SF: "Semifinals", F: "Final" };
   const bracket = [];
+  const prevStage = { R16: "R32", QF: "R16", SF: "QF", F: "SF" };
   ["R16", "QF", "SF", "F"].forEach((stg) => {
-    const real = brRealRound(matchesObj, stg);
+    const real = brRoundWinners(matchesObj, prevStage[stg]);
     const extra = (realX && realX.into[stg]) || {};
     let n = 0;
     Object.keys(mineInto[stg]).forEach((c) => { if (real[c] || extra[c]) n++; });
