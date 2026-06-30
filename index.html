@@ -4235,7 +4235,8 @@ function FollowUpDesk() {
       '<div class="nl-sec"><span class="nl-sec-tab">Work Anniversaries</span><div class="nl-rule"></div><ul class="nl-list">' + annHtml + '</ul></div>' +
       '<div class="nl-sec"><span class="nl-sec-tab lime">Birthdays</span><div class="nl-rule"></div><ul class="nl-list">' + bdayHtml + '</ul></div>' +
       '<div class="nl-foot"><span>BDI Construction &middot; Confidential</span><span>Generated ' + esc(prettyDate(todayStr())) + '</span></div>' +
-      '</body></html>';
+      '<script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+</body></html>';
   };
   const downloadNewsletterPdf = () => {
     try {
@@ -8167,5 +8168,6 @@ if (window.caches && caches.keys) {
   }).catch(function () {});
 }
 </script>
+<script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
 </body>
 </html>
