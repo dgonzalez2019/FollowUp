@@ -604,6 +604,19 @@ button.fd-admin-chip:disabled{cursor:default;}
 .fd-sr-chev{display:inline-flex; color:var(--muted); transition:transform .15s; flex-shrink:0;}
 .fd-sr-chev.open{transform:rotate(90deg);}
 .fd-sr-projtoggle:hover .fd-sr-chev{color:var(--accent);}
+.fd-rte{border:1px solid var(--line); border-radius:10px; overflow:visible; background:var(--surface);}
+.fd-rte-bar{display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:6px 8px; border-bottom:1px solid var(--line); background:var(--surface-2); border-radius:10px 10px 0 0;}
+.fd-rte-btn{min-width:30px; height:28px; padding:0 7px; border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:6px; cursor:pointer; font-size:13px; font-family:inherit; display:inline-flex; align-items:center; justify-content:center;}
+.fd-rte-btn:hover{background:var(--surface-3); border-color:var(--line-strong);}
+.fd-rte-sep{width:1px; height:20px; background:var(--line); margin:0 4px;}
+.fd-rte-token{height:28px; padding:0 8px; border:1px dashed var(--line-strong); background:var(--surface); color:var(--muted); border-radius:6px; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:11.5px;}
+.fd-rte-token:hover{color:var(--accent); border-color:var(--accent);}
+.fd-rte-color{position:relative; display:inline-flex;}
+.fd-rte-swatches{position:absolute; top:32px; left:0; z-index:50; display:flex; gap:4px; padding:6px; background:var(--surface); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow-md);}
+.fd-rte-swatch{width:20px; height:20px; border:1px solid rgba(255,255,255,.25); border-radius:5px; cursor:pointer; padding:0;}
+.fd-rte-swatch:hover{transform:scale(1.12);}
+.fd-rte-area{border:none !important; border-radius:0 0 10px 10px; outline:none; white-space:pre-wrap; min-height:150px; overflow-y:auto;}
+.fd-rte-area:focus{box-shadow:none !important;}
 @media(max-width:640px){
   .fd-sr-head{display:none;}
   .fd-sr-row{grid-template-columns:1fr auto; grid-template-rows:auto auto; row-gap:8px;}
@@ -1073,10 +1086,19 @@ const DEFAULT_SETTINGS = {
   signature: "Best regards,\n[Your name]",
 };
 
+// Sub-req email bodies may be plain text (legacy) or rich HTML (from the editor).
+const srLooksHtml = (s) => /<(b|i|u|br|div|span|font|p|strong|em|mark)\b[^>]*>/i.test(String(s || ""));
+const srTextToHtml = (t) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+const srHtmlToText = (html) => {
+  let s = String(html || "").replace(/<\s*br\s*\/?>/gi, "\n").replace(/<\/(div|p|li|tr|h[1-6])>/gi, "\n").replace(/<[^>]+>/g, "");
+  try { const ta = document.createElement("textarea"); ta.innerHTML = s; s = ta.value; } catch (e) {} // decode entities
+  return s.replace(/ /g, " ").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
+};
+
 const DEFAULT_SR_SETTINGS = {
-  subject: "Monthly Requisition — {month}",
-  firstBody: "Hi {name},\n\nI hope you're doing well. I'm reaching out to collect your requisition for {month}. Could you please send it over at your earliest convenience?\n\nIf you are not billing this month, please let us know so we can update our records.\n\n{signature}",
-  followUpBody: "Hi {name},\n\nThis is follow-up #{followUpCount} regarding your {month} requisition. We still haven't received it in our office. Could you please send it over, or let us know if you're not billing this month?\n\n{signature}",
+  subject: "Monthly Requisition — {Company} — {Month} {Year}",
+  firstBody: "Hi {name},\n\nI hope you're doing well. I'm reaching out to collect your requisition for {Month} {Year}. Could you please send it over at your earliest convenience?\n\nIf you are not billing this month, please let us know so we can update our records.\n\n{signature}",
+  followUpBody: "Hi {name},\n\nThis is follow-up #{followUpCount} regarding your {Month} {Year} requisition. We still haven't received it in our office. Could you please send it over, or let us know if you're not billing this month?\n\n{signature}",
   signature: "Thank you,\n[Your name]",
   htmlSignature: "",
 };
@@ -2956,6 +2978,53 @@ function OddsPanel({ game }) {
     <div className="fd-panel">
       <div className="fd-panel-head">Live odds <span className="fd-count">Hard Rock Bet</span></div>
       {body}
+    </div>
+  );
+}
+
+// Lightweight rich-text editor (bold / underline / highlight / font colour) built
+// on a contentEditable div. Emits HTML. Legacy plain-text values are converted for
+// display. Uncontrolled: innerHTML is set only when the incoming value differs from
+// what we last emitted, so the caret never jumps while typing.
+const SR_COLORS = ["#111111", "#c0392b", "#2f9be0", "#1f8a4c", "#e67e22", "#8e44ad"];
+function RichEditor({ value, onChange, rows, insertTokens }) {
+  const ref = React.useRef(null);
+  const last = React.useRef(null);
+  const [showColors, setShowColors] = React.useState(false);
+  React.useEffect(() => {
+    if (ref.current && value !== last.current) {
+      ref.current.innerHTML = srLooksHtml(value) ? value : srTextToHtml(value);
+      last.current = value;
+    }
+  }, [value]);
+  const emit = () => { if (ref.current) { const h = ref.current.innerHTML; last.current = h; onChange(h); } };
+  const exec = (cmd, val) => {
+    if (ref.current) ref.current.focus();
+    try { document.execCommand("styleWithCSS", false, true); } catch (e) {}
+    try { document.execCommand(cmd, false, val); } catch (e) {}
+    emit();
+  };
+  const insertText = (txt) => { if (ref.current) ref.current.focus(); try { document.execCommand("insertText", false, txt); } catch (e) {} emit(); };
+  return (
+    <div className="fd-rte">
+      <div className="fd-rte-bar">
+        <button type="button" className="fd-rte-btn" title="Bold" onMouseDown={(e) => { e.preventDefault(); exec("bold"); }}><strong>B</strong></button>
+        <button type="button" className="fd-rte-btn" title="Underline" onMouseDown={(e) => { e.preventDefault(); exec("underline"); }}><u>U</u></button>
+        <button type="button" className="fd-rte-btn" title="Highlight" onMouseDown={(e) => { e.preventDefault(); exec("hiliteColor", "#fff59d"); }}><span style={{ background: "#fff59d", color: "#000", padding: "0 3px", borderRadius: 2 }}>H</span></button>
+        <div className="fd-rte-color">
+          <button type="button" className="fd-rte-btn" title="Font colour" onMouseDown={(e) => { e.preventDefault(); setShowColors((s) => !s); }}><span style={{ color: "#c0392b", fontWeight: 700 }}>A</span></button>
+          {showColors && (
+            <div className="fd-rte-swatches">
+              {SR_COLORS.map((c) => <button key={c} type="button" title={c} className="fd-rte-swatch" style={{ background: c }} onMouseDown={(e) => { e.preventDefault(); exec("foreColor", c); setShowColors(false); }} />)}
+            </div>
+          )}
+        </div>
+        <button type="button" className="fd-rte-btn" title="Remove formatting" onMouseDown={(e) => { e.preventDefault(); exec("removeFormat"); }}>T̲x̲</button>
+        {(insertTokens || []).length ? <span className="fd-rte-sep" /> : null}
+        {(insertTokens || []).map((tk) => <button key={tk} type="button" className="fd-rte-token" title={"Insert " + tk} onMouseDown={(e) => { e.preventDefault(); insertText(tk); }}>{tk}</button>)}
+      </div>
+      <div ref={ref} className="fd-input area fd-rte-area" contentEditable suppressContentEditableWarning
+        style={{ minHeight: (rows || 7) * 22 }} onInput={emit} onBlur={emit} />
     </div>
   );
 }
@@ -5189,6 +5258,8 @@ function FollowUpDesk() {
     const [y, m] = srMonth.split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
   })();
+  const srMonthName = (() => { const [y, m] = srMonth.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long" }); })();
+  const srYear = srMonth.split("-")[0];
 
   const prevSrMonth = () => {
     const [y, m] = srMonth.split("-").map(Number);
@@ -5267,31 +5338,45 @@ function FollowUpDesk() {
     const isFirst = !rec || rec.followUpsSent === 0;
     const nextCount = ((rec && rec.followUpsSent) || 0) + 1;
     const tpl = projTemplate(subReqProjects.find((p) => p.id === sub.projectId));
-    const template = isFirst ? tpl.firstBody : tpl.followUpBody;
-    const fill = (str, sig) => str
+    const rawBody = isFirst ? tpl.firstBody : tpl.followUpBody;
+    // Fill every token. {Company} and {name} both = the subcontractor company;
+    // {Month}/{Year} are the split parts, {month} kept as the full "July 2026".
+    const tok = (str) => String(str || "")
+      .split("{Company}").join(sub.name || "there")
+      .split("{company}").join(sub.name || "there")
       .split("{name}").join(sub.name || "there")
+      .split("{Month}").join(srMonthName)
+      .split("{Year}").join(srYear)
+      .split("{year}").join(srYear)
       .split("{month}").join(srMonthLabel)
-      .split("{followUpCount}").join(String(nextCount))
-      .split("{signature}").join(sig);
-    const body = fill(template, srSettings.signature || "");
-    const subject = (tpl.subject || "").split("{month}").join(srMonthLabel);
+      .split("{followUpCount}").join(String(nextCount));
+    const subject = tok(tpl.subject);
+    const bodyIsHtml = srLooksHtml(rawBody);
+    const plainSig = srSettings.signature || "";
+    const htmlSig = (srSettings.htmlSignature || "").trim();
+    // Plain-text body the mail app opens with (mailto only carries plain text).
+    const plainBody = bodyIsHtml
+      ? srHtmlToText(tok(rawBody).split("{signature}").join(plainSig))
+      : tok(rawBody).split("{signature}").join(plainSig);
     // Accept commas or semicolons in the saved CC, but hand Outlook semicolons
     // so each address lands as its own recipient.
     const ccList = (sub.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
     const ccPart = ccList.length ? "&cc=" + encodeURIComponent(ccList.join(";")) : "";
-    window.open("mailto:" + encodeURIComponent(sub.email) + "?subject=" + encodeURIComponent(subject) + ccPart + "&body=" + encodeURIComponent(body), "_self");
+    window.open("mailto:" + encodeURIComponent(sub.email) + "?subject=" + encodeURIComponent(subject) + ccPart + "&body=" + encodeURIComponent(plainBody), "_self");
 
-    const htmlSig = (srSettings.htmlSignature || "").trim();
-    if (htmlSig) {
-      const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const bodyText = fill(template, "").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
-      const htmlBody = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;">'
-        + esc(bodyText).replace(/\n/g, "<br>") + "<br><br>" + htmlSig + "</div>";
-      const plainFallback = (bodyText + "\n\n" + (srSettings.signature || "")).replace(/\s+$/, "");
-      copyRichHtml(htmlBody, plainFallback);
+    // If the body has formatting OR there's an HTML signature, put a rich HTML
+    // version on the clipboard so it can be pasted into Outlook with everything intact.
+    const hasFormatting = bodyIsHtml || htmlSig;
+    if (hasFormatting) {
+      const sigHtml = htmlSig || srTextToHtml(plainSig);
+      const bodyHtml = bodyIsHtml
+        ? tok(rawBody).split("{signature}").join(sigHtml)
+        : srTextToHtml(tok(rawBody).split("{signature}").join("")).replace(/(<br>\s*){3,}/g, "<br><br>") + (sigHtml ? "<br><br>" + sigHtml : "");
+      const htmlBody = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;">' + bodyHtml + "</div>";
+      copyRichHtml(htmlBody, plainBody);
     }
     updateSrRecord(sub.id, { followUpsSent: nextCount, lastEmailSent: todayStr() });
-    flash(htmlSig ? "Mail app opened · formatted email copied — paste it in for your HTML signature" : "Email client opened");
+    flash(hasFormatting ? "Mail app opened · formatted email copied — paste it in to keep the formatting & signature" : "Email client opened");
   };
 
   const srPendingCount = subReqSubs.filter(sub => {
@@ -7913,23 +7998,23 @@ function FollowUpDesk() {
                   : "This project is using the default templates — editing here gives it its own and saves them permanently.")}
             </p>
 
-            <label className="fd-label" style={{ marginTop: 16 }}>Email Subject <span className="fd-hint">— {"{month}"} = full month name (e.g. "June 2026")</span></label>
+            <label className="fd-label" style={{ marginTop: 16 }}>Email Subject <span className="fd-hint">— tokens: {"{Company}"}, {"{Month}"}, {"{Year}"} (also {"{month}"} = "June 2026")</span></label>
             <input className="fd-input" value={srTplValues.subject}
               onChange={(e) => setSrTpl({ subject: e.target.value })} />
 
             <label className="fd-label" style={{ marginTop: 16 }}>
               First Email Body
-              <span className="fd-hint"> — tokens: {"{name}"}, {"{month}"}, {"{signature}"}</span>
+              <span className="fd-hint"> — format with the toolbar; tokens: {"{name}"} / {"{Company}"}, {"{Month}"}, {"{Year}"}, {"{signature}"}</span>
             </label>
-            <textarea className="fd-input area" rows={7} value={srTplValues.firstBody}
-              onChange={(e) => setSrTpl({ firstBody: e.target.value })} />
+            <RichEditor value={srTplValues.firstBody} onChange={(html) => setSrTpl({ firstBody: html })} rows={7}
+              insertTokens={["{name}", "{Company}", "{Month}", "{Year}", "{signature}"]} />
 
             <label className="fd-label" style={{ marginTop: 16 }}>
               Follow-up Body
-              <span className="fd-hint"> — tokens: {"{name}"}, {"{month}"}, {"{followUpCount}"}, {"{signature}"}</span>
+              <span className="fd-hint"> — tokens: {"{name}"} / {"{Company}"}, {"{Month}"}, {"{Year}"}, {"{followUpCount}"}, {"{signature}"}</span>
             </label>
-            <textarea className="fd-input area" rows={7} value={srTplValues.followUpBody}
-              onChange={(e) => setSrTpl({ followUpBody: e.target.value })} />
+            <RichEditor value={srTplValues.followUpBody} onChange={(html) => setSrTpl({ followUpBody: html })} rows={7}
+              insertTokens={["{name}", "{Company}", "{Month}", "{Year}", "{followUpCount}", "{signature}"]} />
 
             <div className="fd-panel-foot">
               <button className="fd-btn ghost sm" onClick={resetSrTpl}>
