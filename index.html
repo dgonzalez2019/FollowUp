@@ -1096,6 +1096,7 @@ const srHtmlToText = (html) => {
 };
 
 const DEFAULT_SR_SETTINGS = {
+  cc: "",
   subject: "Monthly Requisition — {Company} — {Month} {Year}",
   firstBody: "Hi {name},\n\nI hope you're doing well. I'm reaching out to collect your requisition for {Month} {Year}. Could you please send it over at your earliest convenience?\n\nIf you are not billing this month, please let us know so we can update our records.\n\n{signature}",
   followUpBody: "Hi {name},\n\nThis is follow-up #{followUpCount} regarding your {Month} {Year} requisition. We still haven't received it in our office. Could you please send it over, or let us know if you're not billing this month?\n\n{signature}",
@@ -5298,7 +5299,18 @@ function FollowUpDesk() {
       followUpBody: t.followUpBody != null ? t.followUpBody : srSettings.followUpBody,
     };
   };
+  // Per-project CC list (every email for that project CCs these people). A project
+  // with cc == null inherits the default (srSettings.cc); an empty string means the
+  // project explicitly has no extra CC.
+  const srEffectiveProjCc = (proj) => (proj && proj.cc != null) ? proj.cc : (srSettings.cc || "");
+  const setSrProjCc = (value) => {
+    if (srTemplateTarget === "default") setSrSettings((s) => ({ ...s, cc: value }));
+    else setSubReqProjects((ps) => ps.map((p) => (p.id === srTemplateTarget ? { ...p, cc: value } : p)));
+  };
   const srTplTargetProj = srTemplateTarget === "default" ? null : subReqProjects.find((p) => p.id === srTemplateTarget);
+  const srTplCc = srTemplateTarget === "default"
+    ? (srSettings.cc || "")
+    : (srTplTargetProj ? srEffectiveProjCc(srTplTargetProj) : "");
   const srTplValues = srTemplateTarget === "default"
     ? { subject: srSettings.subject, firstBody: srSettings.firstBody, followUpBody: srSettings.followUpBody }
     : projTemplate(srTplTargetProj);
@@ -5315,9 +5327,9 @@ function FollowUpDesk() {
   };
   const resetSrTpl = () => {
     if (srTemplateTarget === "default") {
-      setSrSettings((s) => ({ ...s, subject: DEFAULT_SR_SETTINGS.subject, firstBody: DEFAULT_SR_SETTINGS.firstBody, followUpBody: DEFAULT_SR_SETTINGS.followUpBody }));
+      setSrSettings((s) => ({ ...s, cc: "", subject: DEFAULT_SR_SETTINGS.subject, firstBody: DEFAULT_SR_SETTINGS.firstBody, followUpBody: DEFAULT_SR_SETTINGS.followUpBody }));
     } else {
-      setSubReqProjects((ps) => ps.map((p) => (p.id === srTemplateTarget ? { ...p, templates: undefined } : p)));
+      setSubReqProjects((ps) => ps.map((p) => (p.id === srTemplateTarget ? { ...p, templates: undefined, cc: undefined } : p)));
     }
   };
 
@@ -5340,8 +5352,15 @@ function FollowUpDesk() {
     const rec = getSrRecord(sub.id);
     const isFirst = !rec || rec.followUpsSent === 0;
     const nextCount = ((rec && rec.followUpsSent) || 0) + 1;
-    const tpl = projTemplate(subReqProjects.find((p) => p.id === sub.projectId));
+    const proj = subReqProjects.find((p) => p.id === sub.projectId);
+    const tpl = projTemplate(proj);
     const rawBody = isFirst ? tpl.firstBody : tpl.followUpBody;
+    // CC = the subcontractor's own CC plus the project's CC list, deduped.
+    const ccSeen = {};
+    const ccAll = [(sub.cc || ""), srEffectiveProjCc(proj)].join(";")
+      .split(/[;,]/).map((s) => s.trim()).filter(Boolean)
+      .filter((e) => { const k = e.toLowerCase(); if (ccSeen[k]) return false; ccSeen[k] = 1; return true; });
+    const ccJoined = ccAll.join(";");
     // Fill every token. {Company} and {name} both = the subcontractor company;
     // {Month}/{Year} are the split parts, {month} kept as the full "July 2026".
     const tok = (str) => String(str || "")
@@ -5378,7 +5397,7 @@ function FollowUpDesk() {
           const idToken = fbAuth && fbAuth.currentUser ? await fbAuth.currentUser.getIdToken() : null;
           const r = await fetch("/api/send-sr", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken, to: sub.email, cc: sub.cc || "", subject, html: htmlBody }),
+            body: JSON.stringify({ idToken, to: sub.email, cc: ccJoined, subject, html: htmlBody }),
           });
           const j = await r.json().catch(() => ({}));
           if (r.ok && j.ok) {
@@ -5393,8 +5412,7 @@ function FollowUpDesk() {
 
     // FALLBACK — open a plain-text mailto draft and copy the rich HTML so it can be
     // pasted in (used when Outlook isn't connected, the send failed, or on Cancel).
-    const ccList = (sub.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
-    const ccPart = ccList.length ? "&cc=" + encodeURIComponent(ccList.join(";")) : "";
+    const ccPart = ccAll.length ? "&cc=" + encodeURIComponent(ccJoined) : "";
     window.open("mailto:" + encodeURIComponent(sub.email) + "?subject=" + encodeURIComponent(subject) + ccPart + "&body=" + encodeURIComponent(plainBody), "_self");
     if (hasFormatting) copyRichHtml(htmlBody, plainBody);
     updateSrRecord(sub.id, { followUpsSent: nextCount, lastEmailSent: todayStr() });
@@ -8038,6 +8056,21 @@ function FollowUpDesk() {
                 : (srTplTargetProj && srTplTargetProj.templates
                   ? "This project has its own templates — saved and carried over every month automatically."
                   : "This project is using the default templates — editing here gives it its own and saves them permanently.")}
+            </p>
+
+            <label className="fd-label" style={{ marginTop: 16 }}>
+              CC on every email{srTemplateTarget === "default" ? " (default)" : " for this project"}
+              <span className="fd-hint"> — separate multiple with semicolons</span>
+            </label>
+            <input className="fd-input" value={srTplCc}
+              placeholder="pm@bdico.com; ap@bdico.com"
+              onChange={(e) => setSrProjCc(e.target.value)} />
+            <p className="fd-hint" style={{ fontSize: 12, margin: "6px 0 0" }}>
+              {srTemplateTarget === "default"
+                ? "Everyone here is CC'd on every requisition for projects that don't set their own list."
+                : ((srTplTargetProj && srTplTargetProj.cc != null)
+                  ? "This project has its own CC list — added to every requisition sent for it, on top of each subcontractor's own CC."
+                  : "Using the default CC list — type here to give this project its own (added to every requisition for it).")}
             </p>
 
             <label className="fd-label" style={{ marginTop: 16 }}>Email Subject <span className="fd-hint">— tokens: {"{Company}"}, {"{Month}"}, {"{Year}"} (also {"{month}"} = "June 2026")</span></label>
