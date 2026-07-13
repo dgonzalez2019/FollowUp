@@ -5333,7 +5333,7 @@ function FollowUpDesk() {
     } catch (e) { /* clipboard unavailable */ }
   };
 
-  const sendSrEmail = (sub) => {
+  const sendSrEmail = async (sub) => {
     const rec = getSrRecord(sub.id);
     const isFirst = !rec || rec.followUpsSent === 0;
     const nextCount = ((rec && rec.followUpsSent) || 0) + 1;
@@ -5354,29 +5354,48 @@ function FollowUpDesk() {
     const bodyIsHtml = srLooksHtml(rawBody);
     const plainSig = srSettings.signature || "";
     const htmlSig = (srSettings.htmlSignature || "").trim();
-    // Plain-text body the mail app opens with (mailto only carries plain text).
     const plainBody = bodyIsHtml
       ? srHtmlToText(tok(rawBody).split("{signature}").join(plainSig))
       : tok(rawBody).split("{signature}").join(plainSig);
-    // Accept commas or semicolons in the saved CC, but hand Outlook semicolons
-    // so each address lands as its own recipient.
+    // Fully-formatted HTML body (formatting + signature intact).
+    const sigHtml = htmlSig || srTextToHtml(plainSig);
+    const bodyHtml = bodyIsHtml
+      ? tok(rawBody).split("{signature}").join(sigHtml)
+      : srTextToHtml(tok(rawBody).split("{signature}").join("")).replace(/(<br>\s*){3,}/g, "<br><br>") + (sigHtml ? "<br><br>" + sigHtml : "");
+    const htmlBody = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;">' + bodyHtml + "</div>";
+    const hasFormatting = bodyIsHtml || htmlSig;
+
+    // BEST path — send straight through the user's Outlook as HTML so ALL formatting
+    // (bold, colours, highlight, underline) arrives intact. mailto can't carry it.
+    if (msConnected) {
+      const go = (typeof window === "undefined" || !window.confirm) ? true
+        : window.confirm("Send this requisition to " + sub.email + " now, straight from your Outlook — with all formatting?\n\nOK = send now.  Cancel = open an editable draft instead.");
+      if (go) {
+        try {
+          const idToken = fbAuth && fbAuth.currentUser ? await fbAuth.currentUser.getIdToken() : null;
+          const r = await fetch("/api/send-sr", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken, to: sub.email, cc: sub.cc || "", subject, html: htmlBody }),
+          });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok && j.ok) {
+            updateSrRecord(sub.id, { followUpsSent: nextCount, lastEmailSent: todayStr() });
+            flash("Sent via Outlook — formatting included");
+            return;
+          }
+          flash((j && j.error ? j.error : "Outlook send failed") + " — opening an editable draft instead");
+        } catch (e) { flash("Couldn't reach Outlook — opening an editable draft instead"); }
+      }
+    }
+
+    // FALLBACK — open a plain-text mailto draft and copy the rich HTML so it can be
+    // pasted in (used when Outlook isn't connected, the send failed, or on Cancel).
     const ccList = (sub.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
     const ccPart = ccList.length ? "&cc=" + encodeURIComponent(ccList.join(";")) : "";
     window.open("mailto:" + encodeURIComponent(sub.email) + "?subject=" + encodeURIComponent(subject) + ccPart + "&body=" + encodeURIComponent(plainBody), "_self");
-
-    // If the body has formatting OR there's an HTML signature, put a rich HTML
-    // version on the clipboard so it can be pasted into Outlook with everything intact.
-    const hasFormatting = bodyIsHtml || htmlSig;
-    if (hasFormatting) {
-      const sigHtml = htmlSig || srTextToHtml(plainSig);
-      const bodyHtml = bodyIsHtml
-        ? tok(rawBody).split("{signature}").join(sigHtml)
-        : srTextToHtml(tok(rawBody).split("{signature}").join("")).replace(/(<br>\s*){3,}/g, "<br><br>") + (sigHtml ? "<br><br>" + sigHtml : "");
-      const htmlBody = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;">' + bodyHtml + "</div>";
-      copyRichHtml(htmlBody, plainBody);
-    }
+    if (hasFormatting) copyRichHtml(htmlBody, plainBody);
     updateSrRecord(sub.id, { followUpsSent: nextCount, lastEmailSent: todayStr() });
-    flash(hasFormatting ? "Mail app opened · formatted email copied — paste it in to keep the formatting & signature" : "Email client opened");
+    flash(hasFormatting ? "Draft opened · formatted email copied — paste it in to keep the formatting" : "Email client opened");
   };
 
   const srPendingCount = subReqSubs.filter(sub => {
@@ -8015,6 +8034,12 @@ function FollowUpDesk() {
             </label>
             <RichEditor value={srTplValues.followUpBody} onChange={(html) => setSrTpl({ followUpBody: html })} rows={7}
               insertTokens={["{name}", "{Company}", "{Month}", "{Year}", "{followUpCount}", "{signature}"]} />
+
+            <p className="fd-hint" style={{ fontSize: 12, margin: "12px 0 0", lineHeight: 1.5 }}>
+              {msConnected
+                ? "Formatting transfers automatically — Send delivers the email straight from your Outlook as HTML (bold, colours, highlight, underline all intact). You'll get a quick confirm; choose Cancel there to open an editable draft instead."
+                : <>To make formatting transfer, <strong>connect your Outlook</strong> in the Follow-ups tab. Then Send delivers the formatted email directly. Until then, Send opens a plain draft and copies the formatted version for you to paste in.</>}
+            </p>
 
             <div className="fd-panel-foot">
               <button className="fd-btn ghost sm" onClick={resetSrTpl}>
