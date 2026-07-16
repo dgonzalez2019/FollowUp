@@ -4873,6 +4873,17 @@ function FollowUpDesk() {
     saveUsps(uspsItems.map((it) => (it.id === uspsEditId ? withBilledDate({ ...editForm }, it) : it)));
     setUspsEditId(null); setEditForm(null);
   };
+  // One-time backdating for items marked Billed before billed dates were tracked:
+  // fill each missing billed date from that item's last-updated timestamp (the best
+  // available signal for when it was billed). Any can be fine-tuned by editing after.
+  const backfillBilledDates = () => {
+    const missing = uspsItems.filter((it) => (it.billedStatus || "") === "Billed" && !it.billedDate);
+    if (!missing.length) { flash("All billed items already have a billed date"); return; }
+    if (typeof window !== "undefined" && window.confirm && !window.confirm("Set a billed date on " + missing.length + " already-billed item" + (missing.length === 1 ? "" : "s") + " using each one's last-updated date?\n\nThis is a best estimate — you can correct any of them afterward by editing the item.")) return;
+    const ids = {}; missing.forEach((it) => (ids[it.id] = 1));
+    saveUsps(uspsItems.map((it) => ids[it.id] ? { ...it, billedDate: new Date(it.updatedAt || it.createdAt || Date.now()).toISOString().slice(0, 10) } : it));
+    flash("Backdated " + missing.length + " billed date" + (missing.length === 1 ? "" : "s") + " — edit any item to fine-tune");
+  };
   const setEditNote = (idx, text) => setEditForm((f) => ({ ...f, notes: f.notes.map((n, i) => (i === idx ? { ...n, text } : n)) }));
   const removeEditNote = (idx) => setEditForm((f) => ({ ...f, notes: f.notes.filter((_, i) => i !== idx) }));
   const grantUsps = () => {
@@ -6330,6 +6341,7 @@ function FollowUpDesk() {
             </select>
             <button className={"fd-btn" + (showFilter || activeFilterCount ? " active" : "")} onClick={() => setShowFilter((v) => !v)}><Flag size={15} /> Filter{activeFilterCount ? " · " + activeFilterCount : ""}</button>
             <button className="fd-btn" onClick={exportUspsExcel}><FileText size={15} /> Export to Excel</button>
+            {(() => { const n = uspsItems.filter((it) => (it.billedStatus || "") === "Billed" && !it.billedDate).length; return n > 0 ? <button className="fd-btn" title="Set a billed date on older billed items from their last-updated date" onClick={backfillBilledDates}><Check size={15} /> Backdate billed dates ({n})</button> : null; })()}
           </div>
           {showFilter && (
             <div className="fd-filter-panel">
@@ -6441,6 +6453,11 @@ function FollowUpDesk() {
                             <option>Pending</option><option>Work Done</option><option>Billed</option><option>Cancelled</option><option>JOC</option>
                           </select>
                         </div>
+                        {(editForm.billedStatus || "Pending") === "Billed" ? (
+                          <div><label className="fd-label">Billed Date</label>
+                            <input className="fd-input" type="date" value={editForm.billedDate || ""} onChange={(e) => setEditForm((f) => ({ ...f, billedDate: e.target.value }))} />
+                          </div>
+                        ) : null}
                         {(editForm.billedStatus || "Pending") === "Billed" ? (
                           <div><label className="fd-label">Paid</label>
                             <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, marginTop: 8 }}>
