@@ -4770,7 +4770,12 @@ function FollowUpDesk() {
   const exportUspsExcel = async () => {
     const EJS = window.ExcelJS;
     if (!EJS) { flash("Excel tool didn't load — check your connection and retry"); return; }
-    if (!uspsDisplay.length) { flash("Nothing to export here"); return; }
+    // The "All items" export is split into two stacked tables: open items on top,
+    // then closed (Billed / Cancelled) below. It pulls from the full filtered list
+    // (uspsView) so it includes closed items too, which the on-screen All tab hides.
+    const splitOpenClosed = uspsTab === "all";
+    const exportBase = splitOpenClosed ? uspsView : uspsDisplay;
+    if (!exportBase.length) { flash("Nothing to export here"); return; }
     try {
       const cols = [
         { key: "callNumber", header: "Call Number", width: 14 },
@@ -4797,9 +4802,14 @@ function FollowUpDesk() {
       const last = colLetter(nCols);
       const wb = new EJS.Workbook();
       wb.creator = "BDI University"; wb.created = new Date();
-      const ws = wb.addWorksheet("USPS", { views: [{ state: "frozen", ySplit: 3 }] });
+      const ws = wb.addWorksheet("USPS");
       ws.columns = cols.map((c) => ({ key: c.key, width: c.width }));
 
+      const isClosedItem = (it) => { const s = it.billedStatus || "Pending"; return s === "Billed" || s === "Cancelled"; };
+      const openItems = splitOpenClosed ? exportBase.filter((it) => !isClosedItem(it)) : [];
+      const closedItems = splitOpenClosed ? exportBase.filter(isClosedItem) : [];
+
+      // Row 1 — title banner
       ws.mergeCells("A1:" + last + "1");
       const title = ws.getCell("A1");
       title.value = "BDI CONSTRUCTION  ·  USPS Call Log";
@@ -4808,35 +4818,40 @@ function FollowUpDesk() {
       title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F6CB0" } };
       ws.getRow(1).height = 30;
 
+      // Row 2 — meta / counts
       ws.mergeCells("A2:" + last + "2");
       const meta = ws.getCell("A2");
       const tabLabel = uspsTab === "finished" ? "Finished jobs" : uspsTab === "joc" ? "JOC" : uspsTab === "stale" ? "No activity 7+ days" : "All items";
-      meta.value = "Exported " + new Date().toLocaleDateString() + "    ·    " + tabLabel + "    ·    " + uspsDisplay.length + " item" + (uspsDisplay.length === 1 ? "" : "s");
+      meta.value = "Exported " + new Date().toLocaleDateString() + "    ·    " + tabLabel + "    ·    " + (splitOpenClosed
+        ? (openItems.length + " open  ·  " + closedItems.length + " closed")
+        : (uspsDisplay.length + " item" + (uspsDisplay.length === 1 ? "" : "s")));
       meta.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF6F7464" } };
       meta.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
       meta.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF1EC" } };
       ws.getRow(2).height = 18;
 
-      const headerRow = ws.getRow(3);
-      cols.forEach((c, i) => { headerRow.getCell(i + 1).value = c.header; });
-      headerRow.eachCell((cell) => {
-        cell.font = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } };
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185A93" } };
-        cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
-      });
-      headerRow.height = 20;
-
-      uspsDisplay.forEach((it, idx) => {
+      const rowValues = (it) => {
         const noteText = (it.notes || []).map((n) => (n.at ? new Date(n.at).toLocaleString() + " — " : "") + (n.by ? n.by + ": " : "") + (n.text || "")).join("\n");
-        const r = ws.addRow({
+        return {
           callNumber: it.callNumber || "", problemNumber: it.problemNumber || "", priority: it.priority || "",
           facilityName: it.facilityName || "", facilityAddress: it.facilityAddress || "", facilityContact: it.facilityContact || "",
           phone: it.phone || "", dateReceived: it.dateReceived || "", dueDate: it.dueDate || "",
           subcontractorName: it.subcontractorName || "", problemDescription: it.problemDescription || "",
-          billedStatus: it.billedStatus || "", billedDate: it.billedDate || "", paid: it.billedStatus === "Billed" ? (it.paid ? "Yes" : "No") : "", notes: noteText, createdBy: it.createdBy || "",
-          projectManager: it.projectManager || "",
+          billedStatus: it.billedStatus || "", billedDate: it.billedDate || "", paid: it.billedStatus === "Billed" ? (it.paid ? "Yes" : "No") : "",
+          notes: noteText, createdBy: it.createdBy || "", projectManager: it.projectManager || "",
           createdOn: it.createdAt ? new Date(it.createdAt).toLocaleDateString() : "",
-        });
+        };
+      };
+      const writeHeaderAt = (rn) => {
+        const hr = ws.getRow(rn);
+        cols.forEach((c, i) => { hr.getCell(i + 1).value = c.header; });
+        hr.eachCell((cell) => { cell.font = { name: "Calibri", bold: true, size: 11, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185A93" } }; cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true }; });
+        hr.height = 20;
+      };
+      const writeDataAt = (rn, it, idx) => {
+        const d = rowValues(it);
+        const r = ws.getRow(rn);
+        cols.forEach((c, i) => { const v = d[c.key]; r.getCell(i + 1).value = v == null ? "" : v; });
         const zebra = idx % 2 === 1;
         r.eachCell({ includeEmpty: true }, (cell) => {
           cell.font = { name: "Calibri", size: 10, color: { argb: "FF23271F" } };
@@ -4844,9 +4859,32 @@ function FollowUpDesk() {
           if (zebra) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF4F7F2" } };
           cell.border = { bottom: { style: "hair", color: { argb: "FFD8DDD2" } } };
         });
-      });
+      };
+      // Titled section = banner row + header row + data rows. Returns the next free row.
+      const writeSection = (startRow, sectionTitle, items, bannerColor) => {
+        ws.mergeCells("A" + startRow + ":" + last + startRow);
+        const sc = ws.getCell("A" + startRow);
+        sc.value = sectionTitle;
+        sc.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+        sc.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+        sc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bannerColor } };
+        ws.getRow(startRow).height = 22;
+        writeHeaderAt(startRow + 1);
+        items.forEach((it, idx) => writeDataAt(startRow + 2 + idx, it, idx));
+        return startRow + 2 + items.length;
+      };
 
-      ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: nCols } };
+      let firstHeaderRow = 3;
+      if (splitOpenClosed) {
+        let next = writeSection(3, "OPEN ITEMS  (" + openItems.length + ")", openItems, "FF2F6CB0");
+        firstHeaderRow = 4; // open-section header row
+        writeSection(next + 1, "CLOSED ITEMS — Billed / Cancelled  (" + closedItems.length + ")", closedItems, "FF6F7464");
+      } else {
+        writeHeaderAt(3);
+        uspsDisplay.forEach((it, idx) => writeDataAt(4 + idx, it, idx));
+        ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: nCols } };
+      }
+      ws.views = [{ state: "frozen", ySplit: firstHeaderRow }];
 
       try {
         const b64 = (LOGO_SRC || "").split(",").pop();
