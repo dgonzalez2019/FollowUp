@@ -1074,6 +1074,17 @@ const MS_DAY = 86400000;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const parseDate = (s) => new Date(s + "T00:00:00");
 const addDays = (s, n) => { const d = parseDate(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Advance a date by N WORKING days (Mon–Fri), skipping weekends. Used for follow-up
+// reminder intervals so a "5 day" follow-up means 5 business days and never lands on
+// a weekend. If N is 0 the date is nudged forward to the next weekday if needed.
+const addBusinessDays = (s, n) => {
+  const d = parseDate(s);
+  let remaining = Math.abs(Number(n) || 0);
+  const step = (Number(n) || 0) < 0 ? -1 : 1;
+  if (remaining === 0) { while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }
+  while (remaining > 0) { d.setDate(d.getDate() + step); const dow = d.getDay(); if (dow !== 0 && dow !== 6) remaining--; }
+  return d.toISOString().slice(0, 10);
+};
 const daysBetween = (a, b) => Math.round((parseDate(b) - parseDate(a)) / MS_DAY);
 const prettyDate = (s) => parseDate(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
@@ -1386,7 +1397,7 @@ const STATUS_META = {
 
 function getStatus(f) {
   if (f.status === "done") return { key: "done" };
-  const due = addDays(f.lastContact, Number(f.intervalDays) || 0);
+  const due = addBusinessDays(f.lastContact, Number(f.intervalDays) || 0);
   const diff = daysBetween(todayStr(), due);
   if (diff > 0) return { key: "waiting", days: diff, due };
   if (diff === 0) return { key: "today", due };
@@ -3824,8 +3835,8 @@ function FollowUpDesk() {
   };
 
   const reminderDateFor = (f) => {
-    const due = addDays(f.lastContact, Number(f.intervalDays) || 0);
-    return daysBetween(todayStr(), due) > 0 ? due : addDays(todayStr(), 1);
+    const due = addBusinessDays(f.lastContact, Number(f.intervalDays) || 0);
+    return daysBetween(todayStr(), due) > 0 ? due : addBusinessDays(todayStr(), 1);
   };
 
   const eventLines = (f) => {
@@ -4020,7 +4031,7 @@ function FollowUpDesk() {
       .filter((f) => f.status !== "done" && (f.autoEmail || f.autoEvent) && f.email)
       .map((f) => {
         const st = getStatus(f);
-        const nextDue = addDays(f.lastContact, Number(f.intervalDays) || 0);
+        const nextDue = addBusinessDays(f.lastContact, Number(f.intervalDays) || 0);
         return {
           id: f.id, email: f.email, cc: f.cc || "", name: f.name || "", company: f.company || "",
           subject: f.subject || "Following up", body: buildBody(f),
@@ -4341,7 +4352,7 @@ function FollowUpDesk() {
     const ev = [];
     followups.forEach((f) => {
       if (f.status === "done") return;
-      ev.push({ date: addDays(f.lastContact, Number(f.intervalDays) || 0), type: "followup", section: "followups", label: (f.company || f.name || f.email) });
+      ev.push({ date: addBusinessDays(f.lastContact, Number(f.intervalDays) || 0), type: "followup", section: "followups", label: (f.company || f.name || f.email) });
     });
     deadlines.forEach((d) => ev.push({ date: d.dueDate, type: "deadline", section: "deadlines", label: d.title }));
     pending.forEach((p) => { if (p.dateSent) ev.push({ date: p.dateSent, type: "pending", section: "pending", label: p.title + (p.sentTo ? " → " + p.sentTo : "") }); });
@@ -5784,7 +5795,7 @@ function FollowUpDesk() {
               <span>Default message &amp; cadence</span>
               <button className="fd-icon-btn sm" onClick={() => setShowSettings(false)}><X size={16} /></button>
             </div>
-            <label className="fd-label">Default days between follow-ups</label>
+            <label className="fd-label">Default working days between follow-ups <span className="fd-hint">— weekends skipped</span></label>
             <input className="fd-input short" type="number" min="1" value={settings.defaultInterval}
               onChange={(e) => setSettings((s) => ({ ...s, defaultInterval: Number(e.target.value) }))} />
             <label className="fd-label" style={{ marginTop: 14 }}>Email style</label>
@@ -5919,7 +5930,7 @@ function FollowUpDesk() {
                 <input className="fd-input" type="date" value={form.lastContact} onChange={(e) => setForm({ ...form, lastContact: e.target.value })} />
               </div>
               <div>
-                <label className="fd-label">Remind me every (days)</label>
+                <label className="fd-label">Remind me every (working days) <span className="fd-hint">— weekends skipped</span></label>
                 <input className="fd-input" type="number" min="1" value={form.intervalDays} onChange={(e) => setForm({ ...form, intervalDays: Number(e.target.value) })} />
               </div>
             </div>
@@ -5987,7 +5998,7 @@ function FollowUpDesk() {
                   <div className="fd-meta">
                     <span>Last contact {prettyDate(f.lastContact)}</span>
                     <span className="fd-dot">·</span>
-                    <span>Every {f.intervalDays}d</span>
+                    <span>Every {f.intervalDays} working days</span>
                     {f.followUpsSent > 0 && (
                       <>
                         <span className="fd-dot">·</span>
