@@ -3799,10 +3799,14 @@ function FollowUpDesk() {
     return fillTokens(body, f);
   };
 
+  // Pull clean addresses out of a CC string: split on comma OR semicolon, strip any
+  // "Name <email>" wrapper, trim, drop blanks. Outlook needs SEMICOLONS between CC
+  // recipients in a mailto: link — commas make it treat them all as one bad address.
+  const ccEmails = (raw) => (raw || "").split(/[;,]/).map((s) => { const t = s.trim(); const m = t.match(/<([^>]+)>/); return (m ? m[1] : t).trim(); }).filter(Boolean);
   const openInEmail = (f) => {
     const params = [];
-    const ccList = (f.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
-    if (ccList.length) params.push("cc=" + encodeURIComponent(ccList.join(",")));
+    const ccList = ccEmails(f.cc);
+    if (ccList.length) params.push("cc=" + encodeURIComponent(ccList.join(";")));
     params.push("subject=" + encodeURIComponent(f.subject || "Following up"));
     params.push("body=" + encodeURIComponent(buildBody(f)));
     const link = "mailto:" + encodeURIComponent(f.email) + "?" + params.join("&");
@@ -3811,7 +3815,7 @@ function FollowUpDesk() {
 
   const copyText = async (f) => {
     const lines = ["To: " + f.email];
-    const ccClean = (f.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean).join("; ");
+    const ccClean = ccEmails(f.cc).join("; ");
     if (ccClean) lines.push("Cc: " + ccClean);
     lines.push("Subject: " + (f.subject || "Following up"));
     const text = lines.join("\n") + "\n\n" + buildBody(f);

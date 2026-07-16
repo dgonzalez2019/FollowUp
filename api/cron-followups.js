@@ -36,9 +36,18 @@ async function graphTokenFor(uid, auth) {
 function escapeHtml(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+// Split a CC string on comma OR semicolon and strip any "Name <email>" wrapper,
+// so every listed person becomes their own valid CC recipient (Graph rejects a
+// whole address that still has the display-name wrapper or a stray separator).
+function ccRecipientsFrom(raw) {
+  return String(raw || "").split(/[;,]/)
+    .map((s) => { const t = s.trim(); const m = t.match(/<([^>]+)>/); return (m ? m[1] : t).trim(); })
+    .filter(Boolean)
+    .map((a) => ({ emailAddress: { address: a } }));
+}
 async function sendMail(token, item) {
   const toList = [{ emailAddress: { address: item.email } }];
-  const ccList = (item.cc || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean).map((a) => ({ emailAddress: { address: a } }));
+  const ccList = ccRecipientsFrom(item.cc);
   let bodyObj;
   if (item.htmlSig) {
     // convert the plain-text body to simple HTML and append the user's signature
