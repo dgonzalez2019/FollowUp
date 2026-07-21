@@ -4110,6 +4110,25 @@ function FollowUpDesk() {
     allowWipeRef.current = true; // explicit intent — let the safety guard allow this empty save
     setFollowups([]); flash("Cleared");
   };
+  // Cloud recovery via Firestore point-in-time recovery (needs PITR enabled).
+  const [recoverAt, setRecoverAt] = useState("");
+  const [recoverInfo, setRecoverInfo] = useState(null);
+  const [recoverBusy, setRecoverBusy] = useState(false);
+  const runRecover = async (apply) => {
+    if (!recoverAt) { flash("Pick the date & time to recover from"); return; }
+    setRecoverBusy(true); setRecoverInfo(null);
+    try {
+      // datetime-local gives local time; convert to an ISO/UTC instant for Firestore.
+      const readTime = new Date(recoverAt).toISOString().replace(/\.\d+Z$/, "Z");
+      const idToken = fbAuth && fbAuth.currentUser ? await fbAuth.currentUser.getIdToken() : null;
+      const r = await fetch("/api/recover-followups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, readTime, apply }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setRecoverInfo({ error: j.error || ("HTTP " + r.status), detail: j.detail }); }
+      else if (apply && j.restored) { setRecoverInfo({ ok: "Restored " + j.followups + " follow-up(s). They'll appear in a moment." }); flash("Restored " + j.followups + " follow-up(s) from " + recoverAt); }
+      else { setRecoverInfo({ preview: j.followups, sample: j.sample || [] }); }
+    } catch (e) { setRecoverInfo({ error: e.message || "Request failed" }); }
+    setRecoverBusy(false);
+  };
   // Manual recovery: pull the last non-empty follow-up list saved on this device.
   const restoreFromBackup = () => {
     try {
@@ -5908,6 +5927,22 @@ function FollowUpDesk() {
                 )}
               </div>
             )}
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+              <label className="fd-label">Recover follow-ups from a past date/time <span className="fd-hint">— cloud backup (needs Firestore point-in-time recovery)</span></label>
+              <p className="fd-hint" style={{ marginTop: 0, fontSize: 12 }}>Restores your follow-up list to how it looked at the chosen moment (within the last 7 days). Pick a time just before the data was lost, Preview it, then Restore.</p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <input className="fd-input" type="datetime-local" style={{ maxWidth: 230 }} value={recoverAt} onChange={(e) => setRecoverAt(e.target.value)} />
+                <button className="fd-btn ghost sm" disabled={recoverBusy} onClick={() => runRecover(false)}>{recoverBusy ? "Checking…" : "Preview"}</button>
+                <button className="fd-btn primary sm" disabled={recoverBusy || !(recoverInfo && recoverInfo.preview > 0)} onClick={() => runRecover(true)}>Restore this snapshot</button>
+              </div>
+              {recoverInfo && recoverInfo.preview != null && (
+                <p className="fd-hint" style={{ fontSize: 12.5, marginTop: 8, color: recoverInfo.preview > 0 ? "var(--ok)" : "var(--muted)" }}>
+                  Found <b>{recoverInfo.preview}</b> follow-up(s) at that time{recoverInfo.preview > 0 ? ": " + recoverInfo.sample.slice(0, 8).join(", ") + (recoverInfo.sample.length > 8 ? "…" : "") : ". Try an earlier time."} {recoverInfo.preview > 0 ? "Click “Restore this snapshot” to bring them back." : ""}
+                </p>
+              )}
+              {recoverInfo && recoverInfo.ok && <p className="fd-hint" style={{ fontSize: 12.5, marginTop: 8, color: "var(--ok)" }}>{recoverInfo.ok}</p>}
+              {recoverInfo && recoverInfo.error && <p className="fd-hint" style={{ fontSize: 12, marginTop: 8, color: "var(--danger)" }}>{recoverInfo.error}{recoverInfo.detail ? " — " + recoverInfo.detail : ""}</p>}
+            </div>
             <div className="fd-panel-foot" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
               <button className="fd-link-danger" onClick={resetAll}><RotateCcw size={14} /> Clear all data</button>
               <button className="fd-btn ghost sm" onClick={restoreFromBackup}><RotateCcw size={14} /> Restore follow-ups from backup</button>

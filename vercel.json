@@ -4,6 +4,7 @@
     "api/cron-followups.js": { "maxDuration": 60 },
     "api/cron-insurance.js": { "maxDuration": 60 },
     "api/send-sr.js": { "maxDuration": 30 },
+    "api/recover-followups.js": { "maxDuration": 30 },
     "api/odds.js": { "maxDuration": 30 }
   },
   "crons": [
