@@ -4664,15 +4664,17 @@ function FollowUpDesk() {
       await grab(dstr(yd), false);
       await grab(dstr(now), false);
     };
-    // Pull the whole tournament in ~10-day chunks and merge. A single 5-week range
-    // request gets capped by ESPN and silently drops the LATE knockout games — which
-    // made scoring cut off before the semis/final and left no champion. Chunking each
-    // window keeps every game (dedup by id happens in apply()).
-    const TOURNEY_CHUNKS = ["20260611-20260620", "20260621-20260630", "20260701-20260710", "20260711-20260721"];
+    // Pull the whole tournament in ~1-week chunks and MERGE each as it arrives. Two
+    // reasons: (1) a single multi-week range request gets capped by ESPN and silently
+    // drops the LATE knockout games (that's why scores stopped after the quarter-finals
+    // / July 11 and there was no champion); (2) merging per chunk means a flaky fetch
+    // for one window can never wipe games another window already loaded. Dedup by id
+    // happens in apply().
+    const TOURNEY_CHUNKS = ["20260611-20260617", "20260618-20260624", "20260625-20260701", "20260702-20260708", "20260709-20260715", "20260716-20260722"];
     const tickAll = async () => {
-      const all = []; let anyOk = false;
-      for (const c of TOURNEY_CHUNKS) { const evs = await grabEvents(c); if (evs != null) { anyOk = true; all.push.apply(all, evs); } }
-      if (anyOk) apply(all, true); else tickLive();
+      let anyOk = false;
+      for (const c of TOURNEY_CHUNKS) { const evs = await grabEvents(c); if (evs != null) { anyOk = true; apply(evs, false); } }
+      if (!anyOk) tickLive();
     };
     tickAll(); tickLive();
     const iv1 = setInterval(tickLive, 15000);
