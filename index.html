@@ -302,6 +302,10 @@ button.fd-admin-chip{color:var(--ink); font-family:inherit; font-size:13px;}
 .fd-br-real{font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--muted); padding:4px 11px 6px; border-top:1px dashed var(--line);}
 .fd-ms-on{font-size:13px; color:var(--ink); line-height:1.5; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:11px 13px;}
 .fd-ms-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok); margin-right:6px; box-shadow:0 0 8px rgba(76,175,125,.7);}
+.fd-champ-banner{display:flex; align-items:center; gap:12px; margin:0 0 18px; padding:14px 18px; border-radius:14px; color:#0b1a12; background:linear-gradient(90deg, var(--lime), var(--accent)); box-shadow:var(--shadow-md); font-family:'Archivo',sans-serif;}
+.fd-champ-banner .fd-champ-label{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.85;}
+.fd-champ-banner .fd-champ-team{margin-left:auto; font-size:18px; font-weight:800; display:inline-flex; align-items:center; gap:8px;}
+.fd-champ-banner .fd-champ-team .fd-flag{width:26px; height:19px;}
 .fd-champ-bar{height:6px; background:var(--surface-3); border-radius:4px; overflow:hidden;}
 .fd-champ-fill{height:100%; background:linear-gradient(90deg, var(--accent), var(--lime)); border-radius:4px;}
 .fd-lb-row{cursor:pointer; text-align:left; width:100%; font-family:inherit; color:var(--ink);}
@@ -1764,7 +1768,13 @@ function brMyBracket(myBr) {
 // ---- real-tournament reconstruction straight from the live feed (no seeding needed) ----
 function brFeedStandings(finals, grp) {
   const teams = WC_GROUPS[grp] || [];
-  const done = finals.filter((m) => teams.indexOf(m.hc) >= 0 && teams.indexOf(m.ac) >= 0);
+  const inGroup = finals.filter((m) => teams.indexOf(m.hc) >= 0 && teams.indexOf(m.ac) >= 0);
+  // Keep only the FIRST meeting of each pair (the group game). Otherwise a knockout
+  // rematch between two group-mates would be counted in the table AND consumed —
+  // corrupting standings and stopping that knockout game from resolving downstream.
+  const byPair = {};
+  inGroup.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "")).forEach((m) => { const k = [m.hc, m.ac].sort().join("|"); if (!byPair[k]) byPair[k] = m; });
+  const done = Object.values(byPair);
   const t = {};
   teams.forEach((c) => (t[c] = { c, p: 0, gd: 0, gf: 0 }));
   done.forEach((m) => {
@@ -4634,14 +4644,19 @@ function FollowUpDesk() {
         if (Object.keys(patch).length) saveBracketShared({ ...cur, matches: { ...cur.matches, ...patch } });
       }
     };
-    const grab = async (datesParam, wholesale) => {
+    const grabEvents = async (datesParam) => {
       try {
-        const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=" + datesParam);
-        if (!r.ok) return false;
+        const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=" + datesParam + "&limit=300");
+        if (!r.ok) return null;
         const j = await r.json();
-        apply(j.events || [], wholesale);
-        return true;
-      } catch (e) { return false; }
+        return j.events || [];
+      } catch (e) { return null; }
+    };
+    const grab = async (datesParam, wholesale) => {
+      const evs = await grabEvents(datesParam);
+      if (evs == null) return false;
+      apply(evs, wholesale);
+      return true;
     };
     const tickLive = async () => {
       const now = new Date();
@@ -4649,9 +4664,15 @@ function FollowUpDesk() {
       await grab(dstr(yd), false);
       await grab(dstr(now), false);
     };
+    // Pull the whole tournament in ~10-day chunks and merge. A single 5-week range
+    // request gets capped by ESPN and silently drops the LATE knockout games — which
+    // made scoring cut off before the semis/final and left no champion. Chunking each
+    // window keeps every game (dedup by id happens in apply()).
+    const TOURNEY_CHUNKS = ["20260611-20260620", "20260621-20260630", "20260701-20260710", "20260711-20260721"];
     const tickAll = async () => {
-      const ok = await grab("20260611-20260719", true);
-      if (!ok) tickLive();
+      const all = []; let anyOk = false;
+      for (const c of TOURNEY_CHUNKS) { const evs = await grabEvents(c); if (evs != null) { anyOk = true; all.push.apply(all, evs); } }
+      if (anyOk) apply(all, true); else tickLive();
     };
     tickAll(); tickLive();
     const iv1 = setInterval(tickLive, 15000);
@@ -7031,6 +7052,13 @@ function FollowUpDesk() {
               <button key={k} className={"fd-subnav-btn" + (bracketView === k ? " active" : "")} onClick={() => setBracketView(k)}>{label}</button>
             ))}
           </div>
+          {brReal && brReal.champion ? (
+            <div className="fd-champ-banner">
+              <Trophy size={22} />
+              <span className="fd-champ-label">World Cup 2026 Champion</span>
+              <span className="fd-champ-team">{wcLabel(brReal.champion)}</span>
+            </div>
+          ) : null}
 
           {bracketView === "picks" && (
           <>
