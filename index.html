@@ -3135,6 +3135,7 @@ function FollowUpDesk() {
   const [followups, setFollowups] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
+  useEffect(() => { followupsRef.current = followups; }, [followups]);
   const [view, setView] = useState("attention");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -3617,6 +3618,11 @@ function FollowUpDesk() {
   const [authBusy, setAuthBusy] = useState(false);
   const lastSyncedRef = useRef("");
   const cloudLoadedRef = useRef(false);
+  // Data-loss safety nets (see the cloud save/load effects below):
+  //  followupsRef  — always the CURRENT follow-ups, readable inside snapshot callbacks
+  //  allowWipeRef  — set true only by an explicit "Clear all" so guards let an empty save through
+  const followupsRef = useRef([]);
+  const allowWipeRef = useRef(false);
 
   const blankForm = () => ({
     name: "", company: "", email: "", cc: "", subject: "", notes: "",
@@ -3658,9 +3664,21 @@ function FollowUpDesk() {
     const json = JSON.stringify({ followups, settings, pending, deadlines, personalApps, subReqProjects, subReqSubs, subReqMonthly, srSettings });
     try { localStorage.setItem(STORE_KEY, json); }
     catch (e) { console.error("save failed", e); }
+    // Keep a separate on-device backup of the last NON-EMPTY follow-up list, so a
+    // stray empty state can never overwrite the only copy on this device.
+    if (followups.length) { try { localStorage.setItem(STORE_KEY + "_bak", JSON.stringify({ followups, at: Date.now() })); } catch (e) {} }
     if (cloudOn && user && cloudLoadedRef.current && json !== lastSyncedRef.current) {
-      lastSyncedRef.current = json;
-      fbDb.collection("users").doc(user.uid).set({ data: json, updatedAt: Date.now() }).catch((e) => console.error("cloud save failed", e));
+      // SAFETY: never let an accidental empty state wipe a populated cloud copy.
+      // Only an explicit "Clear all data" (allowWipeRef) may clear a list of 2+.
+      let prevCount = 0;
+      try { prevCount = (JSON.parse(lastSyncedRef.current || "{}").followups || []).length; } catch (e) {}
+      if (followups.length === 0 && prevCount >= 2 && !allowWipeRef.current) {
+        console.warn("Blocked a cloud write that would clear all " + prevCount + " follow-ups (safety guard). The cloud copy is kept.");
+      } else {
+        lastSyncedRef.current = json;
+        allowWipeRef.current = false;
+        fbDb.collection("users").doc(user.uid).set({ data: json, updatedAt: Date.now() }).catch((e) => console.error("cloud save failed", e));
+      }
     }
   }, [followups, settings, pending, deadlines, loaded, user, personalApps, subReqProjects, subReqSubs, subReqMonthly, srSettings]);
 
@@ -3684,9 +3702,19 @@ function FollowUpDesk() {
         lastSyncedRef.current = json;
         ref.set({ data: json, updatedAt: Date.now() }).catch(() => {});
       } else if (remote !== lastSyncedRef.current) {
-        lastSyncedRef.current = remote;
         try {
           const p = JSON.parse(remote);
+          // SELF-HEAL: if the cloud has lost all follow-ups but THIS device still has
+          // them, restore the cloud from this device instead of wiping the local copy.
+          if ((p.followups || []).length === 0 && followupsRef.current.length >= 2) {
+            const restore = JSON.stringify({ followups: followupsRef.current, settings, pending, deadlines, personalApps, subReqProjects, subReqSubs, subReqMonthly, srSettings });
+            lastSyncedRef.current = restore;
+            ref.set({ data: restore, updatedAt: Date.now() }).catch(() => {});
+            cloudLoadedRef.current = true;
+            console.warn("Cloud follow-ups were empty; restored " + followupsRef.current.length + " from this device.");
+            return;
+          }
+          lastSyncedRef.current = remote;
           setFollowups(p.followups || []);
           setSettings({ ...DEFAULT_SETTINGS, ...(p.settings || {}) });
           setPending(p.pending || []);
@@ -4079,7 +4107,18 @@ function FollowUpDesk() {
 
   const resetAll = () => {
     if (!window.confirm("Delete every tracked follow-up? This can't be undone.")) return;
+    allowWipeRef.current = true; // explicit intent — let the safety guard allow this empty save
     setFollowups([]); flash("Cleared");
+  };
+  // Manual recovery: pull the last non-empty follow-up list saved on this device.
+  const restoreFromBackup = () => {
+    try {
+      const bak = JSON.parse(localStorage.getItem(STORE_KEY + "_bak") || "null");
+      if (!bak || !(bak.followups || []).length) { flash("No follow-up backup found on this device"); return; }
+      if (followups.length && !window.confirm("Replace the current " + followups.length + " follow-up(s) with the " + bak.followups.length + " from the last backup" + (bak.at ? " (" + new Date(bak.at).toLocaleString() + ")" : "") + "?")) return;
+      setFollowups(bak.followups);
+      flash("Restored " + bak.followups.length + " follow-up(s) from backup");
+    } catch (e) { flash("Couldn't read the backup on this device"); }
   };
 
   const startEditPending = (p) => {
@@ -5869,8 +5908,9 @@ function FollowUpDesk() {
                 )}
               </div>
             )}
-            <div className="fd-panel-foot">
+            <div className="fd-panel-foot" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
               <button className="fd-link-danger" onClick={resetAll}><RotateCcw size={14} /> Clear all data</button>
+              <button className="fd-btn ghost sm" onClick={restoreFromBackup}><RotateCcw size={14} /> Restore follow-ups from backup</button>
             </div>
           </section>
         )}
