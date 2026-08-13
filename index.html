@@ -1324,7 +1324,7 @@ const normUspsItem = (it) => {
   return billType === it.billType && billedStatus === (it.billedStatus || "Pending") ? it : { ...it, billType, billedStatus };
 };
 const normUspsList = (arr) => (Array.isArray(arr) ? arr.map(normUspsItem) : []);
-const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", facilityContact: "", phone: "", priority: "Routine", dateReceived: todayStr(), dueDate: addDays(todayStr(), 30), problemDescription: "", subcontractorName: "", projectManager: "", billedStatus: "Pending", billType: "Credit Card", billedDate: "", paid: false });
+const blankUspsForm = () => ({ callNumber: "", problemNumber: "", facilityName: "", facilityAddress: "", facilityContact: "", phone: "", priority: "Routine", dateReceived: todayStr(), dueDate: addDays(todayStr(), 30), problemDescription: "", subcontractorName: "", projectManager: "", billedStatus: "Pending", billType: "Hubworks", billedDate: "", paid: false });
 const USPS_IMPORT_MAP = {
   txtcallnumber1: "callNumber", txtproblemnumber1: "problemNumber", txtdatereceived1: "dateReceived",
   txtdatedue1: "dueDate", cbopriority1: "priority", cbobilledstatus1: "billedStatus", cbolocation1: "facilityName",
@@ -3308,7 +3308,7 @@ function FollowUpDesk() {
   const [uspsQuery, setUspsQuery] = useState("");
   const [uspsSort, setUspsSort] = useState("act_desc");
   const [noteDrafts, setNoteDrafts] = useState({});
-  const [uspsTab, setUspsTab] = useState("open");
+  const [uspsTab, setUspsTab] = useState("all");
   const [uspsFinFilter, setUspsFinFilter] = useState("all");
   const [showFilter, setShowFilter] = useState(false);
   const [uspsFilters, setUspsFilters] = useState({ pm: "", priority: "", billed: "", billType: "", subcontractor: "", location: "", billedFrom: "", billedTo: "" });
@@ -6475,8 +6475,8 @@ function FollowUpDesk() {
             </div>
           )}
           <div className="fd-subnav">
-            <button className={"fd-subnav-btn" + (uspsTab === "open" ? " active" : "")} onClick={() => setUspsTab("open")}>Open items{uspsOpenCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsOpenCount}</span> : null}</button>
             <button className={"fd-subnav-btn" + (uspsTab === "all" ? " active" : "")} onClick={() => setUspsTab("all")}>All items{uspsItems.length ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsItems.length}</span> : null}</button>
+            <button className={"fd-subnav-btn" + (uspsTab === "open" ? " active" : "")} onClick={() => setUspsTab("open")}>Open items{uspsOpenCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsOpenCount}</span> : null}</button>
             <button className={"fd-subnav-btn" + (uspsTab === "stale" ? " active" : "")} onClick={() => setUspsTab("stale")}>No activity 7+ days{uspsStaleCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsStaleCount}</span> : null}</button>
             <button className={"fd-subnav-btn" + (uspsTab === "finished" ? " active" : "")} onClick={() => setUspsTab("finished")}>Finished jobs{uspsFinishedCount ? <span className="fd-count" style={{ marginLeft: 6 }}>{uspsFinishedCount}</span> : null}</button>
             {isUspsManager ? <button className={"fd-subnav-btn" + (uspsTab === "access" ? " active" : "")} onClick={() => setUspsTab("access")}><Shield size={13} /> Manage access</button> : null}
@@ -6542,7 +6542,7 @@ function FollowUpDesk() {
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
               <div>
                 <label className="fd-label" style={{ marginTop: 10 }}>Billing Type</label>
-                <select className="fd-input" style={{ maxWidth: 200 }} value={uspsForm.billType || "Credit Card"} onChange={(e) => setUspsForm((f) => ({ ...f, billType: e.target.value }))}>
+                <select className="fd-input" style={{ maxWidth: 200 }} value={uspsForm.billType || "Hubworks"} onChange={(e) => setUspsForm((f) => ({ ...f, billType: e.target.value }))}>
                   {BILLTYPES.map((t) => <option key={t}>{t}</option>)}
                 </select>
               </div>
@@ -6724,7 +6724,7 @@ function FollowUpDesk() {
                         <div><label className="fd-label">Subcontractor Name</label><input className="fd-input" value={editForm.subcontractorName || ""} onChange={(e) => setEditForm((f) => ({ ...f, subcontractorName: e.target.value }))} /></div>
                         <div><label className="fd-label">USPS Project Manager</label><input className="fd-input" value={editForm.projectManager || ""} onChange={(e) => setEditForm((f) => ({ ...f, projectManager: e.target.value }))} /></div>
                         <div><label className="fd-label">Billing Type</label>
-                          <select className="fd-input" value={editForm.billType || "Credit Card"} onChange={(e) => setEditForm((f) => ({ ...f, billType: e.target.value }))}>
+                          <select className="fd-input" value={editForm.billType || "Hubworks"} onChange={(e) => setEditForm((f) => ({ ...f, billType: e.target.value }))}>
                             {BILLTYPES.map((t) => <option key={t}>{t}</option>)}
                           </select>
                         </div>
@@ -6782,7 +6782,7 @@ function FollowUpDesk() {
                   {it.billedDate ? <div className="fd-usps-detrow"><span className="fd-usps-k">Billed Date</span><span>{it.billedDate}</span></div> : null}
                   <div className="fd-usps-detrow"><span className="fd-usps-k">Added by</span><span>{it.createdBy || "someone"}{it.createdAt ? " · " + new Date(it.createdAt).toLocaleDateString() : ""}</span></div>
                   <div className="fd-usps-detrow"><span className="fd-usps-k">Billing Type</span>
-                    <select className="fd-usps-statussel" value={it.billType || "Credit Card"} onChange={(e) => updateUspsItem(it.id, { billType: e.target.value })}>
+                    <select className="fd-usps-statussel" value={it.billType || "Hubworks"} onChange={(e) => updateUspsItem(it.id, { billType: e.target.value })}>
                       {BILLTYPES.map((t) => <option key={t}>{t}</option>)}
                     </select>
                   </div>
