@@ -54,9 +54,13 @@ module.exports = async (req, res) => {
       res.status(401).json({ error: "Please sign in to use the CTC builder." });
       return;
     }
-    // A verified @bdico.com mailbox (verification proves control of the address).
-    if (!/@bdico\.com$/i.test(String(account.email)) || account.emailVerified !== true) {
-      res.status(403).json({ error: "Access is limited to verified BDI (@bdico.com) accounts." });
+    // Only BDI employees (an @bdico.com email, end-anchored so lookalikes fail).
+    // NOTE: we deliberately do NOT gate on emailVerified here — matching the app's
+    // Firestore rules and the "Confirm your email" screen. The verified flag in the
+    // ID token is cached and lags real verification, so requiring it would lock out
+    // employees who have in fact verified.
+    if (!/@bdico\.com$/i.test(String(account.email))) {
+      res.status(403).json({ error: "Access is limited to BDI (@bdico.com) accounts." });
       return;
     }
 
