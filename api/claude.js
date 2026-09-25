@@ -24,6 +24,25 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 module.exports = async (req, res) => {
+  // TEMPORARY diagnostic: GET /api/claude?diag=models lists the models this
+  // Anthropic key can access (read-only, spends no tokens). Remove after use.
+  if (req.method === "GET" && req.query && req.query.diag === "models") {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      res.status(500).json({ error: "missing ANTHROPIC_API_KEY" });
+      return;
+    }
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+        headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      });
+      const j = await r.json();
+      const ids = Array.isArray(j.data) ? j.data.map((m) => m.id) : j;
+      res.status(r.status).json({ models: ids });
+    } catch (e) {
+      res.status(502).json({ error: "models lookup failed" });
+    }
+    return;
+  }
   if (req.method !== "POST") {
     res.status(405).json({ error: "POST only" });
     return;
