@@ -1088,6 +1088,7 @@ const Newspaper = (p) => <Svg {...p}><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0
 const Download = (p) => <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Svg>;
 const Receipt = (p) => <Svg {...p}><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></Svg>;
 const Search = (p) => <Svg {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Svg>;
+const Calculator = (p) => <Svg {...p}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="18" x2="12" y2="18"/></Svg>;
 
 // ---------- date helpers ----------
 const MS_DAY = 86400000;
@@ -5727,7 +5728,7 @@ function FollowUpDesk() {
           <div>
             {section === "home" && <img ref={heroLogoRef} src={LOGO_SRC} alt="BDI Construction" className="fd-hero-logo" style={{ opacity: intro ? 0 : undefined }} />}
             {section !== "home" && <div className="fd-kicker">{activeCustomTab ? "BDI CONSTRUCTION" : ({ bracket: "WORLD CUP 2026", pending: "DOCUMENT TRACKER", deadlines: "TIME-SENSITIVE", calendar: "MONTH AT A GLANCE", officelist: "BDI CONSTRUCTION", birthdays: "BDI CONSTRUCTION", apps: "BDI CONSTRUCTION", admin: "ADMIN CONTROLS", usps: "SHARED LIST", newsletter: "MONTHLY EDITION", subreqs: "SUBCONTRACTOR BILLING" }[section] || "CORRESPONDENCE LEDGER")}</div>}
-            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS", newsletter: "Company Newsletter", subreqs: "Sub Requisition Tracker" }[section] || "Follow-ups")}</h1>
+            <h1 className="fd-title">{activeCustomTab ? activeCustomTab.name : ({ home: "Welcome to BDI University", bracket: "Bracket Challenge", pending: "Pending Signatures", deadlines: "Deadlines", calendar: "Calendar", officelist: "Employee Office List", birthdays: "Birthdays", apps: "Company Apps", admin: "Admin", usps: "USPS", ctc: "CTC Pricing", newsletter: "Company Newsletter", subreqs: "Sub Requisition Tracker" }[section] || "Follow-ups")}</h1>
             <p className="fd-sub">
               {activeCustomTab ? "Shortcuts set up by your admin." : ({
                 bracket: "Order each group 1–4, pick your best thirds, then advance teams through your own bracket to the trophy. Scores update live.",
@@ -5810,6 +5811,11 @@ function FollowUpDesk() {
           {uspsHasAccess && (
             <button className={"fd-nav-btn" + (section === "usps" ? " active" : "")} onClick={() => setSection("usps")}>
               <Inbox size={15} /> USPS
+            </button>
+          )}
+          {uspsHasAccess && (
+            <button className={"fd-nav-btn" + (section === "ctc" ? " active" : "")} onClick={() => setSection("ctc")}>
+              <Calculator size={15} /> CTC Pricing
             </button>
           )}
           {newsletterHasAccess && (
@@ -5945,6 +5951,14 @@ function FollowUpDesk() {
                 <span className="fd-launch-ico"><Inbox size={20} /></span>
                 <span className="fd-launch-name">USPS</span>
                 <span className="fd-launch-desc">The shared job list, kept in sync for everyone with access.</span>
+                <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
+              </button>
+            )}
+            {uspsHasAccess && (
+              <button className="fd-launch" onClick={(e) => openTab("ctc", e)}>
+                <span className="fd-launch-ico"><Calculator size={20} /></span>
+                <span className="fd-launch-name">CTC Pricing</span>
+                <span className="fd-launch-desc">Price USPS CTC dispatch emails — drop a .msg, find line items, and save the proposal.</span>
                 <span className="fd-launch-go">Open <ChevronRight size={13} /></span>
               </button>
             )}
@@ -6463,6 +6477,17 @@ function FollowUpDesk() {
             </div>
           )}
         </>
+        )}
+
+        {section === "ctc" && uspsHasAccess && (
+          <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid var(--line)", background: "var(--surface)" }}>
+            <iframe
+              src="/ctc-builder/index.html"
+              title="CTC Proposal Builder"
+              style={{ display: "block", width: "100%", height: "calc(100vh - 150px)", minHeight: 520, border: 0 }}
+              allow="clipboard-write"
+            />
+          </div>
         )}
 
         {section === "usps" && uspsHasAccess && (

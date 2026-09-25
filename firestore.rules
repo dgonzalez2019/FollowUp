@@ -100,6 +100,15 @@ service cloud.firestore {
       allow write: if signedIn() && request.auth.uid == uid;
     }
 
+    // CTC Proposal Builder past jobs (shared). Any signed-in BDI user may read the
+    // shared list and save (create) a job — the builder also seeds ~30 jobs on the
+    // first load of an empty collection. Jobs are never edited in place, so there
+    // is deliberately no `update`. Only the admin may delete a saved job.
+    match /ctcJobs/{doc} {
+      allow read, create: if signedIn();
+      allow delete: if isAdmin();
+    }
+
     // Per-user private data and any subcollections (e.g. users/{uid}/auto/queue).
     match /users/{uid}/{document=**} {
       allow read, write: if signedIn() && request.auth.uid == uid;

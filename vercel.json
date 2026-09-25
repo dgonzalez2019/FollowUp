@@ -1,6 +1,7 @@
 {
   "functions": {
     "api/chat.js": { "maxDuration": 60 },
+    "api/claude.js": { "maxDuration": 300 },
     "api/cron-followups.js": { "maxDuration": 60 },
     "api/cron-insurance.js": { "maxDuration": 60 },
     "api/send-sr.js": { "maxDuration": 30 },
