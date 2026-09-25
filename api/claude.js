@@ -24,55 +24,6 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 module.exports = async (req, res) => {
-  // TEMPORARY diagnostic: GET /api/claude?diag=models lists the models this
-  // Anthropic key can access (read-only, spends no tokens). Remove after use.
-  if (req.method === "GET" && req.query && req.query.diag) {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      res.status(500).json({ error: "missing ANTHROPIC_API_KEY" });
-      return;
-    }
-    const H = { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" };
-    try {
-      if (req.query.diag === "models") {
-        const r = await fetch("https://api.anthropic.com/v1/models?limit=100", { headers: H });
-        const j = await r.json();
-        res.status(r.status).json({ models: Array.isArray(j.data) ? j.data.map((m) => m.id) : j });
-        return;
-      }
-      if (req.query.diag === "ping") {
-        const model = String(req.query.model || "claude-sonnet-5");
-        const call = async (withTools) => {
-          const body = { model, max_tokens: 64, messages: [{ role: "user", content: "Reply with the single word: ok" }] };
-          if (withTools) body.tools = [{ name: "noop", description: "does nothing", input_schema: { type: "object", properties: {} } }];
-          const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: H, body: JSON.stringify(body) });
-          return { status: r.status, body: (await r.text()).slice(0, 800) };
-        };
-        res.status(200).json({ model, noTools: await call(false), withTools: await call(true) });
-        return;
-      }
-      if (req.query.diag === "heavy") {
-        // Reproduce a realistic, long generation (max_tokens 8000, like the shim)
-        // and time it — to see whether a real call exceeds the 60s Hobby cap.
-        const model = String(req.query.model || "claude-sonnet-5");
-        const t0 = Date.now();
-        const r = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST", headers: H,
-          body: JSON.stringify({
-            model, max_tokens: 8000,
-            messages: [{ role: "user", content: "Output ONLY a JSON array of 220 imaginary construction line items; each object has task_id, description (a full sentence), uom, qty, unit_price. No prose." }],
-          }),
-        });
-        const body = await r.text();
-        let outTokens = null; try { outTokens = JSON.parse(body).usage.output_tokens; } catch (e) {}
-        res.status(200).json({ model, status: r.status, ms: Date.now() - t0, output_tokens: outTokens, bodyHead: body.slice(0, 200) });
-        return;
-      }
-      res.status(400).json({ error: "unknown diag" });
-    } catch (e) {
-      res.status(502).json({ error: "diag failed: " + (e && e.message) });
-    }
-    return;
-  }
   if (req.method !== "POST") {
     res.status(405).json({ error: "POST only" });
     return;
