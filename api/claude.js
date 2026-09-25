@@ -50,6 +50,23 @@ module.exports = async (req, res) => {
         res.status(200).json({ model, noTools: await call(false), withTools: await call(true) });
         return;
       }
+      if (req.query.diag === "heavy") {
+        // Reproduce a realistic, long generation (max_tokens 8000, like the shim)
+        // and time it — to see whether a real call exceeds the 60s Hobby cap.
+        const model = String(req.query.model || "claude-sonnet-5");
+        const t0 = Date.now();
+        const r = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST", headers: H,
+          body: JSON.stringify({
+            model, max_tokens: 8000,
+            messages: [{ role: "user", content: "Output ONLY a JSON array of 220 imaginary construction line items; each object has task_id, description (a full sentence), uom, qty, unit_price. No prose." }],
+          }),
+        });
+        const body = await r.text();
+        let outTokens = null; try { outTokens = JSON.parse(body).usage.output_tokens; } catch (e) {}
+        res.status(200).json({ model, status: r.status, ms: Date.now() - t0, output_tokens: outTokens, bodyHead: body.slice(0, 200) });
+        return;
+      }
       res.status(400).json({ error: "unknown diag" });
     } catch (e) {
       res.status(502).json({ error: "diag failed: " + (e && e.message) });
