@@ -109,6 +109,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Account directory: each signed-in person records their own sign-in here
+    // (email, account-created time, last seen) so the admin can approve accounts
+    // from a list instead of typing emails. Only the admin reads the whole
+    // directory; each person may write only their own record.
+    match /accounts/{uid} {
+      allow read: if isAdmin();
+      allow create, update: if signedIn() && request.auth.uid == uid;
+    }
+
     // Per-user private data and any subcollections (e.g. users/{uid}/auto/queue).
     match /users/{uid}/{document=**} {
       allow read, write: if signedIn() && request.auth.uid == uid;

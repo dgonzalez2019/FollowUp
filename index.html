@@ -3798,6 +3798,30 @@ function FollowUpDesk() {
     return () => unsub();
   }, []);
 
+  // Register this account in a shared directory (accounts/{uid}) so the admin can
+  // approve people from a list instead of typing emails. Runs for every verified
+  // signed-in user, including ones still waiting at the approval gate.
+  useEffect(() => {
+    if (!cloudOn || !user || !user.emailVerified) return;
+    try {
+      fbDb.collection("accounts").doc(user.uid).set({
+        email: ((user.email || "").toLowerCase()),
+        createdAt: (user.metadata && user.metadata.creationTime) ? user.metadata.creationTime : "",
+        lastSeen: Date.now(),
+      }, { merge: true }).catch(() => {});
+    } catch (e) {}
+  }, [user]);
+
+  // Admin: live list of every registered account (for the approve-from-a-list UI).
+  const [accountsList, setAccountsList] = useState([]);
+  useEffect(() => {
+    if (!cloudOn || !user || !isAdmin) { setAccountsList([]); return; }
+    const unsub = fbDb.collection("accounts").onSnapshot((snap) => {
+      setAccountsList(snap.docs.map((d) => ({ uid: d.id, ...(d.data() || {}) })));
+    }, (e) => console.error("accounts read error", e));
+    return () => unsub();
+  }, [user, isAdmin]);
+
   // sync this account's data from the cloud (keyed to the signed-in user)
   useEffect(() => {
     if (!cloudOn || !user) return;
@@ -5437,31 +5461,32 @@ function FollowUpDesk() {
     overrides[email] = { ...(overrides[email] || {}), [key]: value };
     saveSharedConfig({ ...sharedConfig, overrides });
   };
-  // Approval gate: approve an account so it can see tabs, or revoke it.
-  const approveUser = () => {
-    const em = adminNewApproved.trim().toLowerCase();
+  // Approval gate helpers. Approving unblocks; blocking un-approves. Admin is never blocked.
+  const approveEmail = (email) => {
+    const em = (email || "").trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
     const approved = (sharedConfig.approved || []).filter((x) => x !== em);
     approved.push(em);
-    saveSharedConfig({ ...sharedConfig, approved });
-    setAdminNewApproved("");
+    const blocked = (sharedConfig.blocked || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, approved, blocked });
   };
-  const revokeApproval = (email) => {
-    const approved = (sharedConfig.approved || []).filter((x) => x !== email);
-    saveSharedConfig({ ...sharedConfig, approved });
-  };
-  // Block overrides everything (grandfather included): a blocked account is sent to
-  // the pending screen with no tabs. The admin can never be blocked.
-  const blockUser = () => {
-    const em = adminNewBlocked.trim().toLowerCase();
+  const blockEmail = (email) => {
+    const em = (email || "").trim().toLowerCase();
     if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
     if (ADMINS.indexOf(em) >= 0) { flash("You can't block the admin account"); return; }
     const blocked = (sharedConfig.blocked || []).filter((x) => x !== em);
     blocked.push(em);
     const approved = (sharedConfig.approved || []).filter((x) => x !== em);
     saveSharedConfig({ ...sharedConfig, blocked, approved });
-    setAdminNewBlocked("");
   };
+  const approveUser = () => { approveEmail(adminNewApproved); setAdminNewApproved(""); };
+  const revokeApproval = (email) => {
+    const approved = (sharedConfig.approved || []).filter((x) => x !== email);
+    saveSharedConfig({ ...sharedConfig, approved });
+  };
+  // Block overrides everything (grandfather included): a blocked account is sent to
+  // the pending screen with no tabs. The admin can never be blocked.
+  const blockUser = () => { blockEmail(adminNewBlocked); setAdminNewBlocked(""); };
   const unblockUser = (email) => {
     const blocked = (sharedConfig.blocked || []).filter((x) => x !== email);
     saveSharedConfig({ ...sharedConfig, blocked });
@@ -7071,17 +7096,46 @@ function FollowUpDesk() {
         <>
           <div className="fd-panel">
             <div className="fd-group-head">Account access <span className="fd-count">approval gate</span></div>
-            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>New accounts (created after the gate was turned on) see a "pending" screen with no tabs until you approve them here. Approving unlocks the everyday tabs; the sensitive tabs (USPS/CTC, Accounting, Sub Reqs, Newsletter) still need you to add the person to those lists below. Existing employees already had access and aren't affected.</p>
-            {(sharedConfig.approved || []).length === 0 ? (
-              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one approved yet. Add someone by email below once they've signed up.</p>
-            ) : (sharedConfig.approved || []).map((em) => (
-              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
-                <span style={{ wordBreak: "break-all" }}>{em}</span>
-                <button className="fd-icon-btn sm" title="Revoke access" onClick={() => revokeApproval(em)}><X size={14} /></button>
-              </div>
-            ))}
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Everyone who has signed in shows up here. New accounts land on a "pending" screen with no tabs until you Approve them — just click the button, no typing. Approving unlocks the everyday tabs; the sensitive tabs (USPS/CTC, Accounting, Sub Reqs, Newsletter) still need you to add the person to those lists below. Existing employees are already in and aren't affected.</p>
+            {(() => {
+              const approved = (sharedConfig.approved || []);
+              const blocked = (sharedConfig.blocked || []);
+              const rows = (accountsList || []).map((a) => {
+                const em = (a.email || "").toLowerCase();
+                const createdMs = Date.parse(a.createdAt || "") || 0;
+                const isAdm = ADMINS.indexOf(em) >= 0;
+                const isApp = approved.indexOf(em) >= 0;
+                const isBlk = blocked.indexOf(em) >= 0;
+                const isGrand = createdMs > 0 && createdMs < APPROVAL_CUTOFF;
+                const status = isBlk ? "Blocked" : isAdm ? "Admin" : isApp ? "Approved" : isGrand ? "Has access" : "Pending";
+                const rank = status === "Pending" ? 0 : status === "Blocked" ? 1 : 2;
+                return { em, isAdm, isApp, isBlk, isGrand, status, rank };
+              }).filter((r) => r.em);
+              rows.sort((a, b) => a.rank - b.rank || a.em.localeCompare(b.em));
+              const colorFor = (s) => s === "Pending" ? "var(--danger)" : s === "Blocked" ? "var(--muted)" : s === "Admin" ? "var(--accent)" : "var(--ok)";
+              if (rows.length === 0) return <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No sign-ins recorded yet. Once someone signs in they'll appear here to approve.</p>;
+              return (
+                <div>
+                  {rows.map((r) => (
+                    <div className="fd-admin-link" key={r.em} style={{ borderTop: "none", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ wordBreak: "break-all", flex: 1, minWidth: 140 }}>{r.em}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: colorFor(r.status), textTransform: "uppercase", letterSpacing: ".04em" }}>{r.status}</span>
+                      {!r.isAdm && !r.isApp && !r.isGrand && !r.isBlk ? (
+                        <button className="fd-btn primary sm" onClick={() => approveEmail(r.em)}>Approve</button>
+                      ) : null}
+                      {r.isApp ? <button className="fd-btn sm" onClick={() => revokeApproval(r.em)}>Un-approve</button> : null}
+                      {r.isBlk ? (
+                        <button className="fd-btn sm" onClick={() => unblockUser(r.em)}>Unblock</button>
+                      ) : !r.isAdm ? (
+                        <button className="fd-btn sm" style={{ borderColor: "var(--danger-line)", color: "var(--danger)" }} onClick={() => blockEmail(r.em)}>Block</button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="fd-admin-addtab">
-              <input className="fd-input" placeholder="Email to approve (e.g. jdoe@bdico.com)" value={adminNewApproved}
+              <input className="fd-input" placeholder="Pre-approve an email (before they sign in)" value={adminNewApproved}
                 onChange={(e) => setAdminNewApproved(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") approveUser(); }} />
               <button className="fd-btn primary" onClick={approveUser}>Approve</button>
             </div>
