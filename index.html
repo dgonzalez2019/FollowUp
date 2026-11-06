@@ -3293,6 +3293,13 @@ function FollowUpDesk() {
   const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, approved: [], blocked: [], accessContact: DEFAULT_ACCESS_CONTACT, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] }, newsletter: { access: [], employees: [] }, subreqs: { access: [] } });
   const [adminNewApproved, setAdminNewApproved] = useState("");
   const [adminNewBlocked, setAdminNewBlocked] = useState("");
+  const [cfgRecoverTime, setCfgRecoverTime] = useState(() => {
+    const d = new Date(Date.now() - 3 * 60 * 60 * 1000); // default: 3 hours ago (local)
+    const p = (n) => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+  });
+  const [cfgRecoverInfo, setCfgRecoverInfo] = useState(null);
+  const [cfgRecoverBusy, setCfgRecoverBusy] = useState(false);
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
@@ -4936,6 +4943,27 @@ function FollowUpDesk() {
     fbDb.collection("shared").doc("appConfig").set({ data: json, uspsAccessList, uspsManagers, acctAccessList, acctManagers, acctInsManagers, newsletterAccessList, updatedAt: Date.now() })
       .then(() => flash("Saved for everyone"))
       .catch((e) => { console.error(e); flash("Couldn't save — make sure the admin rule is published"); });
+  };
+  // Admin-only: recover the shared config from a Firestore point-in-time snapshot
+  // (needs PITR enabled). apply=false previews; apply=true writes it back.
+  const recoverAppConfig = async (apply) => {
+    try {
+      setCfgRecoverBusy(true);
+      const idToken = fbAuth && fbAuth.currentUser ? await fbAuth.currentUser.getIdToken() : null;
+      if (!idToken) { flash("Sign in first"); setCfgRecoverBusy(false); return; }
+      const local = (cfgRecoverTime || "").trim();
+      if (!local) { flash("Pick a date & time first"); setCfgRecoverBusy(false); return; }
+      const readTime = new Date(local).toISOString().slice(0, 16) + ":00Z"; // whole-minute UTC
+      const r = await fetch("/api/recover-appconfig", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, readTime, apply: !!apply }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setCfgRecoverInfo(j);
+      if (j && j.restored) flash("Settings restored — reloading…"), setTimeout(() => window.location.reload(), 1200);
+      else if (j && j.error) flash(j.error);
+    } catch (e) { flash("Recovery failed"); }
+    finally { setCfgRecoverBusy(false); }
   };
   const saveUsps = (nextItems) => {
     setUspsItems(nextItems);
@@ -7108,7 +7136,35 @@ function FollowUpDesk() {
 
         {section === "admin" && isAdmin && (
         <>
-          <div className="fd-panel">
+          <div className="fd-panel" style={{ borderColor: "var(--danger-line)" }}>
+            <div className="fd-group-head">Recover shared settings <span className="fd-count">point-in-time</span></div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>If the access lists were wiped, restore them from a snapshot taken before it happened. Pick a date &amp; time from before the wipe, Preview what's there, then Restore. This needs Firestore point-in-time recovery (PITR) to have been enabled — if it wasn't, Preview will say so and you'll need to re-add the lists by hand.</p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div>
+                <label className="fd-label">Snapshot time (your local time)</label>
+                <input type="datetime-local" className="fd-input" style={{ maxWidth: 240 }} value={cfgRecoverTime} onChange={(e) => setCfgRecoverTime(e.target.value)} />
+              </div>
+              <button className="fd-btn" disabled={cfgRecoverBusy} onClick={() => recoverAppConfig(false)}>{cfgRecoverBusy ? "Working…" : "Preview"}</button>
+            </div>
+            {cfgRecoverInfo ? (
+              cfgRecoverInfo.error ? (
+                <p className="fd-sub" style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 10 }}>{cfgRecoverInfo.error}</p>
+              ) : (
+                <div style={{ marginTop: 12 }}>
+                  <p className="fd-sub" style={{ fontSize: 12.5, margin: "0 0 8px" }}>
+                    Snapshot at {cfgRecoverInfo.at}: USPS access <strong>{cfgRecoverInfo.uspsAccess}</strong>, USPS managers <strong>{cfgRecoverInfo.uspsManagers}</strong>, Accounting <strong>{cfgRecoverInfo.acctAccess}</strong>, Acct managers <strong>{cfgRecoverInfo.acctManagers}</strong>, Insurance managers <strong>{cfgRecoverInfo.acctInsManagers}</strong>, Newsletter <strong>{cfgRecoverInfo.newsletterAccess}</strong>, Sub Reqs <strong>{cfgRecoverInfo.subreqsAccess}</strong>, per-person overrides <strong>{cfgRecoverInfo.perPersonOverrides}</strong>, custom tabs <strong>{cfgRecoverInfo.customTabs}</strong>, approved <strong>{cfgRecoverInfo.approved}</strong>, blocked <strong>{cfgRecoverInfo.blocked}</strong>.
+                  </p>
+                  {cfgRecoverInfo.restored ? (
+                    <p className="fd-sub" style={{ fontSize: 13, color: "var(--ok)", margin: 0 }}>Restored ✓ Reloading…</p>
+                  ) : (
+                    <button className="fd-btn primary" disabled={cfgRecoverBusy} onClick={() => recoverAppConfig(true)}>{cfgRecoverBusy ? "Restoring…" : "Restore this snapshot"}</button>
+                  )}
+                </div>
+              )
+            ) : null}
+          </div>
+
+          <div className="fd-panel" style={{ marginTop: 16 }}>
             <div className="fd-group-head">Account access <span className="fd-count">approval gate</span></div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Everyone who has signed in shows up here. New accounts land on a "pending" screen with no tabs until you Approve them — just click the button, no typing. Approving unlocks the everyday tabs; the sensitive tabs (USPS/CTC, Accounting, Sub Reqs, Newsletter) still need you to add the person to those lists below. Existing employees are already in and aren't affected.</p>
             {(() => {
