@@ -3328,6 +3328,7 @@ function FollowUpDesk() {
   const [editForm, setEditForm] = useState(null);
   const importInputRef = useRef(null);
   const sharedSyncedRef = useRef("");
+  const sharedLoadedRef = useRef(false);
   const uspsSyncedRef = useRef("");
   const [pending, setPending] = useState([]);
   const [pendingView, setPendingView] = useState("all");
@@ -3873,8 +3874,14 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
+          sharedLoadedRef.current = true;
           setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, approved: c.approved || [], blocked: c.blocked || [], accessContact: c.accessContact || DEFAULT_ACCESS_CONTACT, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] }, subreqs: { access: (c.subreqs && c.subreqs.access) || [] } });
         } catch (e) { /* ignore */ }
+      } else if (snap.metadata && snap.metadata.fromCache === false) {
+        // Server confirms there's no saved config yet (brand-new setup): safe to
+        // let the admin create it. We never mark "loaded" from a cache-only miss,
+        // so a save can't clobber a real config that simply hasn't arrived yet.
+        sharedLoadedRef.current = true;
       }
     }, (err) => console.error("shared config read error", err));
     return () => unsub();
@@ -4909,6 +4916,13 @@ function FollowUpDesk() {
   }
 
   const saveSharedConfig = (next) => {
+    // Guard: never write the shared config to the cloud before we've loaded the
+    // existing one. Because this uses .set() (a full-document replace), an early
+    // save would overwrite everyone's access lists with empty defaults.
+    if (cloudOn && user && !sharedLoadedRef.current) {
+      flash("Settings are still loading — give it a second, then try again.");
+      return;
+    }
     setSharedConfig(next);
     if (!cloudOn || !user) return;
     const json = JSON.stringify(next);
