@@ -7152,7 +7152,7 @@ function FollowUpDesk() {
         {section === "admin" && isAdmin && (
         <>
           <div className="fd-subnav" style={{ marginBottom: 10 }}>
-            {[["accounts", "Accounts"], ["visibility", "Tabs & visibility"], ["usps", "USPS"], ["accounting", "Accounting"], ["subreqs", "Sub Reqs"], ["recovery", "Recovery"]].map(([k, label]) => (
+            {[["accounts", "Accounts"], ["visibility", "Tabs & visibility"], ["access", "Tab access"], ["recovery", "Recovery"]].map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (adminTab === k ? " active" : "")} onClick={() => setAdminTab(k)}>{label}</button>
             ))}
           </div>
@@ -7324,7 +7324,7 @@ function FollowUpDesk() {
           </div>
           </>)}
 
-          {adminTab === "usps" && (<>
+          {adminTab === "access" && (<>
           <div className="fd-panel">
             <div className="fd-group-head">USPS tab access</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The USPS tab is hidden from everyone except the people you add here, and they all share one synced list. You always have access.</p>
@@ -7359,10 +7359,7 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={addUspsManager}>Add manager</button>
             </div>
           </div>
-          </>)}
-
-          {adminTab === "accounting" && (<>
-          <div className="fd-panel">
+          <div className="fd-panel" style={{ marginTop: 16 }}>
             <div className="fd-group-head">Accounting tab access</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Accounting tab (monthly requisitions &amp; PM billings) is hidden from everyone except the people you add here, and they all share one synced workbook. You always have access.</p>
             {((sharedConfig.acct && sharedConfig.acct.access) || []).length === 0 ? (
@@ -7413,10 +7410,7 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={addAcctInsManager}>Add manager</button>
             </div>
           </div>
-          </>)}
-
-          {adminTab === "subreqs" && (<>
-          <div className="fd-panel">
+          <div className="fd-panel" style={{ marginTop: 16 }}>
             <div className="fd-group-head">Sub Reqs tab access</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Sub Requisition Tracker is hidden from everyone except the people you add here. Each person keeps their own projects and subcontractors. You always have access.</p>
             {((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).length === 0 ? (
