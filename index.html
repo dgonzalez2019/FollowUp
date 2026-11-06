@@ -7100,8 +7100,15 @@ function FollowUpDesk() {
             {(() => {
               const approved = (sharedConfig.approved || []);
               const blocked = (sharedConfig.blocked || []);
-              const rows = (accountsList || []).map((a) => {
-                const em = (a.email || "").toLowerCase();
+              // Union of everyone who has signed in with everyone you've already
+              // approved or blocked, so prior approvals never disappear from this list
+              // (even before the accounts directory is populated).
+              const byEmail = {};
+              (accountsList || []).forEach((a) => { const em = (a.email || "").toLowerCase(); if (em) byEmail[em] = { em, createdAt: a.createdAt || "" }; });
+              approved.forEach((em) => { em = (em || "").toLowerCase(); if (em && !byEmail[em]) byEmail[em] = { em, createdAt: "" }; });
+              blocked.forEach((em) => { em = (em || "").toLowerCase(); if (em && !byEmail[em]) byEmail[em] = { em, createdAt: "" }; });
+              const rows = Object.values(byEmail).map((a) => {
+                const em = a.em;
                 const createdMs = Date.parse(a.createdAt || "") || 0;
                 const isAdm = ADMINS.indexOf(em) >= 0;
                 const isApp = approved.indexOf(em) >= 0;
