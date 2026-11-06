@@ -1035,6 +1035,11 @@ if (configFilled && typeof firebase !== "undefined") {
 }
 const cloudOn = !!fbAuth && !!fbDb;
 const ADMINS = ["dgonzalez@bdico.com"]; // admin login email(s)
+// Accounts created on/after this moment start with NO tab access and must be
+// approved by the admin (see isApproved). Accounts created before it are
+// grandfathered in, so turning this on never locks out existing employees.
+const APPROVAL_CUTOFF = Date.parse("2026-11-06T00:00:00Z");
+const DEFAULT_ACCESS_CONTACT = { email: "dgonzalez@bdico.com", phone: "", note: "" };
 
 function friendlyAuthError(e) {
   const c = (e && e.code) || "";
@@ -3284,7 +3289,8 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] }, newsletter: { access: [], employees: [] }, subreqs: { access: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, approved: [], accessContact: DEFAULT_ACCESS_CONTACT, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] }, newsletter: { access: [], employees: [] }, subreqs: { access: [] } });
+  const [adminNewApproved, setAdminNewApproved] = useState("");
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
@@ -3841,7 +3847,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] }, subreqs: { access: (c.subreqs && c.subreqs.access) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, approved: c.approved || [], accessContact: c.accessContact || DEFAULT_ACCESS_CONTACT, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] }, subreqs: { access: (c.subreqs && c.subreqs.access) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -5429,6 +5435,23 @@ function FollowUpDesk() {
     overrides[email] = { ...(overrides[email] || {}), [key]: value };
     saveSharedConfig({ ...sharedConfig, overrides });
   };
+  // Approval gate: approve an account so it can see tabs, or revoke it.
+  const approveUser = () => {
+    const em = adminNewApproved.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    const approved = (sharedConfig.approved || []).filter((x) => x !== em);
+    approved.push(em);
+    saveSharedConfig({ ...sharedConfig, approved });
+    setAdminNewApproved("");
+  };
+  const revokeApproval = (email) => {
+    const approved = (sharedConfig.approved || []).filter((x) => x !== email);
+    saveSharedConfig({ ...sharedConfig, approved });
+  };
+  const setAccessContactField = (field, value) => {
+    const accessContact = { ...DEFAULT_ACCESS_CONTACT, ...(sharedConfig.accessContact || {}), [field]: value };
+    saveSharedConfig({ ...sharedConfig, accessContact });
+  };
 
   const addPersonalApp = (name, rawUrl) => {
     const raw = (rawUrl || "").trim();
@@ -5465,6 +5488,44 @@ function FollowUpDesk() {
     return sharedConfig.tabs[key] !== false;
   };
   const activeCustomTab = sharedConfig.customTabs.find((t) => t.id === section);
+  // Approval gate. A newly created account (made on/after APPROVAL_CUTOFF) sees no
+  // tabs until the admin approves it. Existing accounts are grandfathered, and being
+  // granted any tab (approved list, or any sensitive-tab access) counts as approved.
+  const accountCreatedMs = (user && user.metadata && user.metadata.creationTime) ? Date.parse(user.metadata.creationTime) : 0;
+  const accountIsNew = accountCreatedMs >= APPROVAL_CUTOFF; // only true when we can prove the account was made after the gate went live
+  const isApproved = isAdmin
+    || !accountIsNew
+    || (sharedConfig.approved || []).indexOf(myEmailLc) >= 0
+    || uspsHasAccess || acctHasAccess || newsletterHasAccess || srHasAccess;
+  const accessContact = { ...DEFAULT_ACCESS_CONTACT, ...(sharedConfig.accessContact || {}) };
+  if (cloudOn && user && user.emailVerified && !isApproved) {
+    const subj = encodeURIComponent("BDI University access request");
+    const bodyTxt = encodeURIComponent("Hi,\n\nPlease set up access for my BDI University account: " + (user.email || "") + "\n\nTabs I need:\n- \n\nThanks!");
+    return (
+      <div className="fd-root">
+        <CityScape />
+        <div className="fd-auth">
+          <div className="fd-auth-box">
+            <img src={LOGO_SRC} alt="BDI Construction" style={{ height: 56, width: "auto", display: "block", marginBottom: 20 }} />
+            <div className="fd-kicker">BDI UNIVERSITY</div>
+            <h1 className="fd-title" style={{ fontSize: 28, margin: "0 0 6px" }}>Access pending</h1>
+            <p className="fd-sub" style={{ marginBottom: 16 }}>Your account <strong>{user.email}</strong> is confirmed, but it doesn't have access to any tabs yet. Contact the administrator and tell them which tabs you need — they'll turn on your access.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+              {accessContact.email ? (
+                <a className="fd-btn primary" style={{ width: "100%", justifyContent: "center" }} href={"mailto:" + accessContact.email + "?subject=" + subj + "&body=" + bodyTxt}><Mail size={15} /> Email {accessContact.email}</a>
+              ) : null}
+              {accessContact.phone ? (
+                <a className="fd-btn" style={{ width: "100%", justifyContent: "center" }} href={"sms:" + accessContact.phone}><Phone size={15} /> Text {accessContact.phone}</a>
+              ) : null}
+            </div>
+            {accessContact.note ? <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 0, marginBottom: 16 }}>{accessContact.note}</p> : null}
+            <button className="fd-btn" style={{ width: "100%", justifyContent: "center" }} onClick={() => window.location.reload()}>I've been given access — reload</button>
+            <button className="fd-auth-toggle" onClick={signOut}>Sign out</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const uspsView = (() => {
     const q = uspsQuery.trim().toLowerCase();
     let arr = uspsItems;
@@ -6988,6 +7049,38 @@ function FollowUpDesk() {
         {section === "admin" && isAdmin && (
         <>
           <div className="fd-panel">
+            <div className="fd-group-head">Account access <span className="fd-count">approval gate</span></div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>New accounts (created after the gate was turned on) see a "pending" screen with no tabs until you approve them here. Approving unlocks the everyday tabs; the sensitive tabs (USPS/CTC, Accounting, Sub Reqs, Newsletter) still need you to add the person to those lists below. Existing employees already had access and aren't affected.</p>
+            {(sharedConfig.approved || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one approved yet. Add someone by email below once they've signed up.</p>
+            ) : (sharedConfig.approved || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Revoke access" onClick={() => revokeApproval(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to approve (e.g. jdoe@bdico.com)" value={adminNewApproved}
+                onChange={(e) => setAdminNewApproved(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") approveUser(); }} />
+              <button className="fd-btn primary" onClick={approveUser}>Approve</button>
+            </div>
+          </div>
+
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Access-request contact</div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Shown on the "pending" screen so new accounts know how to reach you. Leave a field blank to hide that option.</p>
+            <label className="fd-label">Email</label>
+            <input className="fd-input" placeholder="you@bdico.com" defaultValue={accessContact.email}
+              key={"ac-email-" + accessContact.email} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (accessContact.email || "")) setAccessContactField("email", v); }} />
+            <label className="fd-label" style={{ marginTop: 10 }}>Text / phone number</label>
+            <input className="fd-input" placeholder="+1 555 123 4567" defaultValue={accessContact.phone}
+              key={"ac-phone-" + accessContact.phone} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (accessContact.phone || "")) setAccessContactField("phone", v); }} />
+            <label className="fd-label" style={{ marginTop: 10 }}>Note (optional)</label>
+            <input className="fd-input" placeholder="e.g. I'll set you up within a day." defaultValue={accessContact.note}
+              key={"ac-note-" + accessContact.note} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (accessContact.note || "")) setAccessContactField("note", v); }} />
+          </div>
+
+          <div className="fd-panel" style={{ marginTop: 16 }}>
             <div className="fd-group-head">Tab visibility <span className="fd-count">everyone</span></div>
             {[["officelist", "Office list"], ["birthdays", "Birthdays"], ["apps", "Apps"], ["bracket", "Bracket Challenge"], ["assistant", "AI Assistant"], ["plans", "Plan Visualizer"]].map(([k, label]) => (
               <label className="fd-admin-row" key={k}>
