@@ -3301,6 +3301,8 @@ function FollowUpDesk() {
   });
   const [cfgRecoverInfo, setCfgRecoverInfo] = useState(null);
   const [cfgRecoverBusy, setCfgRecoverBusy] = useState(false);
+  const [pitrMsg, setPitrMsg] = useState(null);
+  const [pitrBusy, setPitrBusy] = useState(false);
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
@@ -4965,6 +4967,18 @@ function FollowUpDesk() {
       else if (j && j.error) flash(j.error);
     } catch (e) { flash("Recovery failed"); }
     finally { setCfgRecoverBusy(false); }
+  };
+  const enablePitr = async () => {
+    try {
+      setPitrBusy(true); setPitrMsg(null);
+      const idToken = fbAuth && fbAuth.currentUser ? await fbAuth.currentUser.getIdToken() : null;
+      if (!idToken) { flash("Sign in first"); setPitrBusy(false); return; }
+      const r = await fetch("/api/enable-pitr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) });
+      const j = await r.json().catch(() => ({}));
+      if (j && j.enabled) { setPitrMsg({ ok: true, text: "Point-in-time recovery is on. Shared settings are now restorable for up to 7 days." }); flash("PITR enabled"); }
+      else { setPitrMsg({ ok: false, text: (j && j.error) || "Couldn't enable PITR." }); }
+    } catch (e) { setPitrMsg({ ok: false, text: "Couldn't enable PITR." }); }
+    finally { setPitrBusy(false); }
   };
   const saveUsps = (nextItems) => {
     setUspsItems(nextItems);
@@ -7138,7 +7152,7 @@ function FollowUpDesk() {
         {section === "admin" && isAdmin && (
         <>
           <div className="fd-subnav" style={{ marginBottom: 10 }}>
-            {[["accounts", "Accounts"], ["visibility", "Tabs & visibility"], ["access", "Tab access"], ["recovery", "Recovery"]].map(([k, label]) => (
+            {[["accounts", "Accounts"], ["visibility", "Tabs & visibility"], ["usps", "USPS"], ["accounting", "Accounting"], ["subreqs", "Sub Reqs"], ["recovery", "Recovery"]].map(([k, label]) => (
               <button key={k} className={"fd-subnav-btn" + (adminTab === k ? " active" : "")} onClick={() => setAdminTab(k)}>{label}</button>
             ))}
           </div>
@@ -7146,6 +7160,10 @@ function FollowUpDesk() {
           {adminTab === "recovery" && (
           <div className="fd-panel" style={{ borderColor: "var(--danger-line)" }}>
             <div className="fd-group-head">Recover shared settings <span className="fd-count">point-in-time</span></div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid var(--line)" }}>
+              <button className="fd-btn primary" disabled={pitrBusy} onClick={enablePitr}>{pitrBusy ? "Enabling…" : "Enable 7-day recovery (PITR)"}</button>
+              <span className="fd-sub" style={{ fontSize: 12, margin: 0, flex: 1, minWidth: 180, color: pitrMsg ? (pitrMsg.ok ? "var(--ok)" : "var(--danger)") : "var(--muted)" }}>{pitrMsg ? pitrMsg.text : "Turns on a 7-day safety net so wipes are always one-click recoverable. Do this once."}</span>
+            </div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>If the access lists were wiped, restore them from a snapshot taken before it happened. Pick a date &amp; time from before the wipe, Preview what's there, then Restore. This needs Firestore point-in-time recovery (PITR) to have been enabled — if it wasn't, Preview will say so and you'll need to re-add the lists by hand.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <div>
@@ -7306,7 +7324,7 @@ function FollowUpDesk() {
           </div>
           </>)}
 
-          {adminTab === "access" && (<>
+          {adminTab === "usps" && (<>
           <div className="fd-panel">
             <div className="fd-group-head">USPS tab access</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The USPS tab is hidden from everyone except the people you add here, and they all share one synced list. You always have access.</p>
@@ -7341,7 +7359,10 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={addUspsManager}>Add manager</button>
             </div>
           </div>
-          <div className="fd-panel" style={{ marginTop: 16 }}>
+          </>)}
+
+          {adminTab === "accounting" && (<>
+          <div className="fd-panel">
             <div className="fd-group-head">Accounting tab access</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Accounting tab (monthly requisitions &amp; PM billings) is hidden from everyone except the people you add here, and they all share one synced workbook. You always have access.</p>
             {((sharedConfig.acct && sharedConfig.acct.access) || []).length === 0 ? (
@@ -7392,7 +7413,10 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={addAcctInsManager}>Add manager</button>
             </div>
           </div>
-          <div className="fd-panel" style={{ marginTop: 16 }}>
+          </>)}
+
+          {adminTab === "subreqs" && (<>
+          <div className="fd-panel">
             <div className="fd-group-head">Sub Reqs tab access</div>
             <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>The Sub Requisition Tracker is hidden from everyone except the people you add here. Each person keeps their own projects and subcontractors. You always have access.</p>
             {((sharedConfig.subreqs && sharedConfig.subreqs.access) || []).length === 0 ? (
@@ -7409,8 +7433,9 @@ function FollowUpDesk() {
               <button className="fd-btn primary" onClick={grantSubreq}>Grant access</button>
             </div>
           </div>
-          <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in. Newsletter access and the employee roster are managed from the Newsletter tab's settings (gear) button.</p>
           </>)}
+
+          <p className="fd-sub" style={{ fontSize: 12.5, marginTop: 14 }}>Everything here saves for everyone instantly — people see changes when their app next loads (or live, if it's open). The person's email must match how they sign in. Newsletter access and the employee roster are managed from the Newsletter tab's settings (gear) button.</p>
         </>
         )}
 
