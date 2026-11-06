@@ -3291,8 +3291,9 @@ function FollowUpDesk() {
   const [appName, setAppName] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [appDragOver, setAppDragOver] = useState(false);
-  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, approved: [], accessContact: DEFAULT_ACCESS_CONTACT, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] }, newsletter: { access: [], employees: [] }, subreqs: { access: [] } });
+  const [sharedConfig, setSharedConfig] = useState({ tabs: {}, customTabs: [], overrides: {}, approved: [], blocked: [], accessContact: DEFAULT_ACCESS_CONTACT, usps: { access: [], managers: [] }, acct: { access: [], managers: [], insManagers: [] }, newsletter: { access: [], employees: [] }, subreqs: { access: [] } });
   const [adminNewApproved, setAdminNewApproved] = useState("");
+  const [adminNewBlocked, setAdminNewBlocked] = useState("");
   const [adminNewTab, setAdminNewTab] = useState("");
   const [adminNewPerson, setAdminNewPerson] = useState("");
   const [adminNewUsps, setAdminNewUsps] = useState("");
@@ -3849,7 +3850,7 @@ function FollowUpDesk() {
         try {
           const c = JSON.parse(snap.data().data);
           sharedSyncedRef.current = snap.data().data;
-          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, approved: c.approved || [], accessContact: c.accessContact || DEFAULT_ACCESS_CONTACT, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] }, subreqs: { access: (c.subreqs && c.subreqs.access) || [] } });
+          setSharedConfig({ tabs: c.tabs || {}, customTabs: c.customTabs || [], overrides: c.overrides || {}, approved: c.approved || [], blocked: c.blocked || [], accessContact: c.accessContact || DEFAULT_ACCESS_CONTACT, usps: { access: (c.usps && c.usps.access) || [], managers: (c.usps && c.usps.managers) || [] }, acct: { access: (c.acct && c.acct.access) || [], managers: (c.acct && c.acct.managers) || [], insManagers: (c.acct && c.acct.insManagers) || [] }, newsletter: { access: (c.newsletter && c.newsletter.access) || [], employees: (c.newsletter && c.newsletter.employees) || [] }, subreqs: { access: (c.subreqs && c.subreqs.access) || [] } });
         } catch (e) { /* ignore */ }
       }
     }, (err) => console.error("shared config read error", err));
@@ -5450,6 +5451,22 @@ function FollowUpDesk() {
     const approved = (sharedConfig.approved || []).filter((x) => x !== email);
     saveSharedConfig({ ...sharedConfig, approved });
   };
+  // Block overrides everything (grandfather included): a blocked account is sent to
+  // the pending screen with no tabs. The admin can never be blocked.
+  const blockUser = () => {
+    const em = adminNewBlocked.trim().toLowerCase();
+    if (!em || em.indexOf("@") < 0) { flash("Enter a valid email"); return; }
+    if (ADMINS.indexOf(em) >= 0) { flash("You can't block the admin account"); return; }
+    const blocked = (sharedConfig.blocked || []).filter((x) => x !== em);
+    blocked.push(em);
+    const approved = (sharedConfig.approved || []).filter((x) => x !== em);
+    saveSharedConfig({ ...sharedConfig, blocked, approved });
+    setAdminNewBlocked("");
+  };
+  const unblockUser = (email) => {
+    const blocked = (sharedConfig.blocked || []).filter((x) => x !== email);
+    saveSharedConfig({ ...sharedConfig, blocked });
+  };
   const setAccessContactField = (field, value) => {
     const accessContact = { ...DEFAULT_ACCESS_CONTACT, ...(sharedConfig.accessContact || {}), [field]: value };
     saveSharedConfig({ ...sharedConfig, accessContact });
@@ -5496,11 +5513,12 @@ function FollowUpDesk() {
   // or holding any sensitive-tab access — always counts as approved, regardless of date.
   const accountCreatedMs = (user && user.metadata && user.metadata.creationTime) ? Date.parse(user.metadata.creationTime) : 0;
   const accountIsNew = accountCreatedMs >= APPROVAL_CUTOFF; // only true when we can prove the account was made after the gate went live
-  const isApproved = isAdmin
-    || !accountIsNew
+  const isBlocked = !isAdmin && (sharedConfig.blocked || []).indexOf(myEmailLc) >= 0;
+  const isApproved = isAdmin || (!isBlocked && (
+       !accountIsNew
     || (sharedConfig.approved || []).indexOf(myEmailLc) >= 0
     || Object.keys(myOverride).length > 0
-    || uspsHasAccess || acctHasAccess || newsletterHasAccess || srHasAccess;
+    || uspsHasAccess || acctHasAccess || newsletterHasAccess || srHasAccess));
   const accessContact = { ...DEFAULT_ACCESS_CONTACT, ...(sharedConfig.accessContact || {}) };
   if (cloudOn && user && user.emailVerified && !isApproved) {
     const subj = encodeURIComponent("BDI University access request");
@@ -7067,6 +7085,24 @@ function FollowUpDesk() {
               <input className="fd-input" placeholder="Email to approve (e.g. jdoe@bdico.com)" value={adminNewApproved}
                 onChange={(e) => setAdminNewApproved(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") approveUser(); }} />
               <button className="fd-btn primary" onClick={approveUser}>Approve</button>
+            </div>
+          </div>
+
+          <div className="fd-panel" style={{ marginTop: 16 }}>
+            <div className="fd-group-head">Blocked accounts <span className="fd-count">full revoke</span></div>
+            <p className="fd-sub" style={{ fontSize: 12.5, margin: "2px 0 10px" }}>Blocking sends an account straight to the "pending" screen with no tabs — even a long-time user — overriding every other grant. Use it to fully revoke access. Unblock to restore. (You can't block yourself.)</p>
+            {(sharedConfig.blocked || []).length === 0 ? (
+              <p className="fd-sub" style={{ fontSize: 13, margin: 0 }}>No one is blocked.</p>
+            ) : (sharedConfig.blocked || []).map((em) => (
+              <div className="fd-admin-link" key={em} style={{ borderTop: "none" }}>
+                <span style={{ wordBreak: "break-all" }}>{em}</span>
+                <button className="fd-icon-btn sm" title="Unblock" onClick={() => unblockUser(em)}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="fd-admin-addtab">
+              <input className="fd-input" placeholder="Email to block (revokes all access)" value={adminNewBlocked}
+                onChange={(e) => setAdminNewBlocked(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") blockUser(); }} />
+              <button className="fd-btn" style={{ borderColor: "var(--danger-line)", color: "var(--danger)" }} onClick={blockUser}>Block</button>
             </div>
           </div>
 
