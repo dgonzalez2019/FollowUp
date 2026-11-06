@@ -1036,11 +1036,10 @@ if (configFilled && typeof firebase !== "undefined") {
 const cloudOn = !!fbAuth && !!fbDb;
 const ADMINS = ["dgonzalez@bdico.com"]; // admin login email(s)
 // Accounts created on/after this moment start with NO tab access and must be
-// approved by the admin (see isApproved). It's set to the end of launch day in
-// Eastern time, so EVERY account that already existed when the gate shipped is
-// grandfathered in (and anyone created earlier that day is un-gated); only genuinely
-// new sign-ups, from the next day onward, are gated.
-const APPROVAL_CUTOFF = Date.parse("2026-11-07T05:00:00Z"); // 2026-11-07 00:00 America/New_York
+// approved by the admin (see isApproved). It's set to the moment the gate went
+// live; every account that already existed is grandfathered in, and only sign-ups
+// from this point on are gated.
+const APPROVAL_CUTOFF = Date.parse("2026-11-06T15:38:29Z"); // gate went live
 const DEFAULT_ACCESS_CONTACT = { email: "dgonzalez@bdico.com", phone: "", note: "" };
 
 function friendlyAuthError(e) {
