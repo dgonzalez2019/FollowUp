@@ -1036,9 +1036,11 @@ if (configFilled && typeof firebase !== "undefined") {
 const cloudOn = !!fbAuth && !!fbDb;
 const ADMINS = ["dgonzalez@bdico.com"]; // admin login email(s)
 // Accounts created on/after this moment start with NO tab access and must be
-// approved by the admin (see isApproved). Accounts created before it are
-// grandfathered in, so turning this on never locks out existing employees.
-const APPROVAL_CUTOFF = Date.parse("2026-11-06T00:00:00Z");
+// approved by the admin (see isApproved). It's set to the end of launch day in
+// Eastern time, so EVERY account that already existed when the gate shipped is
+// grandfathered in (and anyone created earlier that day is un-gated); only genuinely
+// new sign-ups, from the next day onward, are gated.
+const APPROVAL_CUTOFF = Date.parse("2026-11-07T05:00:00Z"); // 2026-11-07 00:00 America/New_York
 const DEFAULT_ACCESS_CONTACT = { email: "dgonzalez@bdico.com", phone: "", note: "" };
 
 function friendlyAuthError(e) {
@@ -5489,13 +5491,15 @@ function FollowUpDesk() {
   };
   const activeCustomTab = sharedConfig.customTabs.find((t) => t.id === section);
   // Approval gate. A newly created account (made on/after APPROVAL_CUTOFF) sees no
-  // tabs until the admin approves it. Existing accounts are grandfathered, and being
-  // granted any tab (approved list, or any sensitive-tab access) counts as approved.
+  // tabs until the admin approves it. Existing accounts are grandfathered, and anyone
+  // the admin has ever set up — on the approved list, with a per-person tab override,
+  // or holding any sensitive-tab access — always counts as approved, regardless of date.
   const accountCreatedMs = (user && user.metadata && user.metadata.creationTime) ? Date.parse(user.metadata.creationTime) : 0;
   const accountIsNew = accountCreatedMs >= APPROVAL_CUTOFF; // only true when we can prove the account was made after the gate went live
   const isApproved = isAdmin
     || !accountIsNew
     || (sharedConfig.approved || []).indexOf(myEmailLc) >= 0
+    || Object.keys(myOverride).length > 0
     || uspsHasAccess || acctHasAccess || newsletterHasAccess || srHasAccess;
   const accessContact = { ...DEFAULT_ACCESS_CONTACT, ...(sharedConfig.accessContact || {}) };
   if (cloudOn && user && user.emailVerified && !isApproved) {
