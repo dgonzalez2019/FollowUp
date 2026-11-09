@@ -3810,14 +3810,18 @@ function FollowUpDesk() {
   }, []);
 
   // Register this account in a shared directory (accounts/{uid}) so the admin can
-  // approve people from a list instead of typing emails. Runs for every verified
-  // signed-in user, including ones still waiting at the approval gate.
+  // approve people from a list instead of typing emails. Runs for any signed-in user
+  // — including brand-new, not-yet-verified sign-ups — so a request shows up right
+  // away. We record whether they've verified; the admin list flags unverified ones.
+  // (Firestore rules still require an @bdico.com account, so non-BDN sign-ups can't
+  // write themselves in.)
   useEffect(() => {
-    if (!cloudOn || !user || !user.emailVerified) return;
+    if (!cloudOn || !user) return;
     try {
       fbDb.collection("accounts").doc(user.uid).set({
         email: ((user.email || "").toLowerCase()),
         createdAt: (user.metadata && user.metadata.creationTime) ? user.metadata.creationTime : "",
+        verified: !!user.emailVerified,
         lastSeen: Date.now(),
       }, { merge: true }).catch(() => {});
     } catch (e) {}
@@ -7202,9 +7206,9 @@ function FollowUpDesk() {
               // approved or blocked, so prior approvals never disappear from this list
               // (even before the accounts directory is populated).
               const byEmail = {};
-              (accountsList || []).forEach((a) => { const em = (a.email || "").toLowerCase(); if (em) byEmail[em] = { em, createdAt: a.createdAt || "" }; });
-              approved.forEach((em) => { em = (em || "").toLowerCase(); if (em && !byEmail[em]) byEmail[em] = { em, createdAt: "" }; });
-              blocked.forEach((em) => { em = (em || "").toLowerCase(); if (em && !byEmail[em]) byEmail[em] = { em, createdAt: "" }; });
+              (accountsList || []).forEach((a) => { const em = (a.email || "").toLowerCase(); if (em) byEmail[em] = { em, createdAt: a.createdAt || "", verified: a.verified }; });
+              approved.forEach((em) => { em = (em || "").toLowerCase(); if (em && !byEmail[em]) byEmail[em] = { em, createdAt: "", verified: true }; });
+              blocked.forEach((em) => { em = (em || "").toLowerCase(); if (em && !byEmail[em]) byEmail[em] = { em, createdAt: "", verified: true }; });
               const rows = Object.values(byEmail).map((a) => {
                 const em = a.em;
                 const createdMs = Date.parse(a.createdAt || "") || 0;
@@ -7212,9 +7216,10 @@ function FollowUpDesk() {
                 const isApp = approved.indexOf(em) >= 0;
                 const isBlk = blocked.indexOf(em) >= 0;
                 const isGrand = createdMs > 0 && createdMs < APPROVAL_CUTOFF;
+                const verified = a.verified !== false; // undefined (older docs) counts as verified
                 const status = isBlk ? "Blocked" : isAdm ? "Admin" : isApp ? "Approved" : isGrand ? "Has access" : "Pending";
                 const rank = status === "Pending" ? 0 : status === "Blocked" ? 1 : 2;
-                return { em, isAdm, isApp, isBlk, isGrand, status, rank };
+                return { em, isAdm, isApp, isBlk, isGrand, verified, status, rank };
               }).filter((r) => r.em);
               rows.sort((a, b) => a.rank - b.rank || a.em.localeCompare(b.em));
               const colorFor = (s) => s === "Pending" ? "var(--danger)" : s === "Blocked" ? "var(--muted)" : s === "Admin" ? "var(--accent)" : "var(--ok)";
@@ -7225,6 +7230,7 @@ function FollowUpDesk() {
                     <div className="fd-admin-link" key={r.em} style={{ borderTop: "none", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ wordBreak: "break-all", flex: 1, minWidth: 140 }}>{r.em}</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: colorFor(r.status), textTransform: "uppercase", letterSpacing: ".04em" }}>{r.status}</span>
+                      {!r.verified ? <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".04em" }} title="Hasn't clicked their email verification link yet — can't sign in until they do">· unverified</span> : null}
                       {!r.isAdm && !r.isApp && !r.isGrand && !r.isBlk ? (
                         <button className="fd-btn primary sm" onClick={() => approveEmail(r.em)}>Approve</button>
                       ) : null}
